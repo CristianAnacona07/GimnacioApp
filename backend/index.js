@@ -10,11 +10,14 @@ app.use(cors({
   origin: [
     'https://gimnacio-app.vercel.app',
     'https://gimnacio-app-git-main-cristianfelipe07-5614s-projects.vercel.app',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://localhost:4200',
+    
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
 }));
 app.use(express.json()); // Para que el servidor entienda formato JSON
 
