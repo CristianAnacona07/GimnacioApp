@@ -9,6 +9,7 @@ const app = express();
 app.use(cors({
   origin: [
     'https://gimnacio-app.vercel.app',
+    'https://gimnasio-app-git-main-cristianfelipe07-5614s-projects.vercel.app',
     'http://localhost:3000'
   ],
   credentials: true,
