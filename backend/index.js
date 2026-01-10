@@ -7,9 +7,13 @@ const app = express();
 
 // Middlewares
 app.use(cors({
-    origin: ['https://gimnasio-app.vercel.app', 'http://localhost:3000'], // Reemplaza con el dominio de tu app en Vercel
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
+  origin: [
+    'https://gimnacio-app.vercel.app',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json()); // Para que el servidor entienda formato JSON
 
