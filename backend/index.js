@@ -33,6 +33,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/rutinas', require('./routes/rutina'));
 app.use('/api/noticias', require('./routes/noticia'));
 app.use('/api/planes', require('./routes/planes'));
+app.use('/api/pagos', require('./routes/pagos'));
 
 // Puerto dinamico
 const PORT = process.env.PORT || 3000;
