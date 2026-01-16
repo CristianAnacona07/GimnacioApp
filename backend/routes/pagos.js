@@ -69,5 +69,5 @@ router.delete('/:id', async (req, res) => {
 
 
 
-// ... El resto de tus rutas (GET ID, PUT, DELETE) están perfectas con MetodoPago
+
 module.exports = router;

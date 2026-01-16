@@ -1,3 +1,4 @@
+
 const express = require('express');
 const router = express.Router();
 const Rutina = require('../models/rutina');
@@ -5,12 +6,14 @@ const Rutina = require('../models/rutina');
 // 1. Ruta para CREAR o ASIGNAR una rutina a un socio (La usa el Admin)
 router.post('/asignar', async (req, res) => {
     try {
-        const { usuarioId, nombre, ejercicios } = req.body;
+        const { usuarioId, nombre, ejercicios, dia, enfoque } = req.body;
 
         const nuevaRutina = new Rutina({
             usuarioId,
             nombre,
-            ejercicios
+            ejercicios,
+            dia,
+            enfoque
         });
 
         await nuevaRutina.save();
