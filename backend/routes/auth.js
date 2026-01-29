@@ -123,13 +123,19 @@ router.get('/perfil/:id', async (req, res) => {
         const usuario = await User.findById(req.params.id);
         if (!usuario) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
-        // LÓGICA DE VENCIMIENTO (El "12" de tu card)
+        // ✅ LÓGICA DE VENCIMIENTO CORREGIDA
         let diasRestantes = 0;
         if (usuario.fechaVencimiento) {
+            // ✅ Resetear horas para comparar solo días
             const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            
             const vencimiento = new Date(usuario.fechaVencimiento);
-            const diferencia = vencimiento.getTime() - hoy.getTime();
-            diasRestantes = Math.ceil(diferencia / (1000 * 60 * 60 * 24));
+            vencimiento.setHours(0, 0, 0, 0);
+            
+            const diferenciaMs = vencimiento.getTime() - hoy.getTime();
+            diasRestantes = Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24));
+            
             if (diasRestantes < 0) diasRestantes = 0; // Si ya venció
         }
 
