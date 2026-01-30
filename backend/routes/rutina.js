@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Rutina = require('../models/rutina');
+const cron = require('node-cron');
 
 // 1. Ruta para CREAR o ASIGNAR una rutina a un socio (La usa el Admin)
 router.post('/asignar', async (req, res) => {
@@ -56,5 +57,38 @@ router.delete('/eliminar/:id', async (req, res) => {
         res.status(500).json({ mensaje: 'Error al borrar', error: error.message });
     }
 });
+
+// Ruta específica para marcar un ejercicio como completado
+// ✅ Correcto: Solo defines lo que viene DESPUÉS de /api/rutinas
+router.patch('/:rutinaId/ejercicio/:ejercicioIdx', async (req, res) => {
+    try {
+        const { rutinaId, ejercicioIdx } = req.params;
+        const { completado } = req.body;
+
+        // Esto actualiza el elemento exacto dentro del array de ejercicios
+        const rutina = await Rutina.findByIdAndUpdate(
+            rutinaId,
+            { $set: { [`ejercicios.${ejercicioIdx}.completado`]: completado } },
+            { new: true }
+        );
+
+        if (!rutina) return res.status(404).json({ mensaje: 'No existe esa rutina' });
+
+        res.json(rutina);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+function iniciarLimpiezaDiaria() {
+    cron.schedule('0 0 * * *', async () => {
+        try {
+            await Rutina.updateMany({}, { $set: { "ejercicios.$[].completado": false } });
+            console.log('🧹 Limpieza completada: Rutinas reseteadas');
+        } catch (error) {
+            console.log('❌ Error en cron:', error.message);
+        }
+    }, { timezone: "America/Bogota" });
+}
+iniciarLimpiezaDiaria();
 
 module.exports = router;

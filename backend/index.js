@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const axios = require('axios');
+const cron = require('node-cron');
+const Rutina = require('./models/rutina');
 require('dotenv').config();
 
 const app = express();
@@ -46,6 +48,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     iniciarKeepAlive(); // Activa el auto-ping
+    iniciarLimpiezaDiaria(); // Activa la tarea programada
 });
 
 // 6. Función Keep-Alive (Evita que Render se duerma)
@@ -60,4 +63,26 @@ function iniciarKeepAlive() {
       console.log('⚠️ Error en el auto-ping:', error.message);
     }
   }, 13 * 60 * 1000); // Cada 13 minutos
+}
+
+// 7. Tarea Programada: Reinicio a Medianoche
+function iniciarLimpiezaDiaria() {
+  // Se ejecuta a las 00:00 (medianoche)
+  cron.schedule('0 0 * * *', async () => {
+    try {
+      // Esta línea busca todas las rutinas y resetea el campo 'completado' 
+      // de todos los ejercicios dentro del array.
+      await Rutina.updateMany(
+        {}, 
+        { $set: { "ejercicios.$[].completado": false } }
+      );
+      console.log('🧹 Limpieza completada: Rutinas reseteadas para el nuevo día');
+    } catch (error) {
+      console.log('❌ Error en limpieza diaria:', error.message);
+    }
+  }, {
+    timezone: "America/Bogota" // Ajustado a tu zona horaria
+  });
+ 
+
 }
