@@ -26,15 +26,47 @@ app.use(express.json({ limit: '10mb'}));
 app.use(express.urlencoded({limit: '10mb', extended: true }));
 
 // 2. Ruta de Salud (Para UptimeRobot)
-app.get('/health', (req, res) => {
-  res.status(200).send('Servidor Despierto');
+app.get('/health', async (req, res) => {
+  try {
+    // Esto obliga a MongoDB a reaccionar
+    await mongoose.connection.db.admin().ping(); 
+    res.status(200).send('Servidor y Base de Datos Despiertos');
+  } catch (err) {
+    res.status(500).send('Error al despertar DB');
+  }
 });
+
+// Agregar esta ruta DESPUÉS del /health
+app.get('/keep-alive', async (req, res) => {
+  try {
+    // Consulta rápida a la BD para asegurar que está despierta
+    await Rutina.countDocuments().lean();
+    
+    console.log('✅ Keep-Alive: Todo funciona correctamente');
+    res.status(200).json({
+      status: 'success',
+      message: 'Servidor y BD despiertos',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error en keep-alive:', error.message);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Error al verificar BD'
+    });
+  }
+});
+
 
 // 3. Conexión a MongoDB
 const MONGO_URI = process.env.MONGO_URI;
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('✅ Conectado a MongoDB'))
-    .catch(err => console.error('❌ Error de conexión:', err));
+// 3. Conexión a MongoDB con Timeouts
+mongoose.connect(MONGO_URI, {
+  serverSelectionTimeoutMS: 5000, // Máximo 5 segundos para encontrar el servidor de BD
+  socketTimeoutMS: 45000,         // Cierra conexiones inactivas para liberar memoria
+})
+.then(() => console.log('✅ Conectado a MongoDB'))
+.catch(err => console.error('❌ Error de conexión:', err));
 
 // 4. Rutas de tu API
 app.use('/api/auth', require('./routes/auth'));
@@ -53,16 +85,16 @@ app.listen(PORT, () => {
 
 // 6. Función Keep-Alive (Evita que Render se duerma)
 function iniciarKeepAlive() {
-  const URL = 'https://gimnacioapp-backend-1.onrender.com/health'; 
+  const URL = 'https://gimnacioapp-backend-1.onrender.com/keep-alive';
 
   setInterval(async () => {
     try {
-      await axios.get(URL);
-      console.log('✅ Auto-ping enviado con éxito');
+      const response = await axios.get(URL);
+      console.log('✅ Auto-ping:', response.data.message);
     } catch (error) {
-      console.log('⚠️ Error en el auto-ping:', error.message);
+      console.log('⚠️ Error en auto-ping:', error.message);
     }
-  }, 13 * 60 * 1000); // Cada 13 minutos
+  }, 10 * 60 * 1000); // Cada 10 minutos (más frecuente)
 }
 
 // 7. Tarea Programada: Reinicio a Medianoche
