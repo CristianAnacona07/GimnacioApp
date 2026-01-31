@@ -5,7 +5,8 @@ const axios = require('axios');
 const cron = require('node-cron');
 const compression = require('compression');
 const NodeCache = require('node-cache');
-const Rutina = require('./models/rutina'); // Asegúrate de que la ruta sea correcta
+const Rutina = require('./models/rutina'); 
+
 require('dotenv').config();
 
 const app = express();
