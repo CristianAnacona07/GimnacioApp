@@ -10,16 +10,15 @@ const Rutina = require('./models/rutina');
 require('dotenv').config();
 
 const app = express();
-const SELF_PING_URL = "https://gimnacioapp-backend-1.onrender.com/health";
 
 // --- CONFIGURACIÓN DE CACHÉ ---
 const cache = new NodeCache({ 
-  stdTTL: 600,      // 10 minutos de vida por defecto
-  checkperiod: 120  // Limpia expirados cada 2 minutos
+  stdTTL: 600,      
+  checkperiod: 120  
 });
 
 // --- MIDDLEWARES ---
-app.use(compression()); // Comprime respuestas para mayor velocidad
+app.use(compression()); 
 app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
@@ -43,92 +42,56 @@ app.use(express.json({ limit: '10mb'}));
 app.use(express.urlencoded({limit: '10mb', extended: true }));
 
 // --- LÓGICA DE CACHÉ INTELIGENTE ---
-// Función para limpiar caché de un usuario específico tras un cambio (POST/PUT/DELETE)
 const clearUserCache = (userId) => {
   if (!userId) return;
   const keys = cache.keys();
   const userKeys = keys.filter(key => key.includes(`cache_${userId}`));
   userKeys.forEach(key => cache.del(key));
-  console.log(`🧹 Memoria liberada para el guerrero: ${userId}`);
 };
 app.set('clearUserCache', clearUserCache);
 
-// Middleware para servir y guardar caché en peticiones GET
 app.use((req, res, next) => {
-  // ⚡ EXCLUYE rutas de autenticación y sistema del caché
   const excludedPaths = ['/health', '/keep-alive', '/api/auth/login', '/api/auth/register'];
-  
   if (req.method !== 'GET' || excludedPaths.some(path => req.path.includes(path))) {
     return next();
   }
-
-  // Usamos el ID del usuario o el email desde los headers para separar el caché
   const userIdentifier = req.headers['user-id'] || 'publico';
   const key = `cache_${userIdentifier}_${req.originalUrl}`;
   const cachedResponse = cache.get(key);
+  if (cachedResponse) return res.json(cachedResponse);
 
-  if (cachedResponse) {
-    console.log(`🎯 Drakkar Cache HIT: ${key}`);
-    return res.json(cachedResponse);
-  }
-
-  // Interceptamos la respuesta para guardarla en caché si es exitosa
   const originalJson = res.json.bind(res);
   res.json = (data) => {
-    if (res.statusCode === 200) {
-      cache.set(key, data); 
-    }
+    if (res.statusCode === 200) cache.set(key, data); 
     return originalJson(data);
   };
   next();
 });
 
-// --- RUTAS DE SISTEMA (Keep-Alive & Health) ---
-app.get('/health', async (req, res) => {
-  try {
-    // Intentamos buscar una rutina cualquiera para activar la BD
-    const warmUpDB = await Rutina.findOne().lean(); 
-    
-    console.log("⚓ Latido Drakkar: Servidor y BD activos"); // Log para ver en Render
-    
-    res.status(200).json({ 
-      status: 'viking_active', 
-      db: 'connected',
-      warm: !!warmUpDB 
-    });
-  } catch (err) {
-    console.error("❌ Error en Latido:", err.message);
-    res.status(500).json({ status: 'error', details: err.message });
-  }
-});
-
-app.get('/keep-alive', async (req, res) => {
-  try {
-    // Solo golpeamos la BD si no hay un ping reciente en caché
-    if (!cache.get('db_warm')) {
-      await Rutina.findOne().lean();
-      cache.set('db_warm', true, 60);
-    }
-    res.status(200).json({ message: 'Drakkar Server Awake', timestamp: new Date() });
-  } catch (error) {
-    res.status(500).json({ error: 'DB_SLEEPING' });
-  }
-});
-
-// --- CONEXIÓN A MONGO CON OPTIMIZACIÓN ---
-const MONGO_URI = process.env.MONGO_URI;
-mongoose.connect(MONGO_URI, {
-  maxPoolSize: 10,
-  minPoolSize: 2,
-  serverSelectionTimeoutMS: 8000, 
-  socketTimeoutMS: 45000,
-  family: 4 // Fuerza IPv4 para evitar lags de resolución DNS
-})
-.then(() => {
+// --- CONEXIÓN A MONGO (OPTIMIZADA PARA VERCEL) ---
+let cachedDb = null;
+const connectDB = async () => {
+  if (cachedDb && mongoose.connection.readyState >= 1) return cachedDb;
+  
+  // Optimizaciones de conexión para evitar lags en Serverless
+  cachedDb = await mongoose.connect(process.env.MONGO_URI, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    family: 4 
+  });
   console.log('✅ Conectado a MongoDB (Valhalla Mode)');
-  crearIndices();
-})
-.catch(err => console.error('❌ Error de conexión:', err));
+  return cachedDb;
+};
+
+// Middleware para asegurar conexión antes de cada ruta
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    res.status(500).json({ error: "Error de conexión a la BD" });
+  }
+});
 
 // --- RUTAS DE API ---
 app.use('/api/auth', require('./routes/auth'));
@@ -137,50 +100,15 @@ app.use('/api/noticias', require('./routes/noticia'));
 app.use('/api/planes', require('./routes/planes'));
 app.use('/api/pagos', require('./routes/pagos'));
 
-// Ruta manual para limpiar todo el caché (Solo desarrollo)
-app.post('/api/admin/clear-all-cache', (req, res) => {
-  cache.flushAll();
-  res.json({ message: 'Caché global reseteado' });
-});
+app.get('/health', (req, res) => res.status(200).json({ status: 'viking_active' }));
 
-// --- TAREAS PROGRAMADAS Y PUERTO ---
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-    console.log(`🚀 Drakkar Gym volando en puerto ${PORT}`);
-    iniciarLimpiezaDiaria();
-});
-
-function iniciarLimpiezaDiaria() {
-  cron.schedule('0 0 * * *', async () => {
-    try {
-      await Rutina.updateMany({}, { $set: { "ejercicios.$[].completado": false } });
-      cache.flushAll(); // Limpiamos caché al resetear el día
-      console.log('🧹 Rutinas diarias reseteadas exitosamente');
-    } catch (error) {
-      console.error('❌ Error en limpieza:', error.message);
-    }
-  }, { timezone: "America/Bogota" });
+// --- ADAPTACIÓN FINAL PARA VERCEL ---
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 10000;
+    app.listen(PORT, () => {
+        console.log(`🚀 Drakkar Gym volando en puerto ${PORT}`);
+    });
 }
 
-async function crearIndices() {
-  try {
-    // Índices cruciales para velocidad de búsqueda
-    // El índice de email en User ya existe por "unique: true" en el schema
-    await Rutina.collection.createIndex({ usuarioId: 1 });
-    
-    console.log('✅ Índices de rendimiento creados');
-  } catch (error) {
-    console.log('⚠️ Aviso de índices:', error.message);
-  }
-}
-
-
-setInterval(async () => {
-  try {
-    await axios.get(SELF_PING_URL);
-    // Este es el log que verás en el dashboard de Render cada 13 minutos
-    console.log('⚓ Auto-ping interno: Manteniendo el barco a flote'); 
-  } catch (err) {
-    console.log('⚠️ Auto-ping interno fallido: El servidor podría estar dormido');
-  }
-}, 13 * 60 * 1000); // 13 minutos
+// Vercel necesita que exportemos la app
+module.exports = app;
