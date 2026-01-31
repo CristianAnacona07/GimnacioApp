@@ -10,6 +10,7 @@ const Rutina = require('./models/rutina');
 require('dotenv').config();
 
 const app = express();
+const SELF_PING_URL = "https://gimnacioapp-backend-1.onrender.com/health";
 
 // --- CONFIGURACIÓN DE CACHÉ ---
 const cache = new NodeCache({ 
@@ -85,9 +86,18 @@ app.use((req, res, next) => {
 // --- RUTAS DE SISTEMA (Keep-Alive & Health) ---
 app.get('/health', async (req, res) => {
   try {
-    await mongoose.connection.db.admin().ping(); 
-    res.status(200).json({ status: 'viking_active', db: 'connected' });
+    // Intentamos buscar una rutina cualquiera para activar la BD
+    const warmUpDB = await Rutina.findOne().lean(); 
+    
+    console.log("⚓ Latido Drakkar: Servidor y BD activos"); // Log para ver en Render
+    
+    res.status(200).json({ 
+      status: 'viking_active', 
+      db: 'connected',
+      warm: !!warmUpDB 
+    });
   } catch (err) {
+    console.error("❌ Error en Latido:", err.message);
     res.status(500).json({ status: 'error', details: err.message });
   }
 });
@@ -163,3 +173,14 @@ async function crearIndices() {
     console.log('⚠️ Aviso de índices:', error.message);
   }
 }
+
+
+setInterval(async () => {
+  try {
+    await axios.get(SELF_PING_URL);
+    // Este es el log que verás en el dashboard de Render cada 13 minutos
+    console.log('⚓ Auto-ping interno: Manteniendo el barco a flote'); 
+  } catch (err) {
+    console.log('⚠️ Auto-ping interno fallido: El servidor podría estar dormido');
+  }
+}, 13 * 60 * 1000); // 13 minutos
