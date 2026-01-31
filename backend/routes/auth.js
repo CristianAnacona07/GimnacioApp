@@ -5,17 +5,16 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
 // --- UTILIDAD DE CACHÉ ---
-// Función para limpiar el caché del usuario específico cuando hay cambios
 const invalidarCacheSocio = (req, userId) => {
     const clearCache = req.app.get('clearUserCache');
     if (clearCache && userId) clearCache(userId);
 };
 
-// 1. Registro (Sin cambios mayores, solo consistencia)
+// 1. Registro
 router.post('/register', async (req, res) => {
     try {
         const { nombre, email, password, role } = req.body;
-        let usuarioExiste = await User.findOne({ email }).lean(); // .lean() para rapidez
+        let usuarioExiste = await User.findOne({ email }).lean();
         
         if (usuarioExiste) {
             return res.status(400).json({ mensaje: 'El correo ya está registrado' });
@@ -25,7 +24,9 @@ router.post('/register', async (req, res) => {
         const passwordHasheada = await bcrypt.hash(password, salt);
 
         const nuevoUsuario = new User({
-            nombre, email, password: passwordHasheada,
+            nombre, 
+            email: email.toLowerCase().trim(),
+            password: passwordHasheada,
             role: role || 'socio'
         });
 
@@ -36,50 +37,76 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// 2. Login (Optimizado con .lean() para respuesta inmediata)
+// 2. Login - OPTIMIZADO CON LOGS DE DIAGNÓSTICO
 router.post('/login', async (req, res) => {
+    console.time('⏱️ Login Total');
+    
     try {
         const { email, password } = req.body;
-        const usuario = await User.findOne({ email }).lean(); 
         
-        if (!usuario) return res.status(400).json({ mensaje: 'Usuario no encontrado' });
+        console.time('🔍 DB Query');
+        const usuario = await User.findOne({ email: email.toLowerCase().trim() }).lean(); 
+        console.timeEnd('🔍 DB Query');
+        
+        if (!usuario) {
+            console.timeEnd('⏱️ Login Total');
+            return res.status(400).json({ mensaje: 'Usuario no encontrado' });
+        }
 
+        console.time('🔐 Password Check');
         const esValida = await bcrypt.compare(password, usuario.password);
-        if (!esValida) return res.status(400).json({ mensaje: 'Contraseña incorrecta' });
+        console.timeEnd('🔐 Password Check');
+        
+        if (!esValida) {
+            console.timeEnd('⏱️ Login Total');
+            return res.status(400).json({ mensaje: 'Contraseña incorrecta' });
+        }
 
+        console.time('🎫 JWT Sign');
         const token = jwt.sign(
             { id: usuario._id, role: usuario.role }, 
             process.env.JWT_SECRET || 'PALABRA_SECRETA', 
             { expiresIn: '8h' }
         );
+        console.timeEnd('🎫 JWT Sign');
+
+        console.timeEnd('⏱️ Login Total');
+        console.log(`✅ Login exitoso para: ${email}`);
 
         res.json({
             mensaje: 'Login exitoso',
             token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role }
+            usuario: { 
+                _id: usuario._id, 
+                nombre: usuario.nombre, 
+                email: usuario.email,
+                role: usuario.role 
+            }
         });
     } catch (error) {
+        console.timeEnd('⏱️ Login Total');
+        console.error('❌ Error en login:', error);
         res.status(500).json({ mensaje: 'Error en el login', error: error.message });
     }
 });
 
-// 3. Obtener todos los usuarios (Cacheable en index.js)
+// 3. Obtener todos los usuarios
 router.get('/usuarios', async (req, res) => {
     try {
         const usuarios = await User.find()
             .select('-password')
             .sort({ nombre: 1 })
-            .lean(); // Vital para el sistema de caché
+            .lean();
         res.json(usuarios);
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al obtener usuarios', error: error.message });
     }
 });
 
-// 4. Perfil del socio (Procesado y veloz)
+// 4. Perfil del socio
 router.get('/perfil/:id', async (req, res) => {
     try {
-        const usuario = await User.findById(req.params.id).lean(); // .lean() reduce carga de CPU
+        const usuario = await User.findById(req.params.id).lean();
         if (!usuario) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
         let diasRestantes = 0;
@@ -111,7 +138,7 @@ router.get('/perfil/:id', async (req, res) => {
     }
 });
 
-// 5. Actualizar Perfil (Limpia el caché para ver cambios al instante)
+// 5. Actualizar Perfil
 router.put('/actualizar-perfil/:id', async (req, res) => {
     try {
         const { nombre, mensajeMotivador, fotoUrl, datosPersonales } = req.body;
@@ -134,7 +161,6 @@ router.put('/actualizar-perfil/:id', async (req, res) => {
 
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
-        // 🔥 Invalidar caché del socio para que cargue los nuevos datos
         invalidarCacheSocio(req, req.params.id);
 
         res.json({ mensaje: 'Perfil actualizado', usuario });
@@ -143,7 +169,7 @@ router.put('/actualizar-perfil/:id', async (req, res) => {
     }
 });
 
-// 6. Renovar Membresía (Limpia caché)
+// 6. Renovar Membresía
 router.put('/renovar/:id', async (req, res) => {
     try {
         const { dias } = req.body;
@@ -156,7 +182,6 @@ router.put('/renovar/:id', async (req, res) => {
         usuario.fechaVencimiento = new Date(base.getTime() + (dias * 24 * 60 * 60 * 1000));
         await usuario.save();
 
-        // 🔥 Invalidar caché
         invalidarCacheSocio(req, req.params.id);
 
         res.json({ mensaje: 'Éxito', nuevaFecha: usuario.fechaVencimiento });

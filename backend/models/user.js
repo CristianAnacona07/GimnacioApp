@@ -8,8 +8,9 @@ const UserSchema = new mongoose.Schema({
     email: { 
         type: String, 
         required: [true, 'El correo es obligatorio'],
-        unique: true,
-        lowercase: true 
+        unique: true,      // ⚡ Esto ya crea el índice automáticamente
+        lowercase: true,
+        trim: true
     },
     password: { 
         type: String, 
@@ -22,9 +23,15 @@ const UserSchema = new mongoose.Schema({
         default: 'socio' 
     },
 
-    //perfil
-    fotoUrl: { type: String, default: '' },
-    mensajeMotivador: { type: String, default: 'HAZ QUE SUCEDA' },
+    // Perfil
+    fotoUrl: { 
+        type: String, 
+        default: '' 
+    },
+    mensajeMotivador: { 
+        type: String, 
+        default: 'HAZ QUE SUCEDA' 
+    },
     datosPersonales: {
         identificacion: { type: String, default: '' },
         fechaNacimiento: { type: String, default: '' },
@@ -36,9 +43,8 @@ const UserSchema = new mongoose.Schema({
 
     stats: {
         racha: { type: Number, default: 0 },
-        asistenciasMes: { type: Number, default: 0 } // Para el "124" de tu captura
+        asistenciasMes: { type: Number, default: 0 }
     },
-    //perfil
 
     fechaRegistro: { 
         type: Date, 
@@ -46,7 +52,12 @@ const UserSchema = new mongoose.Schema({
     },
     fechaVencimiento: { 
         type: Date
-     }
+    }
+}, {
+    timestamps: true  // ⚡ Agrega createdAt y updatedAt automáticamente
 });
+
+// ❌ REMOVIDO: UserSchema.index({ email: 1 }, { unique: true });
+// No es necesario porque ya está definido arriba con unique: true
 
 module.exports = mongoose.model('User', UserSchema);

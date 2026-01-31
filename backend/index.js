@@ -34,7 +34,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'user-id'], // Añadido user-id para el caché
+  allowedHeaders: ['Content-Type', 'Authorization', 'user-id'],
   optionsSuccessStatus: 200
 }));
 
@@ -54,7 +54,10 @@ app.set('clearUserCache', clearUserCache);
 
 // Middleware para servir y guardar caché en peticiones GET
 app.use((req, res, next) => {
-  if (req.method !== 'GET' || req.path.includes('health') || req.path.includes('keep-alive')) {
+  // ⚡ EXCLUYE rutas de autenticación y sistema del caché
+  const excludedPaths = ['/health', '/keep-alive', '/api/auth/login', '/api/auth/register'];
+  
+  if (req.method !== 'GET' || excludedPaths.some(path => req.path.includes(path))) {
     return next();
   }
 
@@ -152,7 +155,9 @@ function iniciarLimpiezaDiaria() {
 async function crearIndices() {
   try {
     // Índices cruciales para velocidad de búsqueda
+    // El índice de email en User ya existe por "unique: true" en el schema
     await Rutina.collection.createIndex({ usuarioId: 1 });
+    
     console.log('✅ Índices de rendimiento creados');
   } catch (error) {
     console.log('⚠️ Aviso de índices:', error.message);
