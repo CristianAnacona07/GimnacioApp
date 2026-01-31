@@ -9,25 +9,13 @@ require('dotenv').config();
 const app = express();
 
 // 1. Middlewares
-// 1. Middlewares optimizado
 app.use(cors({
-  origin: function (origin, callback) {
-    // Definimos los dominios permitidos
-    const allowedOrigins = [
-      'https://gimnacio-app.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:4200'
-    ];
-
-    // Permitir si no hay origin (como apps móviles o Postman) 
-    // o si el dominio termina en .vercel.app o está en nuestra lista
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-      callback(null, true);
-    } else {
-      console.log('CORS bloqueado para el origen:', origin);
-      callback(new Error('No permitido por CORS'));
-    }
-  },
+  origin: [
+    'https://gimnacio-app.vercel.app',
+    'https://gimnacio-app-git-main-cristianfelipe07-5614s-projects.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:4200',
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
