@@ -1,36 +1,38 @@
 const express = require('express');
 const router = express.Router();
 const Rutina = require('../models/rutina');
-const cron = require('node-cron');
 
-// Función auxiliar para no repetir código
-const limpiarCacheSocio = (req, usuarioId) => {
-    const clearCache = req.app.get('clearUserCache');
-    if (clearCache && usuarioId) {
-        clearCache(usuarioId);
-    }
-};
 
-// 1. CREAR o ASIGNAR (Limpia caché del socio receptor)
+// 1. CREAR o ASIGNAR (Limpio y con validación de duplicados)
 router.post('/asignar', async (req, res) => {
     try {
         const { usuarioId, nombre, ejercicios, dia, enfoque } = req.body;
+
+        // 🔍 PASO CLAVE: Verificamos si ya existe una rutina para ese socio y ese día
+        const rutinaExistente = await Rutina.findOne({ usuarioId, dia });
+
+        if (rutinaExistente) {
+            // Si la encuentra, detenemos el proceso y enviamos un error 400
+            return res.status(400).json({ 
+                mensaje: `El socio ya tiene una rutina asignada para el día ${dia}. Por favor, edita la existente o elige otro día.` 
+            });
+        }
+
+        // Si no existe, procedemos a guardar normalmente
         const nuevaRutina = new Rutina({ usuarioId, nombre, ejercicios, dia, enfoque });
         await nuevaRutina.save();
 
-        limpiarCacheSocio(req, usuarioId); // 🔥 Limpia caché
-
         res.status(201).json({ mensaje: 'Rutina asignada con éxito', rutina: nuevaRutina });
     } catch (error) {
+        console.error('❌ Error al asignar rutina:', error);
         res.status(500).json({ mensaje: 'Error al asignar rutina', error: error.message });
     }
 });
 
-// 2. OBTENER (Usa .lean() para máxima velocidad)
+// 2. OBTENER
 router.get('/:usuarioId', async (req, res) => {
     try {
         const { usuarioId } = req.params;
-        // Agregamos .lean() para que la respuesta sea un objeto JS plano y más rápido
         const rutina = await Rutina.find({ usuarioId: usuarioId }).lean(); 
         res.json(rutina);
     } catch (error) {
@@ -38,7 +40,7 @@ router.get('/:usuarioId', async (req, res) => {
     }
 });
 
-// 3. ACTUALIZAR GENERAL
+// 3. ACTUALIZAR
 router.put('/actualizar/:id', async (req, res) => {
     try {
         const rutinaActualizada = await Rutina.findByIdAndUpdate(
@@ -47,32 +49,23 @@ router.put('/actualizar/:id', async (req, res) => {
             { new: true }
         ).lean();
 
-        if (rutinaActualizada) {
-            limpiarCacheSocio(req, rutinaActualizada.usuarioId); // 🔥 Limpia caché
-        }
-
         res.json({ mensaje: 'Rutina actualizada', rutina: rutinaActualizada });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al actualizar', error: error.message });
     }
 });
 
-// 4. ELIMINAR
+// 4. ELIMINAR (Ahora instantáneo)
 router.delete('/eliminar/:id', async (req, res) => {
     try {
-        const rutina = await Rutina.findById(req.params.id);
-        if (rutina) {
-            const idSocio = rutina.usuarioId;
-            await Rutina.findByIdAndDelete(req.params.id);
-            limpiarCacheSocio(req, idSocio); // 🔥 Limpia caché tras borrar
-        }
+        await Rutina.findByIdAndDelete(req.params.id);
         res.json({ mensaje: 'Rutina borrada correctamente' });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al borrar', error: error.message });
     }
 });
 
-// 5. MARCAR EJERCICIO (PATCH)
+// 5. MARCAR EJERCICIO
 router.patch('/:rutinaId/ejercicio/:ejercicioIdx', async (req, res) => {
     try {
         const { rutinaId, ejercicioIdx } = req.params;
@@ -85,9 +78,6 @@ router.patch('/:rutinaId/ejercicio/:ejercicioIdx', async (req, res) => {
         ).lean();
 
         if (!rutina) return res.status(404).json({ mensaje: 'No existe esa rutina' });
-
-        limpiarCacheSocio(req, rutina.usuarioId); // 🔥 Limpia caché para que el socio vea el check azul
-
         res.json(rutina);
     } catch (error) {
         res.status(500).json({ error: error.message });

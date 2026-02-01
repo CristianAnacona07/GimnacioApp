@@ -4,18 +4,12 @@ const cors = require('cors');
 const axios = require('axios');
 const cron = require('node-cron');
 const compression = require('compression');
-const NodeCache = require('node-cache');
 const Rutina = require('./models/rutina'); 
 
 require('dotenv').config();
 
 const app = express();
 
-// --- CONFIGURACIÓN DE CACHÉ ---
-const cache = new NodeCache({ 
-  stdTTL: 600,      
-  checkperiod: 120  
-});
 
 // --- MIDDLEWARES ---
 app.use(compression()); 
@@ -40,34 +34,6 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb'}));
 app.use(express.urlencoded({limit: '10mb', extended: true }));
-
-// --- LÓGICA DE CACHÉ INTELIGENTE ---
-const clearUserCache = (userId) => {
-  if (!userId) return;
-  const keys = cache.keys();
-  const userKeys = keys.filter(key => key.includes(`cache_${userId}`));
-  userKeys.forEach(key => cache.del(key));
-};
-app.set('clearUserCache', clearUserCache);
-
-app.use((req, res, next) => {
-  const excludedPaths = ['/health', '/keep-alive', '/api/auth/login', '/api/auth/register'];
-  if (req.method !== 'GET' || excludedPaths.some(path => req.path.includes(path))) {
-    return next();
-  }
-  const userIdentifier = req.headers['user-id'] || 'publico';
-  const key = `cache_${userIdentifier}_${req.originalUrl}`;
-  const cachedResponse = cache.get(key);
-  if (cachedResponse) return res.json(cachedResponse);
-
-  const originalJson = res.json.bind(res);
-  res.json = (data) => {
-    if (res.statusCode === 200) cache.set(key, data); 
-    return originalJson(data);
-  };
-  next();
-});
-
 // --- CONEXIÓN A MONGO (OPTIMIZADA PARA VERCEL) ---
 let cachedDb = null;
 const connectDB = async () => {

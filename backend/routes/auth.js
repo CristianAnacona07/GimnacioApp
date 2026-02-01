@@ -139,15 +139,15 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
         const { id } = req.params;
         const datosActualizados = req.body;
 
-        // Solo admin puede actualizar otros perfiles, o el usuario su propio perfil
+        // Validación de permisos
         if (req.userId !== id && req.userRole !== 'admin') {
             return res.status(403).json({ mensaje: 'No autorizado para actualizar este perfil' });
         }
 
-        // No permitir cambiar password ni email desde aquí
+        // Limpieza de datos sensibles
         delete datosActualizados.password;
         delete datosActualizados.email;
-        delete datosActualizados.role; // Tampoco permitir cambiar role
+        delete datosActualizados.role;
 
         const usuario = await User.findByIdAndUpdate(
             id, 
@@ -159,8 +159,7 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
             return res.status(404).json({ mensaje: 'Usuario no encontrado' });
         }
 
-        invalidarCacheSocio(req, id);
-
+        // Quitamos la llamada a invalidarCacheSocio porque ya no usamos caché
         res.json({ 
             mensaje: 'Perfil actualizado exitosamente',
             usuario 
