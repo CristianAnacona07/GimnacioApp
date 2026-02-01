@@ -10,6 +10,167 @@ const invalidarCacheSocio = (req, userId) => {
     if (clearCache && userId) clearCache(userId);
 };
 
+// ✅ MIDDLEWARE DE AUTENTICACIÓN
+const verificarToken = (req, res, next) => {
+    const token = req.headers['authorization']?.replace('Bearer ', '');
+    
+    if (!token) {
+        return res.status(401).json({ mensaje: 'Token no proporcionado' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'PALABRA_SECRETA');
+        req.userId = decoded.id;
+        req.userRole = decoded.role;
+        next();
+    } catch (error) {
+        return res.status(401).json({ mensaje: 'Token inválido o expirado' });
+    }
+};
+
+// ✅ OBTENER TODOS LOS USUARIOS (SOLO ADMINS)
+router.get('/usuarios', verificarToken, async (req, res) => {
+    try {
+        // Verificar que sea admin
+        if (req.userRole !== 'admin') {
+            return res.status(403).json({ mensaje: 'Acceso denegado. Solo administradores.' });
+        }
+
+        const usuarios = await User.find()
+            .select('-password') // Excluir contraseña por seguridad
+            .sort({ createdAt: -1 }) // Más recientes primero
+            .lean(); // Mejor performance
+
+        // Calcular días restantes para cada usuario
+        const usuariosConDatos = usuarios.map(usuario => {
+            let diasRestantes = 0;
+            if (usuario.fechaVencimiento) {
+                const hoy = new Date();
+                const vencimiento = new Date(usuario.fechaVencimiento);
+                diasRestantes = Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24));
+                if (diasRestantes < 0) diasRestantes = 0;
+            }
+
+            return {
+                ...usuario,
+                diasRestantes,
+                estadoMembresia: diasRestantes > 0 ? 'activo' : 'vencido'
+            };
+        });
+
+        res.json(usuariosConDatos);
+    } catch (error) {
+        console.error('❌ Error al obtener usuarios:', error);
+        res.status(500).json({ mensaje: 'Error al obtener usuarios', error: error.message });
+    }
+});
+
+// ✅ RENOVAR MEMBRESÍA (SOLO ADMINS)
+router.put('/renovar/:id', verificarToken, async (req, res) => {
+    try {
+        if (req.userRole !== 'admin') {
+            return res.status(403).json({ mensaje: 'Acceso denegado' });
+        }
+
+        const { dias } = req.body;
+        const usuario = await User.findById(req.params.id);
+        
+        if (!usuario) {
+            return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        }
+
+        // Calcular nueva fecha de vencimiento
+        const hoy = new Date();
+        const fechaBase = usuario.fechaVencimiento && new Date(usuario.fechaVencimiento) > hoy 
+            ? new Date(usuario.fechaVencimiento) 
+            : hoy;
+        
+        fechaBase.setDate(fechaBase.getDate() + parseInt(dias));
+        usuario.fechaVencimiento = fechaBase;
+        
+        await usuario.save();
+
+        // Invalidar caché
+        invalidarCacheSocio(req, usuario._id.toString());
+
+        res.json({ 
+            mensaje: 'Membresía renovada exitosamente',
+            usuario: {
+                _id: usuario._id,
+                nombre: usuario.nombre,
+                email: usuario.email,
+                role: usuario.role,
+                fechaVencimiento: usuario.fechaVencimiento
+            }
+        });
+    } catch (error) {
+        console.error('❌ Error al renovar membresía:', error);
+        res.status(500).json({ mensaje: 'Error al renovar membresía', error: error.message });
+    }
+});
+
+// ✅ LIMPIAR MEMBRESÍA (SOLO ADMINS)
+router.put('/limpiar-membresia/:id', verificarToken, async (req, res) => {
+    try {
+        if (req.userRole !== 'admin') {
+            return res.status(403).json({ mensaje: 'Acceso denegado' });
+        }
+
+        const usuario = await User.findById(req.params.id);
+        
+        if (!usuario) {
+            return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        }
+
+        usuario.fechaVencimiento = undefined;
+        await usuario.save();
+
+        invalidarCacheSocio(req, usuario._id.toString());
+
+        res.json({ mensaje: 'Membresía limpiada exitosamente' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al limpiar membresía', error: error.message });
+    }
+});
+
+// ✅ ACTUALIZAR PERFIL
+router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const datosActualizados = req.body;
+
+        // Solo admin puede actualizar otros perfiles, o el usuario su propio perfil
+        if (req.userId !== id && req.userRole !== 'admin') {
+            return res.status(403).json({ mensaje: 'No autorizado para actualizar este perfil' });
+        }
+
+        // No permitir cambiar password ni email desde aquí
+        delete datosActualizados.password;
+        delete datosActualizados.email;
+        delete datosActualizados.role; // Tampoco permitir cambiar role
+
+        const usuario = await User.findByIdAndUpdate(
+            id, 
+            datosActualizados, 
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!usuario) {
+            return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        }
+
+        invalidarCacheSocio(req, id);
+
+        res.json({ 
+            mensaje: 'Perfil actualizado exitosamente',
+            usuario 
+        });
+    } catch (error) {
+        console.error('❌ Error al actualizar perfil:', error);
+        res.status(500).json({ mensaje: 'Error al actualizar perfil', error: error.message });
+    }
+});
+
 // Registro
 router.post('/register', async (req, res) => {
     try {

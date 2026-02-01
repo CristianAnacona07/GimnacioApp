@@ -106,7 +106,7 @@ app.get('/health', (req, res) => res.status(200).json({ status: 'viking_active' 
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 10000;
     app.listen(PORT, () => {
-        console.log(`🚀 Drakkar Gym volando en puerto ${PORT}`);
+        console.log(`🚀 volando en puerto ${PORT}`);
     });
 }
 
