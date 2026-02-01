@@ -227,6 +227,16 @@ router.get('/perfil/:id', async (req, res) => {
         const usuario = await User.findById(req.params.id).lean();
         if (!usuario) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
+        // ✅ Asegurar que datosPersonales existe con valores por defecto
+        const datosPersonales = usuario.datosPersonales || {
+            identificacion: '',
+            fechaNacimiento: '',
+            sexo: '',
+            pesoActual: 0,
+            altura: 0,
+            telefono: ''
+        };
+
         let diasRestantes = 0;
         if (usuario.fechaVencimiento) {
             const hoy = new Date();
@@ -238,9 +248,14 @@ router.get('/perfil/:id', async (req, res) => {
         res.json({
             _id: usuario._id,
             nombre: usuario.nombre,
-            fotoUrl: usuario.fotoUrl,
+            fotoUrl: usuario.fotoUrl || '',
             email: usuario.email,
-            cards: { vencimiento: diasRestantes, asistencias: usuario.stats?.asistenciasMes || 0 },
+            mensajeMotivador: usuario.mensajeMotivador || 'HAZ QUE SUCEDA',
+            datosPersonales: datosPersonales, // ✅ Incluir datosPersonales
+            cards: { 
+                vencimiento: diasRestantes, 
+                asistencias: usuario.stats?.asistenciasMes || 0 
+            },
             rol: usuario.role
         });
     } catch (error) {
