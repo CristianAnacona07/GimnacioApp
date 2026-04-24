@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Plan = require('../models/planes');
+const { verificarToken, soloAdmin } = require('../middleware/auth');
 
-// Obtener todos los planes
-router.get('/', async (req, res) => {
+// Obtener todos los planes (cualquier usuario autenticado)
+router.get('/', verificarToken, async (req, res) => {
   try {
     const planes = await Plan.find().sort({ createdAt: -1 });
     res.json(planes);
@@ -13,22 +14,19 @@ router.get('/', async (req, res) => {
 });
 
 // Obtener un plan por ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', verificarToken, async (req, res) => {
   try {
     const plan = await Plan.findById(req.params.id);
-    if (!plan) {
-      return res.status(404).json({ error: 'Plan no encontrado' });
-    }
+    if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json(plan);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Crear un plan
-router.post('/', async (req, res) => {
+// Crear un plan (solo admin)
+router.post('/', verificarToken, soloAdmin, async (req, res) => {
   try {
-    console.log('📥 Datos recibidos en backend:', req.body);
     const plan = new Plan(req.body);
     await plan.save();
     res.status(201).json(plan);
@@ -37,33 +35,26 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Actualizar un plan
-router.put('/:id', async (req, res) => {
+// Actualizar un plan (solo admin)
+router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    console.log('📝 Actualizando plan:', req.params.id);
-    console.log('📝 Nuevos datos:', req.body);
     const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!plan) {
-      return res.status(404).json({ error: 'Plan no encontrado' });
-    }
+    if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json(plan);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Eliminar un plan
-router.delete('/:id', async (req, res) => {
+// Eliminar un plan (solo admin)
+router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    console.log('🗑️ Eliminando plan:', req.params.id);
     const plan = await Plan.findByIdAndDelete(req.params.id);
-    if (!plan) {
-      return res.status(404).json({ error: 'Plan no encontrado' });
-    }
+    if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json({ mensaje: 'Plan eliminado correctamente' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-module.exports = router;    
+module.exports = router;
