@@ -66,6 +66,7 @@ app.use('/api/noticias', require('./routes/noticia'));
 app.use('/api/planes', require('./routes/planes'));
 app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/progreso', require('./routes/progreso'));
+app.use('/api/medidas', require('./routes/medidas'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 
