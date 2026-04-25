@@ -27,6 +27,21 @@ router.get('/:usuarioId', verificarToken, async (req, res) => {
   }
 });
 
+// Actualizar una medición
+router.put('/:id', verificarToken, async (req, res) => {
+  try {
+    const { peso, cintura, cadera, pecho, brazo, muslo } = req.body;
+    const medida = await Medidas.findByIdAndUpdate(
+      req.params.id,
+      { peso, cintura, cadera, pecho, brazo, muslo },
+      { new: true }
+    );
+    res.json(medida);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Eliminar una medición
 router.delete('/:id', verificarToken, async (req, res) => {
   try {
