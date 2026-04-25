@@ -34,6 +34,8 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
     if (req.body.dia && req.body.dia !== '') datosNoticia.dia = req.body.dia;
     if (req.body.horaInicio && req.body.horaInicio !== '') datosNoticia.horaInicio = req.body.horaInicio;
     if (req.body.horaFin && req.body.horaFin !== '') datosNoticia.horaFin = req.body.horaFin;
+    if (req.body.imageUrl !== undefined) datosNoticia.imageUrl = req.body.imageUrl;
+    if (req.body.whatsappUrl !== undefined) datosNoticia.whatsappUrl = req.body.whatsappUrl;
 
     const noticiaGuardada = await new Noticia(datosNoticia).save();
     res.status(201).json(noticiaGuardada);
@@ -45,13 +47,15 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
 // Actualizar una noticia (solo admin)
 router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const { titulo, descripcion, dia, horaInicio, horaFin, estado } = req.body;
+    const { titulo, descripcion, dia, horaInicio, horaFin, estado, imageUrl, whatsappUrl } = req.body;
     const datosActualizacion = { titulo, descripcion };
 
     if (dia !== undefined) datosActualizacion.dia = dia;
     if (horaInicio !== undefined) datosActualizacion.horaInicio = horaInicio;
     if (horaFin !== undefined) datosActualizacion.horaFin = horaFin;
     if (estado !== undefined) datosActualizacion.estado = estado;
+    if (imageUrl !== undefined) datosActualizacion.imageUrl = imageUrl;
+    if (whatsappUrl !== undefined) datosActualizacion.whatsappUrl = whatsappUrl;
 
     const noticia = await Noticia.findByIdAndUpdate(
       req.params.id,

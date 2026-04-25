@@ -22,6 +22,14 @@ const noticiaSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  imageUrl: {
+    type: String,
+    default: ''
+  },
+  whatsappUrl: {
+    type: String,
+    default: ''
+  },
   estado: {
     type: Boolean,
     default: true
