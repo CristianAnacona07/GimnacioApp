@@ -50,8 +50,16 @@ const UserSchema = new mongoose.Schema({
         type: Date, 
         default: Date.now 
     },
-    fechaVencimiento: { 
+    fechaVencimiento: {
         type: Date
+    },
+    resetToken: {
+        type: String,
+        default: null
+    },
+    resetTokenExpiry: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true  // ⚡ Agrega createdAt y updatedAt automáticamente

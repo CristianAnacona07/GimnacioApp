@@ -2,9 +2,96 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/user');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
+
+// Configuración del transporter de email
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// Template del email
+const emailTemplate = (nombre, resetUrl) => `
+<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12)">
+  <div style="background:linear-gradient(160deg,#1e3a8a,#0f172a);padding:28px;text-align:center">
+    <h1 style="color:#ffffff;font-size:22px;margin:0;letter-spacing:-0.5px">KODIAK GYM</h1>
+    <p style="color:#93c5fd;font-size:11px;margin:4px 0 0;letter-spacing:2px">STRENGTH · DISCIPLINE · POWER</p>
+  </div>
+  <div style="background:#f8fbff;padding:32px">
+    <h2 style="color:#1e293b;font-size:18px;margin:0 0 12px">Recuperar contraseña</h2>
+    <p style="color:#475569;font-size:14px;margin:0 0 8px">Hola <strong>${nombre}</strong>,</p>
+    <p style="color:#475569;font-size:14px;margin:0 0 24px">Recibimos una solicitud para restablecer tu contraseña. El enlace expira en <strong>1 hora</strong>.</p>
+    <div style="text-align:center;margin:24px 0">
+      <a href="${resetUrl}" style="background:#1d4ed8;color:#ffffff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block">
+        Restablecer contraseña
+      </a>
+    </div>
+    <p style="color:#94a3b8;font-size:12px;text-align:center;margin:20px 0 0">Si no solicitaste esto, ignora este correo.</p>
+  </div>
+</div>`;
+
+// ✅ OLVIDÉ MI CONTRASEÑA
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const usuario = await User.findOne({ email: email.toLowerCase().trim() });
+        if (!usuario) {
+            return res.status(404).json({ mensaje: 'No existe una cuenta con ese correo' });
+        }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        usuario.resetToken = token;
+        usuario.resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hora
+        await usuario.save();
+
+        const resetUrl = `${process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app'}/reset-password?token=${token}`;
+
+        await transporter.sendMail({
+            from: `"Kodiak Gym" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: 'Recuperar contraseña — Kodiak Gym',
+            html: emailTemplate(usuario.nombre, resetUrl)
+        });
+
+        res.json({ mensaje: 'Correo enviado. Revisa tu bandeja de entrada.' });
+    } catch (error) {
+        console.error('Error forgot-password:', error.message);
+        res.status(500).json({ mensaje: 'Error al enviar el correo', error: error.message });
+    }
+});
+
+// ✅ RESTABLECER CONTRASEÑA
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { token, nuevaPassword } = req.body;
+
+        const usuario = await User.findOne({
+            resetToken: token,
+            resetTokenExpiry: { $gt: Date.now() }
+        });
+
+        if (!usuario) {
+            return res.status(400).json({ mensaje: 'El enlace es inválido o ya expiró' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        usuario.password = await bcrypt.hash(nuevaPassword, salt);
+        usuario.resetToken = null;
+        usuario.resetTokenExpiry = null;
+        await usuario.save();
+
+        res.json({ mensaje: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al restablecer contraseña', error: error.message });
+    }
+});
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '976541861094-pcm89afbvhdi6fttf7si2cc7gbtuf2pn.apps.googleusercontent.com';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
