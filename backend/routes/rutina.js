@@ -58,6 +58,32 @@ router.delete('/eliminar/:id', verificarToken, soloAdmin, async (req, res) => {
     }
 });
 
+// RESET DIARIO — pone todos los completado en false
+router.patch('/reset-dia/:usuarioId', verificarToken, async (req, res) => {
+    try {
+        await Rutina.updateMany(
+            { usuarioId: req.params.usuarioId },
+            { $set: { 'ejercicios.$[].completado': false } }
+        );
+        res.json({ mensaje: 'Ejercicios reseteados correctamente' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// RESET DIARIO — pone todos los completado en false
+router.patch('/reset-dia/:usuarioId', verificarToken, async (req, res) => {
+    try {
+        await Rutina.updateMany(
+            { usuarioId: req.params.usuarioId },
+            { $set: { 'ejercicios.$[].completado': false } }
+        );
+        res.json({ mensaje: 'Ejercicios reseteados' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // MARCAR EJERCICIO COMPLETADO (usuario autenticado)
 router.patch('/:rutinaId/ejercicio/:ejercicioIdx', verificarToken, async (req, res) => {
     try {

@@ -2,8 +2,55 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/user');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '976541861094-pcm89afbvhdi6fttf7si2cc7gbtuf2pn.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+// ✅ LOGIN CON GOOGLE
+router.post('/google', async (req, res) => {
+    try {
+        const { credential } = req.body;
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: GOOGLE_CLIENT_ID
+        });
+
+        const { email, name, picture, sub } = ticket.getPayload();
+
+        let usuario = await User.findOne({ email: email.toLowerCase() });
+
+        if (!usuario) {
+            const salt = await bcrypt.genSalt(10);
+            usuario = new User({
+                nombre: name,
+                email: email.toLowerCase(),
+                password: await bcrypt.hash(sub + Date.now(), salt),
+                role: 'socio',
+                fotoUrl: picture || ''
+            });
+            await usuario.save();
+        }
+
+        const token = jwt.sign(
+            { id: usuario._id, role: usuario.role },
+            process.env.JWT_SECRET || 'PALABRA_SECRETA',
+            { expiresIn: '8h' }
+        );
+
+        res.json({
+            mensaje: 'Login con Google exitoso',
+            token,
+            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role }
+        });
+    } catch (error) {
+        console.error('Error Google auth:', error.message);
+        res.status(401).json({ mensaje: 'Autenticación con Google fallida' });
+    }
+});
 
 // ✅ OBTENER TODOS LOS USUARIOS (SOLO ADMINS)
 router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
