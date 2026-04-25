@@ -99,14 +99,24 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 // ✅ LOGIN CON GOOGLE
 router.post('/google', async (req, res) => {
     try {
-        const { credential } = req.body;
+        const { credential, access_token } = req.body;
 
-        const ticket = await googleClient.verifyIdToken({
-            idToken: credential,
-            audience: GOOGLE_CLIENT_ID
-        });
+        let email, name, picture, sub;
 
-        const { email, name, picture, sub } = ticket.getPayload();
+        if (access_token) {
+            const response = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+                headers: { Authorization: `Bearer ${access_token}` }
+            });
+            if (!response.ok) return res.status(401).json({ mensaje: 'Token de Google inválido' });
+            const userInfo = await response.json();
+            ({ email, name, picture, sub } = userInfo);
+        } else {
+            const ticket = await googleClient.verifyIdToken({
+                idToken: credential,
+                audience: GOOGLE_CLIENT_ID
+            });
+            ({ email, name, picture, sub } = ticket.getPayload());
+        }
 
         let usuario = await User.findOne({ email: email.toLowerCase() });
 
