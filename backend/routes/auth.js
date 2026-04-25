@@ -104,12 +104,16 @@ router.post('/google', async (req, res) => {
         let email, name, picture, sub;
 
         if (access_token) {
-            const response = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
-                headers: { Authorization: `Bearer ${access_token}` }
+            const tempClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+            tempClient.setCredentials({ access_token });
+            const userInfoRes = await tempClient.request({
+                url: 'https://www.googleapis.com/oauth2/v3/userinfo'
             });
-            if (!response.ok) return res.status(401).json({ mensaje: 'Token de Google inválido' });
-            const userInfo = await response.json();
-            ({ email, name, picture, sub } = userInfo);
+            const userInfo = userInfoRes.data;
+            email   = userInfo.email;
+            name    = userInfo.name;
+            picture = userInfo.picture;
+            sub     = userInfo.sub;
         } else {
             const ticket = await googleClient.verifyIdToken({
                 idToken: credential,
