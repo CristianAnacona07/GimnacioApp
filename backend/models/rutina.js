@@ -35,4 +35,6 @@ const RutinaSchema = new mongoose.Schema({
     }
 });
 
+RutinaSchema.index({ usuarioId: 1, dia: 1 });
+
 module.exports = mongoose.model('Rutina', RutinaSchema);

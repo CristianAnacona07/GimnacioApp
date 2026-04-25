@@ -25,4 +25,7 @@ const ProgresoSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+ProgresoSchema.index({ usuarioId: 1, ejercicioNombre: 1 });
+ProgresoSchema.index({ usuarioId: 1, fecha: 1 });
+
 module.exports = mongoose.model('Progreso', ProgresoSchema);

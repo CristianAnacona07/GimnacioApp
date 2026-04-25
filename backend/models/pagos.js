@@ -11,14 +11,8 @@ const MetodoPagoSchema = new mongoose.Schema({
         enum: ['digital', 'efectivo'], 
         default: 'digital' 
     },
-    imagenUrl: { 
-        type: String, 
-        required: [false, 'La URL de la imagen o icono es obligatoria'] 
-    },
-    descripcion: { 
-        type: String, 
-        required: [false, 'La descripción es obligatoria'] 
-    },
+    imagenUrl: { type: String },
+    descripcion: { type: String },
     datosClave: { 
         type: String, 
         help: 'Aquí puedes poner el número de celular o la ubicación'
