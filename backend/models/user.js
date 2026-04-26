@@ -1,9 +1,15 @@
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
-    nombre: { 
-        type: String, 
-        required: [true, 'El nombre es obligatorio'] 
+    gymId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Gym',
+        required: false,
+        index: true
+    },
+    nombre: {
+        type: String,
+        required: [true, 'El nombre es obligatorio']
     },
     email: { 
         type: String, 
@@ -17,10 +23,10 @@ const UserSchema = new mongoose.Schema({
         required: [true, 'La contraseña es obligatoria'] 
     },
   
-    role: { 
-        type: String, 
-        enum: ['admin', 'entrenador', 'socio'], 
-        default: 'socio' 
+    role: {
+        type: String,
+        enum: ['superadmin', 'admin', 'entrenador', 'socio'],
+        default: 'socio'
     },
 
     // Perfil

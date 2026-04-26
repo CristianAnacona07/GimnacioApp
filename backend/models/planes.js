@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const planSchema = new mongoose.Schema({
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: false,
+    index: true
+  },
   nombre: {
     type: String,
     required: true

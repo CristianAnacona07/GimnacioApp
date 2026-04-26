@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const MetodoPagoSchema = new mongoose.Schema({
+    gymId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Gym',
+        required: false,
+        index: true
+    },
     titulo: { 
         type: String, 
         required: [true, 'El título es obligatorio'],

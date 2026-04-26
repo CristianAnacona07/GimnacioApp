@@ -1,9 +1,15 @@
 const mongoose = require('mongoose');
 const RutinaSchema = new mongoose.Schema({
-    usuarioId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User', 
-        required: true 
+    gymId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Gym',
+        required: false,
+        index: true
+    },
+    usuarioId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     },
     // Lo hacemos opcional por si tienes datos viejos, 
     // pero ya no será necesario para las nuevas rutinas.

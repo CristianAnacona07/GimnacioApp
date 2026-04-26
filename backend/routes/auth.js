@@ -137,7 +137,7 @@ router.post('/google', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: usuario._id, role: usuario.role },
+            { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
             process.env.JWT_SECRET || 'PALABRA_SECRETA',
             { expiresIn: '8h' }
         );
@@ -145,7 +145,7 @@ router.post('/google', async (req, res) => {
         res.json({
             mensaje: 'Login con Google exitoso',
             token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role }
+            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, gymId: usuario.gymId || null }
         });
     } catch (error) {
         console.error('Error Google auth:', error.message);
@@ -156,7 +156,7 @@ router.post('/google', async (req, res) => {
 // ✅ OBTENER TODOS LOS USUARIOS (SOLO ADMINS)
 router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const usuarios = await User.find()
+        const usuarios = await User.find({ gymId: req.gymId })
             .select('-password')
             .sort({ createdAt: -1 })
             .lean();
@@ -186,7 +186,7 @@ router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
 router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
     try {
         const { dias } = req.body;
-        const usuario = await User.findById(req.params.id);
+        const usuario = await User.findOne({ _id: req.params.id, gymId: req.gymId });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
         const hoy = new Date();
@@ -216,7 +216,7 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
 // ✅ LIMPIAR MEMBRESÍA (SOLO ADMINS)
 router.put('/limpiar-membresia/:id', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const usuario = await User.findById(req.params.id);
+        const usuario = await User.findOne({ _id: req.params.id, gymId: req.gymId });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
         usuario.fechaVencimiento = undefined;
@@ -259,14 +259,15 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
 // ✅ REGISTRO
 router.post('/register', async (req, res) => {
     try {
-        const { nombre, email, password, role } = req.body;
-        const usuarioExiste = await User.findOne({ email }).lean();
-        if (usuarioExiste) return res.status(400).json({ mensaje: 'El correo ya está registrado' });
+        const { nombre, email, password, role, gymId } = req.body;
+        const usuarioExiste = await User.findOne({ email, gymId }).lean();
+        if (usuarioExiste) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
         const salt = await bcrypt.genSalt(10);
         const passwordHasheada = await bcrypt.hash(password, salt);
 
         const nuevoUsuario = new User({
+            gymId: gymId || null,
             nombre,
             email: email.toLowerCase().trim(),
             password: passwordHasheada,
@@ -283,15 +284,18 @@ router.post('/register', async (req, res) => {
 // ✅ LOGIN
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
-        const usuario = await User.findOne({ email }).lean();
-        if (!usuario) return res.status(400).json({ mensaje: 'Usuario no encontrado' });
+        const { email, password, gymId } = req.body;
+        // Superadmin no pertenece a ningún gym
+        const esSuperAdmin = await User.findOne({ email, role: 'superadmin' }).lean();
+        const query = esSuperAdmin ? { email } : { email, gymId: gymId || null };
+        const usuario = await User.findOne(query).lean();
+        if (!usuario) return res.status(400).json({ mensaje: 'Usuario no encontrado en este gimnasio' });
 
         const esValida = await bcrypt.compare(password, usuario.password);
         if (!esValida) return res.status(400).json({ mensaje: 'Contraseña incorrecta' });
 
         const token = jwt.sign(
-            { id: usuario._id, role: usuario.role },
+            { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
             process.env.JWT_SECRET || 'PALABRA_SECRETA',
             { expiresIn: '8h' }
         );
@@ -299,7 +303,7 @@ router.post('/login', async (req, res) => {
         res.json({
             mensaje: 'Login exitoso',
             token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role }
+            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, gymId: usuario.gymId || null }
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error en el login', error: error.message });

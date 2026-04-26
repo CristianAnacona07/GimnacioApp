@@ -22,7 +22,8 @@
     "mongoose": "^9.1.2",
     "node-cache": "^5.1.2",
     "node-cron": "^4.2.1",
-    "nodemailer": "^8.0.6"
+    "nodemailer": "^8.0.6",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

@@ -41,8 +41,7 @@ const connectDB = async () => {
     socketTimeoutMS: 45000,
     connectTimeoutMS: 10000,
     heartbeatFrequencyMS: 10000,
-    family: 4,
-    bufferCommands: false
+    family: 4
   });
 
   console.log('✅ Conectado a MongoDB');
@@ -67,6 +66,7 @@ app.use('/api/planes', require('./routes/planes'));
 app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/progreso', require('./routes/progreso'));
 app.use('/api/medidas', require('./routes/medidas'));
+app.use('/api/gym', require('./routes/gym'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 

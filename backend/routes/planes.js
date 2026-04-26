@@ -3,20 +3,18 @@ const router = express.Router();
 const Plan = require('../models/planes');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 
-// Obtener todos los planes (cualquier usuario autenticado)
 router.get('/', verificarToken, async (req, res) => {
   try {
-    const planes = await Plan.find().sort({ createdAt: -1 });
+    const planes = await Plan.find({ gymId: req.gymId }).sort({ createdAt: -1 });
     res.json(planes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Obtener un plan por ID
 router.get('/:id', verificarToken, async (req, res) => {
   try {
-    const plan = await Plan.findById(req.params.id);
+    const plan = await Plan.findOne({ _id: req.params.id, gymId: req.gymId });
     if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json(plan);
   } catch (error) {
@@ -24,10 +22,9 @@ router.get('/:id', verificarToken, async (req, res) => {
   }
 });
 
-// Crear un plan (solo admin)
 router.post('/', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const plan = new Plan(req.body);
+    const plan = new Plan({ ...req.body, gymId: req.gymId });
     await plan.save();
     res.status(201).json(plan);
   } catch (error) {
@@ -35,10 +32,13 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
   }
 });
 
-// Actualizar un plan (solo admin)
 router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const plan = await Plan.findOneAndUpdate(
+      { _id: req.params.id, gymId: req.gymId },
+      req.body,
+      { new: true }
+    );
     if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json(plan);
   } catch (error) {
@@ -46,10 +46,9 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
   }
 });
 
-// Eliminar un plan (solo admin)
 router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const plan = await Plan.findByIdAndDelete(req.params.id);
+    const plan = await Plan.findOneAndDelete({ _id: req.params.id, gymId: req.gymId });
     if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json({ mensaje: 'Plan eliminado correctamente' });
   } catch (error) {

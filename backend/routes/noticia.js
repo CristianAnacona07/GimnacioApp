@@ -3,20 +3,25 @@ const router = express.Router();
 const Noticia = require('../models/noticia');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 
-// Obtener todas las noticias (cualquier usuario autenticado)
 router.get('/', verificarToken, async (req, res) => {
   try {
-    const noticias = await Noticia.find().sort({ createdAt: -1 });
+    let query = {};
+    if (req.gymId && req.gymId !== 'null') {
+      query.gymId = req.gymId;
+    } else {
+      query.gymId = null; 
+    }
+    const noticias = await Noticia.find(query).sort({ createdAt: -1 });
     res.json(noticias);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error Noticias:', error);
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 
-// Obtener una noticia por ID
 router.get('/:id', verificarToken, async (req, res) => {
   try {
-    const noticia = await Noticia.findById(req.params.id);
+    const noticia = await Noticia.findOne({ _id: req.params.id, gymId: req.gymId });
     if (!noticia) return res.status(404).json({ error: 'Noticia no encontrada' });
     res.json(noticia);
   } catch (error) {
@@ -24,10 +29,10 @@ router.get('/:id', verificarToken, async (req, res) => {
   }
 });
 
-// Crear una noticia (solo admin)
 router.post('/', verificarToken, soloAdmin, async (req, res) => {
   try {
     const datosNoticia = {
+      gymId: req.gymId,
       titulo: req.body.titulo,
       descripcion: req.body.descripcion
     };
@@ -40,29 +45,26 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
     const noticiaGuardada = await new Noticia(datosNoticia).save();
     res.status(201).json(noticiaGuardada);
   } catch (error) {
-    res.status(400).json({ error: error.message, details: error.errors });
+    res.status(400).json({ error: error.message });
   }
 });
 
-// Actualizar una noticia (solo admin)
 router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
     const { titulo, descripcion, dia, horaInicio, horaFin, estado, imageUrl, whatsappUrl } = req.body;
-    const datosActualizacion = { titulo, descripcion };
+    const datos = { titulo, descripcion };
+    if (dia !== undefined) datos.dia = dia;
+    if (horaInicio !== undefined) datos.horaInicio = horaInicio;
+    if (horaFin !== undefined) datos.horaFin = horaFin;
+    if (estado !== undefined) datos.estado = estado;
+    if (imageUrl !== undefined) datos.imageUrl = imageUrl;
+    if (whatsappUrl !== undefined) datos.whatsappUrl = whatsappUrl;
 
-    if (dia !== undefined) datosActualizacion.dia = dia;
-    if (horaInicio !== undefined) datosActualizacion.horaInicio = horaInicio;
-    if (horaFin !== undefined) datosActualizacion.horaFin = horaFin;
-    if (estado !== undefined) datosActualizacion.estado = estado;
-    if (imageUrl !== undefined) datosActualizacion.imageUrl = imageUrl;
-    if (whatsappUrl !== undefined) datosActualizacion.whatsappUrl = whatsappUrl;
-
-    const noticia = await Noticia.findByIdAndUpdate(
-      req.params.id,
-      datosActualizacion,
+    const noticia = await Noticia.findOneAndUpdate(
+      { _id: req.params.id, gymId: req.gymId },
+      datos,
       { new: true, runValidators: true }
     );
-
     if (!noticia) return res.status(404).json({ error: 'Noticia no encontrada' });
     res.json(noticia);
   } catch (error) {
@@ -70,10 +72,9 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
   }
 });
 
-// Eliminar una noticia (solo admin)
 router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const noticia = await Noticia.findByIdAndDelete(req.params.id);
+    const noticia = await Noticia.findOneAndDelete({ _id: req.params.id, gymId: req.gymId });
     if (!noticia) return res.status(404).json({ error: 'Noticia no encontrada' });
     res.json({ mensaje: 'Noticia eliminada correctamente' });
   } catch (error) {
