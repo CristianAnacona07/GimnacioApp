@@ -27,7 +27,8 @@ const GymSchema = new mongoose.Schema({
     secundario: { type: String, default: '#1d4ed8' },
     fondo:      { type: String, default: '#eef3ff' },
     navbar:     { type: String, default: '#0f172a' },
-    menu:       { type: String, default: '#1e293b' }
+    menu:       { type: String, default: '#1e293b' },
+    dias:       { type: String, default: '#1d4ed8' }
   },
   modulos: {
     rutinas:    { type: Boolean, default: true },

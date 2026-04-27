@@ -15,7 +15,7 @@ router.get('/buscar', async (req, res) => {
       : { activo: true };
 
     const gyms = await Gym.find(filtro)
-      .select('nombre slug logo slogan colores')
+      .select('nombre slug logo slogan colores modulos')
       .limit(20).lean();
 
     res.json(gyms);
