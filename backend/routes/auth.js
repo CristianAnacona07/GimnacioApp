@@ -139,7 +139,7 @@ router.post('/google', async (req, res) => {
         const token = jwt.sign(
             { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
             process.env.JWT_SECRET || 'PALABRA_SECRETA',
-            { expiresIn: '8h' }
+            { expiresIn: '30d' }
         );
 
         res.json({
@@ -297,7 +297,7 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign(
             { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
             process.env.JWT_SECRET || 'PALABRA_SECRETA',
-            { expiresIn: '8h' }
+            { expiresIn: '30d' }
         );
 
         res.json({
