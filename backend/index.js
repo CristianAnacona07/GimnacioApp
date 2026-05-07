@@ -67,6 +67,7 @@ app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/progreso', require('./routes/progreso'));
 app.use('/api/medidas', require('./routes/medidas'));
 app.use('/api/gym', require('./routes/gym'));
+app.use('/api/feedback', require('./routes/feedback'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 

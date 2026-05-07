@@ -1,0 +1,51 @@
+const express = require('express');
+const router = express.Router();
+const Feedback = require('../models/feedback');
+const User = require('../models/user');
+const { verificarToken, soloSuperAdmin } = require('../middleware/auth');
+
+// POST /api/feedback — cualquier socio/admin autenticado puede enviar
+router.post('/', verificarToken, async (req, res) => {
+  try {
+    const { mensaje, gymNombre } = req.body;
+    if (!mensaje?.trim()) return res.status(400).json({ mensaje: 'El mensaje es requerido' });
+
+    const usuario = await User.findById(req.userId).select('nombre').lean();
+
+    const feedback = await Feedback.create({
+      usuarioId:     req.userId,
+      nombreUsuario: usuario?.nombre || 'Usuario',
+      gymId:         req.gymId || null,
+      gymNombre:     gymNombre || null,
+      mensaje:       mensaje.trim()
+    });
+
+    res.status(201).json(feedback);
+  } catch (err) {
+    res.status(500).json({ mensaje: 'Error al guardar el feedback' });
+  }
+});
+
+// GET /api/feedback — solo superadmin
+router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
+  try {
+    const feedbacks = await Feedback.find()
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(feedbacks);
+  } catch {
+    res.status(500).json({ mensaje: 'Error al obtener feedbacks' });
+  }
+});
+
+// PATCH /api/feedback/:id/leido — marcar como leído (solo superadmin)
+router.patch('/:id/leido', verificarToken, soloSuperAdmin, async (req, res) => {
+  try {
+    await Feedback.findByIdAndUpdate(req.params.id, { leido: true });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ mensaje: 'Error' });
+  }
+});
+
+module.exports = router;
