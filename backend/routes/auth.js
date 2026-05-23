@@ -351,4 +351,36 @@ router.get('/perfil/:id', verificarToken, async (req, res) => {
     }
 });
 
+// ✅ RENOVAR TOKEN (REFRESH)
+router.post('/refresh-token', verificarToken, async (req, res) => {
+    try {
+        const usuario = await User.findById(req.userId).lean();
+        if (!usuario) {
+            return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        }
+
+        // Generar nuevo token con 30 días de validez
+        const nuevoToken = jwt.sign(
+            { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
+            process.env.JWT_SECRET || 'PALABRA_SECRETA',
+            { expiresIn: '30d' }
+        );
+
+        res.json({
+            mensaje: 'Token renovado exitosamente',
+            token: nuevoToken,
+            usuario: {
+                _id: usuario._id,
+                nombre: usuario.nombre,
+                email: usuario.email,
+                role: usuario.role,
+                gymId: usuario.gymId || null
+            }
+        });
+    } catch (error) {
+        console.error('Error al renovar token:', error.message);
+        res.status(500).json({ mensaje: 'Error al renovar token', error: error.message });
+    }
+});
+
 module.exports = router;
