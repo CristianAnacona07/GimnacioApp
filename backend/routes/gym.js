@@ -100,6 +100,10 @@ router.delete('/:id', verificarToken, soloSuperAdmin, async (req, res) => {
 // Actualizar configuración del gym (admin o superadmin)
 router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => {
   try {
+    // El admin sólo puede configurar SU propio gym; el superadmin, cualquiera.
+    if (req.userRole !== 'superadmin' && String(req.gymId) !== String(req.params.id)) {
+      return res.status(403).json({ error: 'No autorizado para configurar este gimnasio' });
+    }
     const { nombre, logo, slogan, colores, modulos } = req.body;
     const gym = await Gym.findByIdAndUpdate(
       req.params.id,

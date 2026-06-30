@@ -11,16 +11,17 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: [true, 'El nombre es obligatorio']
     },
-    email: { 
-        type: String, 
+    email: {
+        type: String,
         required: [true, 'El correo es obligatorio'],
-        unique: true,      // ⚡ Esto ya crea el índice automáticamente
         lowercase: true,
         trim: true
+        // Unicidad por gym definida abajo con índice compuesto.
     },
-    password: { 
-        type: String, 
-        required: [true, 'La contraseña es obligatoria'] 
+    password: {
+        type: String,
+        required: [true, 'La contraseña es obligatoria'],
+        select: false      // nunca se devuelve salvo .select('+password') explícito
     },
   
     role: {
@@ -71,7 +72,8 @@ const UserSchema = new mongoose.Schema({
     timestamps: true  // ⚡ Agrega createdAt y updatedAt automáticamente
 });
 
-// ❌ REMOVIDO: UserSchema.index({ email: 1 }, { unique: true });
-// No es necesario porque ya está definido arriba con unique: true
+// Email único POR gimnasio (multi-gym): el mismo correo puede existir en
+// gimnasios distintos, pero no dos veces dentro del mismo gym.
+UserSchema.index({ email: 1, gymId: 1 }, { unique: true });
 
 module.exports = mongoose.model('User', UserSchema);

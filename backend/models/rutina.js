@@ -41,6 +41,7 @@ const RutinaSchema = new mongoose.Schema({
     }
 });
 
-RutinaSchema.index({ usuarioId: 1, dia: 1 });
+// Una sola rutina por socio y día dentro de un gym (evita duplicados por carrera).
+RutinaSchema.index({ gymId: 1, usuarioId: 1, dia: 1 }, { unique: true });
 
 module.exports = mongoose.model('Rutina', RutinaSchema);
