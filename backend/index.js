@@ -20,8 +20,10 @@ app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = ['https://gimnacio-app.vercel.app'];
-    const isLocalhost = !origin || /^http:\/\/localhost(:\d+)?$/.test(origin);
-    if (isLocalhost || allowedOrigins.includes(origin) || origin?.endsWith('.vercel.app')) {
+    const isLocalhost = !origin || /^https?:\/\/localhost(:\d+)?$/.test(origin);
+    // Apps nativas con Capacitor (Android usa https://localhost; iOS, capacitor://localhost)
+    const isApp = origin === 'capacitor://localhost' || origin === 'ionic://localhost';
+    if (isLocalhost || isApp || allowedOrigins.includes(origin) || origin?.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
       callback(new Error('CORS bloqueado por seguridad Kodiak'));
