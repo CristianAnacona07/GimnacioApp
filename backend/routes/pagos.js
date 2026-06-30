@@ -34,9 +34,10 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
 
 router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
+    const { gymId, _id, ...datos } = req.body; // no permitir mover el método de pago de gym
     const metodo = await MetodoPago.findOneAndUpdate(
       { _id: req.params.id, gymId: req.gymId },
-      req.body,
+      datos,
       { new: true }
     );
     if (!metodo) return res.status(404).json({ error: 'Método de pago no encontrado' });

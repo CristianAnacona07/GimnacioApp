@@ -15,7 +15,7 @@ router.get('/', verificarToken, async (req, res) => {
     res.json(noticias);
   } catch (error) {
     console.error('Error Noticias:', error);
-    res.status(500).json({ error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Error al obtener noticias' });
   }
 });
 

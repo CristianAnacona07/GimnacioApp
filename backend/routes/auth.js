@@ -6,7 +6,10 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/user');
-const { verificarToken, soloAdmin } = require('../middleware/auth');
+const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
+
+const TOKEN_EXPIRY = '8h';
+const hashToken = (t) => crypto.createHash('sha256').update(t).digest('hex');
 
 // Configuración del transporter de email
 const transporter = nodemailer.createTransport({
@@ -41,13 +44,18 @@ const emailTemplate = (nombre, resetUrl) => `
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
+        if (!email) return res.status(400).json({ mensaje: 'El correo es obligatorio' });
+
+        // Respuesta genérica siempre (evita enumeración de usuarios).
+        const respuestaGenerica = { mensaje: 'Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña.' };
+
         const usuario = await User.findOne({ email: email.toLowerCase().trim() });
         if (!usuario) {
-            return res.status(404).json({ mensaje: 'No existe una cuenta con ese correo' });
+            return res.json(respuestaGenerica);
         }
 
         const token = crypto.randomBytes(32).toString('hex');
-        usuario.resetToken = token;
+        usuario.resetToken = hashToken(token); // se guarda hasheado
         usuario.resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hora
         await usuario.save();
 
@@ -55,12 +63,12 @@ router.post('/forgot-password', async (req, res) => {
 
         await transporter.sendMail({
             from: `"Kodiak Gym" <${process.env.EMAIL_USER}>`,
-            to: email,
+            to: usuario.email,
             subject: 'Recuperar contraseña — Kodiak Gym',
             html: emailTemplate(usuario.nombre, resetUrl)
         });
 
-        res.json({ mensaje: 'Correo enviado. Revisa tu bandeja de entrada.' });
+        res.json(respuestaGenerica);
     } catch (error) {
         console.error('Error forgot-password:', error.message);
         res.status(500).json({ mensaje: 'Error al enviar el correo', error: error.message });
@@ -71,9 +79,15 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
     try {
         const { token, nuevaPassword } = req.body;
+        if (!token || !nuevaPassword) {
+            return res.status(400).json({ mensaje: 'Token y nueva contraseña son obligatorios' });
+        }
+        if (nuevaPassword.length < 6) {
+            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 6 caracteres' });
+        }
 
         const usuario = await User.findOne({
-            resetToken: token,
+            resetToken: hashToken(token),
             resetTokenExpiry: { $gt: Date.now() }
         });
 
@@ -138,8 +152,8 @@ router.post('/google', async (req, res) => {
 
         const token = jwt.sign(
             { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
-            process.env.JWT_SECRET || 'PALABRA_SECRETA',
-            { expiresIn: '30d' }
+            JWT_SECRET,
+            { expiresIn: TOKEN_EXPIRY }
         );
 
         res.json({
@@ -234,16 +248,21 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
         const { id } = req.params;
         const datosActualizados = req.body;
 
-        if (req.userId !== id && req.userRole !== 'admin') {
+        if (req.userId !== id && !esAdmin(req)) {
             return res.status(403).json({ mensaje: 'No autorizado para actualizar este perfil' });
         }
 
+        // Campos que el cliente nunca debe poder cambiar por esta vía.
         delete datosActualizados.password;
         delete datosActualizados.email;
         delete datosActualizados.role;
+        delete datosActualizados.gymId;
+        delete datosActualizados.fechaVencimiento;
 
-        const usuario = await User.findByIdAndUpdate(
-            id,
+        // El admin sólo puede tocar usuarios de su propio gym; el socio, sólo el suyo.
+        const filtro = esAdmin(req) ? { _id: id, gymId: req.gymId } : { _id: id };
+        const usuario = await User.findOneAndUpdate(
+            filtro,
             datosActualizados,
             { new: true, runValidators: true }
         ).select('-password');
@@ -259,19 +278,28 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
 // ✅ REGISTRO
 router.post('/register', async (req, res) => {
     try {
-        const { nombre, email, password, role, gymId } = req.body;
-        const usuarioExiste = await User.findOne({ email, gymId }).lean();
+        const { nombre, email, password, gymId } = req.body;
+        if (!nombre || !email || !password) {
+            return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
+        }
+        if (password.length < 6) {
+            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 6 caracteres' });
+        }
+        const emailNorm = email.toLowerCase().trim();
+        const usuarioExiste = await User.findOne({ email: emailNorm, gymId: gymId || null }).lean();
         if (usuarioExiste) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
         const salt = await bcrypt.genSalt(10);
         const passwordHasheada = await bcrypt.hash(password, salt);
 
+        // El registro público SIEMPRE crea socios. Crear admins/entrenadores
+        // debe hacerse por una ruta protegida (soloAdmin), nunca desde el body.
         const nuevoUsuario = new User({
             gymId: gymId || null,
             nombre,
-            email: email.toLowerCase().trim(),
+            email: emailNorm,
             password: passwordHasheada,
-            role: role || 'socio'
+            role: 'socio'
         });
 
         await nuevoUsuario.save();
@@ -286,9 +314,10 @@ router.post('/login', async (req, res) => {
     try {
         const { email, password, gymId } = req.body;
         // Superadmin no pertenece a ningún gym
-        const esSuperAdmin = await User.findOne({ email, role: 'superadmin' }).lean();
-        const query = esSuperAdmin ? { email } : { email, gymId: gymId || null };
-        const usuario = await User.findOne(query).lean();
+        const emailNorm = (email || '').toLowerCase().trim();
+        const esSuperAdmin = await User.findOne({ email: emailNorm, role: 'superadmin' }).lean();
+        const query = esSuperAdmin ? { email: emailNorm } : { email: emailNorm, gymId: gymId || null };
+        const usuario = await User.findOne(query).select('+password').lean();
         if (!usuario) return res.status(400).json({ mensaje: 'Usuario no encontrado en este gimnasio' });
 
         const esValida = await bcrypt.compare(password, usuario.password);
@@ -296,8 +325,8 @@ router.post('/login', async (req, res) => {
 
         const token = jwt.sign(
             { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
-            process.env.JWT_SECRET || 'PALABRA_SECRETA',
-            { expiresIn: '30d' }
+            JWT_SECRET,
+            { expiresIn: TOKEN_EXPIRY }
         );
 
         res.json({
@@ -313,7 +342,14 @@ router.post('/login', async (req, res) => {
 // ✅ PERFIL DEL SOCIO
 router.get('/perfil/:id', verificarToken, async (req, res) => {
     try {
-        const usuario = await User.findById(req.params.id).lean();
+        // El socio sólo puede ver su propio perfil; el admin, los de su gym.
+        if (!esAdmin(req) && req.userId !== req.params.id) {
+            return res.status(403).json({ mensaje: 'No autorizado para ver este perfil' });
+        }
+        const filtro = esAdmin(req)
+            ? { _id: req.params.id, gymId: req.gymId }
+            : { _id: req.params.id };
+        const usuario = await User.findOne(filtro).lean();
         if (!usuario) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
         const datosPersonales = usuario.datosPersonales || {
@@ -362,8 +398,8 @@ router.post('/refresh-token', verificarToken, async (req, res) => {
         // Generar nuevo token con 30 días de validez
         const nuevoToken = jwt.sign(
             { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
-            process.env.JWT_SECRET || 'PALABRA_SECRETA',
-            { expiresIn: '30d' }
+            JWT_SECRET,
+            { expiresIn: TOKEN_EXPIRY }
         );
 
         res.json({

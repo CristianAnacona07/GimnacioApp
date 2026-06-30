@@ -2,12 +2,20 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 require('dotenv').config();
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET no está definido. Configura las variables de entorno antes de arrancar.');
+}
+
 const app = express();
+app.set('trust proxy', 1); // detrás del proxy de Vercel: necesario para rate-limit por IP
 
 // --- MIDDLEWARES ---
+app.use(helmet());
 app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
@@ -57,6 +65,20 @@ app.use(async (req, res, next) => {
     res.status(500).json({ error: 'Error de conexión a la BD' });
   }
 });
+
+// --- RATE LIMITING en endpoints sensibles de auth (fuerza bruta / spam) ---
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 30,                  // 30 intentos por IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { mensaje: 'Demasiados intentos. Intenta de nuevo más tarde.' }
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
+app.use('/api/auth/google', authLimiter);
 
 // --- RUTAS DE API ---
 app.use('/api/auth', require('./routes/auth'));

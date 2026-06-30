@@ -1,11 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const Rutina = require('../models/rutina');
-const { verificarToken, soloAdmin } = require('../middleware/auth');
+const User = require('../models/user');
+const { verificarToken, soloAdmin, resolverUsuarioId, filtroPropiedad } = require('../middleware/auth');
 
 router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
   try {
     const { usuarioId, nombre, ejercicios, dia, enfoque } = req.body;
+
+    // El socio destino debe pertenecer al mismo gym del admin.
+    const socio = await User.findOne({ _id: usuarioId, gymId: req.gymId }).select('_id').lean();
+    if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado en este gimnasio' });
 
     const rutinaExistente = await Rutina.findOne({ gymId: req.gymId, usuarioId, dia });
     if (rutinaExistente) {
@@ -24,7 +29,8 @@ router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
 
 router.get('/:usuarioId', verificarToken, async (req, res) => {
   try {
-    const rutinas = await Rutina.find({ gymId: req.gymId, usuarioId: req.params.usuarioId }).lean();
+    const usuarioId = resolverUsuarioId(req, req.params.usuarioId);
+    const rutinas = await Rutina.find({ gymId: req.gymId, usuarioId }).lean();
     res.json(rutinas);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -33,11 +39,14 @@ router.get('/:usuarioId', verificarToken, async (req, res) => {
 
 router.put('/actualizar/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
+    // No permitir reasignar la rutina a otro gym/usuario vía body (mass assignment).
+    const { gymId, usuarioId, _id, ...datos } = req.body;
     const rutina = await Rutina.findOneAndUpdate(
       { _id: req.params.id, gymId: req.gymId },
-      req.body,
+      datos,
       { new: true }
     ).lean();
+    if (!rutina) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
     res.json({ mensaje: 'Rutina actualizada', rutina });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al actualizar', error: error.message });
@@ -46,7 +55,8 @@ router.put('/actualizar/:id', verificarToken, soloAdmin, async (req, res) => {
 
 router.delete('/eliminar/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    await Rutina.findOneAndDelete({ _id: req.params.id, gymId: req.gymId });
+    const rutina = await Rutina.findOneAndDelete({ _id: req.params.id, gymId: req.gymId });
+    if (!rutina) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
     res.json({ mensaje: 'Rutina borrada correctamente' });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al borrar', error: error.message });
@@ -55,8 +65,9 @@ router.delete('/eliminar/:id', verificarToken, soloAdmin, async (req, res) => {
 
 router.patch('/reset-dia/:usuarioId', verificarToken, async (req, res) => {
   try {
+    const usuarioId = resolverUsuarioId(req, req.params.usuarioId);
     await Rutina.updateMany(
-      { gymId: req.gymId, usuarioId: req.params.usuarioId },
+      { gymId: req.gymId, usuarioId },
       { $set: { 'ejercicios.$[].completado': false } }
     );
     res.json({ mensaje: 'Ejercicios reseteados correctamente' });
@@ -70,9 +81,16 @@ router.patch('/:rutinaId/ejercicio/:ejercicioIdx', verificarToken, async (req, r
     const { rutinaId, ejercicioIdx } = req.params;
     const { completado } = req.body;
 
+    // Validar el índice: evita inyectar claves arbitrarias en el path del update.
+    const idx = Number(ejercicioIdx);
+    if (!Number.isInteger(idx) || idx < 0) {
+      return res.status(400).json({ mensaje: 'Índice de ejercicio inválido' });
+    }
+
+    // El socio sólo puede modificar sus propias rutinas; el admin, las del gym.
     const rutina = await Rutina.findOneAndUpdate(
-      { _id: rutinaId, gymId: req.gymId },
-      { $set: { [`ejercicios.${ejercicioIdx}.completado`]: completado } },
+      { _id: rutinaId, gymId: req.gymId, ...filtroPropiedad(req) },
+      { $set: { [`ejercicios.${idx}.completado`]: !!completado } },
       { new: true }
     ).lean();
 
