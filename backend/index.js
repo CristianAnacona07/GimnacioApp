@@ -19,11 +19,15 @@ app.use(helmet());
 app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
-    const allowedOrigins = ['https://gimnacio-app.vercel.app'];
+    // Allowlist explicita (sin comodin *.vercel.app, que dejaria entrar a cualquiera).
+    const allowedOrigins = [
+      'https://gimnacio-app.vercel.app',
+      process.env.FRONTEND_URL
+    ].filter(Boolean);
     const isLocalhost = !origin || /^https?:\/\/localhost(:\d+)?$/.test(origin);
     // Apps nativas con Capacitor (Android usa https://localhost; iOS, capacitor://localhost)
     const isApp = origin === 'capacitor://localhost' || origin === 'ionic://localhost';
-    if (isLocalhost || isApp || allowedOrigins.includes(origin) || origin?.endsWith('.vercel.app')) {
+    if (isLocalhost || isApp || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS bloqueado por seguridad Kodiak'));
@@ -31,7 +35,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'user-id'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
 }));
 

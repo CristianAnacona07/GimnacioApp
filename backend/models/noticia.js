@@ -39,11 +39,7 @@ const noticiaSchema = new mongoose.Schema({
   estado: {
     type: Boolean,
     default: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
   }
-});
+}, { timestamps: true }); // createdAt + updatedAt automáticos (consistente con los demás modelos)
 
 module.exports = mongoose.model('Noticia', noticiaSchema);

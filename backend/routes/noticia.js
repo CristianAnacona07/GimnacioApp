@@ -5,12 +5,7 @@ const { verificarToken, soloAdmin } = require('../middleware/auth');
 
 router.get('/', verificarToken, async (req, res) => {
   try {
-    let query = {};
-    if (req.gymId && req.gymId !== 'null') {
-      query.gymId = req.gymId;
-    } else {
-      query.gymId = null; 
-    }
+    const query = { gymId: req.gymId || null };
     const noticias = await Noticia.find(query).sort({ createdAt: -1 });
     res.json(noticias);
   } catch (error) {
@@ -25,7 +20,7 @@ router.get('/:id', verificarToken, async (req, res) => {
     if (!noticia) return res.status(404).json({ error: 'Noticia no encontrada' });
     res.json(noticia);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -45,7 +40,7 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
     const noticiaGuardada = await new Noticia(datosNoticia).save();
     res.status(201).json(noticiaGuardada);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -68,7 +63,7 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
     if (!noticia) return res.status(404).json({ error: 'Noticia no encontrada' });
     res.json(noticia);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -78,7 +73,7 @@ router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
     if (!noticia) return res.status(404).json({ error: 'Noticia no encontrada' });
     res.json({ mensaje: 'Noticia eliminada correctamente' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

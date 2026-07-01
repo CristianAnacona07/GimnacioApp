@@ -3,14 +3,21 @@ const mongoose = require('mongoose');
 const bcrypt   = require('bcryptjs');
 const User     = require('../models/user');
 
-const EMAIL    = 'anaconac748@gmail.com';  // tu email
-const PASSWORD = 'KodiakSuper2026!';       // cambialo después de crear la cuenta
+// Credenciales por variables de entorno (no hardcodear secretos en el repo).
+// Uso: SUPERADMIN_EMAIL=... SUPERADMIN_PASSWORD=... node scripts/crear-superadmin.js
+const EMAIL    = (process.env.SUPERADMIN_EMAIL || '').toLowerCase().trim();
+const PASSWORD = process.env.SUPERADMIN_PASSWORD || '';
 
 async function crear() {
+  if (!EMAIL || !PASSWORD) {
+    console.error('❌ Define SUPERADMIN_EMAIL y SUPERADMIN_PASSWORD como variables de entorno.');
+    process.exit(1);
+  }
   await mongoose.connect(process.env.MONGO_URI);
   console.log('✅ Conectado');
 
-  const existe = await User.findOne({ email: EMAIL });
+  // El índice único es {email, gymId}; el superadmin vive con gymId null.
+  const existe = await User.findOne({ email: EMAIL, gymId: null });
   if (existe) {
     if (existe.role !== 'superadmin') {
       existe.role = 'superadmin';

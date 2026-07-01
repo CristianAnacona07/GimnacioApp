@@ -20,7 +20,7 @@ router.get('/buscar', async (req, res) => {
 
     res.json(gyms);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -32,7 +32,7 @@ router.get('/:slug', async (req, res) => {
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
     res.json(gym);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -50,7 +50,7 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
     const countMap = Object.fromEntries(counts.map(c => [String(c._id), c.total]));
     res.json(gyms.map(g => ({ ...g, totalUsuarios: countMap[String(g._id)] || 0 })));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -66,7 +66,7 @@ router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
     res.status(201).json(gym);
   } catch (error) {
     if (error.code === 11000) return res.status(400).json({ error: 'El código ya está en uso' });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -81,7 +81,7 @@ router.patch('/:id/estado', verificarToken, soloSuperAdmin, async (req, res) => 
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
     res.json(gym);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -91,7 +91,7 @@ router.delete('/:id', verificarToken, soloSuperAdmin, async (req, res) => {
     await Gym.findByIdAndDelete(req.params.id);
     res.json({ mensaje: 'Gimnasio eliminado' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -113,7 +113,7 @@ router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => 
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
     res.json(gym);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

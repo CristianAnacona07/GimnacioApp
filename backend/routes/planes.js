@@ -8,7 +8,7 @@ router.get('/', verificarToken, async (req, res) => {
     const planes = await Plan.find({ gymId: req.gymId }).sort({ createdAt: -1 });
     res.json(planes);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -18,7 +18,7 @@ router.get('/:id', verificarToken, async (req, res) => {
     if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json(plan);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -28,7 +28,7 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
     await plan.save();
     res.status(201).json(plan);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -43,7 +43,7 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
     if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json(plan);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -53,7 +53,7 @@ router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
     if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json({ mensaje: 'Plan eliminado correctamente' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

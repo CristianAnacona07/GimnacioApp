@@ -11,7 +11,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.13.4",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -22,10 +21,7 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.2",
-    "node-cache": "^5.1.2",
-    "node-cron": "^4.2.1",
-    "nodemailer": "^8.0.6",
-    "sharp": "^0.34.5"
+    "nodemailer": "^8.0.6"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

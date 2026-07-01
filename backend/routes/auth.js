@@ -5,7 +5,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
+const mongoose = require('mongoose');
 const User = require('../models/user');
+const Gym = require('../models/gym');
 const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
 
 const TOKEN_EXPIRY = '8h';
@@ -71,7 +73,7 @@ router.post('/forgot-password', async (req, res) => {
         res.json(respuestaGenerica);
     } catch (error) {
         console.error('Error forgot-password:', error.message);
-        res.status(500).json({ mensaje: 'Error al enviar el correo', error: error.message });
+        res.status(500).json({ mensaje: 'Error al enviar el correo' });
     }
 });
 
@@ -103,7 +105,7 @@ router.post('/reset-password', async (req, res) => {
 
         res.json({ mensaje: 'Contraseña actualizada correctamente' });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al restablecer contraseña', error: error.message });
+        res.status(500).json({ mensaje: 'Error al restablecer contraseña' });
     }
 });
 
@@ -192,14 +194,17 @@ router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
 
         res.json(usuariosConDatos);
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al obtener usuarios', error: error.message });
+        res.status(500).json({ mensaje: 'Error al obtener usuarios' });
     }
 });
 
 // ✅ RENOVAR MEMBRESÍA (SOLO ADMINS)
 router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const { dias } = req.body;
+        const dias = Number.parseInt(req.body.dias, 10);
+        if (!Number.isInteger(dias) || dias <= 0) {
+            return res.status(400).json({ mensaje: 'dias debe ser un entero positivo' });
+        }
         const usuario = await User.findOne({ _id: req.params.id, gymId: req.gymId });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
@@ -208,7 +213,7 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
             ? new Date(usuario.fechaVencimiento)
             : hoy;
 
-        fechaBase.setDate(fechaBase.getDate() + parseInt(dias));
+        fechaBase.setDate(fechaBase.getDate() + dias);
         usuario.fechaVencimiento = fechaBase;
         await usuario.save();
 
@@ -223,7 +228,7 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al renovar membresía', error: error.message });
+        res.status(500).json({ mensaje: 'Error al renovar membresía' });
     }
 });
 
@@ -238,7 +243,7 @@ router.put('/limpiar-membresia/:id', verificarToken, soloAdmin, async (req, res)
 
         res.json({ mensaje: 'Membresía limpiada exitosamente' });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al limpiar membresía', error: error.message });
+        res.status(500).json({ mensaje: 'Error al limpiar membresía' });
     }
 });
 
@@ -246,18 +251,18 @@ router.put('/limpiar-membresia/:id', verificarToken, soloAdmin, async (req, res)
 router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const datosActualizados = req.body;
 
         if (req.userId !== id && !esAdmin(req)) {
             return res.status(403).json({ mensaje: 'No autorizado para actualizar este perfil' });
         }
 
-        // Campos que el cliente nunca debe poder cambiar por esta vía.
-        delete datosActualizados.password;
-        delete datosActualizados.email;
-        delete datosActualizados.role;
-        delete datosActualizados.gymId;
-        delete datosActualizados.fechaVencimiento;
+        // Lista BLANCA: solo estos campos pueden actualizarse por esta vía
+        // (evita tocar password, email, role, gymId, resetToken, stats, etc.).
+        const permitidos = ['nombre', 'fotoUrl', 'mensajeMotivador', 'datosPersonales'];
+        const datosActualizados = {};
+        for (const campo of permitidos) {
+            if (req.body[campo] !== undefined) datosActualizados[campo] = req.body[campo];
+        }
 
         // El admin sólo puede tocar usuarios de su propio gym; el socio, sólo el suyo.
         const filtro = esAdmin(req) ? { _id: id, gymId: req.gymId } : { _id: id };
@@ -271,7 +276,7 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
 
         res.json({ mensaje: 'Perfil actualizado exitosamente', usuario });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al actualizar perfil', error: error.message });
+        res.status(500).json({ mensaje: 'Error al actualizar perfil' });
     }
 });
 
@@ -284,6 +289,14 @@ router.post('/register', async (req, res) => {
         }
         if (password.length < 6) {
             return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 6 caracteres' });
+        }
+        // El registro público exige un gimnasio válido y activo (evita socios huérfanos).
+        if (!gymId || !mongoose.Types.ObjectId.isValid(gymId)) {
+            return res.status(400).json({ mensaje: 'Debes seleccionar un gimnasio válido' });
+        }
+        const gymValido = await Gym.findOne({ _id: gymId, activo: true }).select('_id').lean();
+        if (!gymValido) {
+            return res.status(400).json({ mensaje: 'El gimnasio no existe o no está activo' });
         }
         const emailNorm = email.toLowerCase().trim();
         const usuarioExiste = await User.findOne({ email: emailNorm, gymId: gymId || null }).lean();
@@ -305,7 +318,7 @@ router.post('/register', async (req, res) => {
         await nuevoUsuario.save();
         res.status(201).json({ mensaje: 'Usuario creado con éxito' });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
+        res.status(500).json({ mensaje: 'Error en el servidor' });
     }
 });
 
@@ -335,7 +348,7 @@ router.post('/login', async (req, res) => {
             usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, gymId: usuario.gymId || null }
         });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error en el login', error: error.message });
+        res.status(500).json({ mensaje: 'Error en el login' });
     }
 });
 
@@ -383,7 +396,7 @@ router.get('/perfil/:id', verificarToken, async (req, res) => {
             rol: usuario.role
         });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al cargar perfil', error: error.message });
+        res.status(500).json({ mensaje: 'Error al cargar perfil' });
     }
 });
 
@@ -395,7 +408,7 @@ router.post('/refresh-token', verificarToken, async (req, res) => {
             return res.status(404).json({ mensaje: 'Usuario no encontrado' });
         }
 
-        // Generar nuevo token con 30 días de validez
+        // Generar nuevo token (misma expiración que el login: 8 horas)
         const nuevoToken = jwt.sign(
             { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
             JWT_SECRET,
@@ -415,7 +428,7 @@ router.post('/refresh-token', verificarToken, async (req, res) => {
         });
     } catch (error) {
         console.error('Error al renovar token:', error.message);
-        res.status(500).json({ mensaje: 'Error al renovar token', error: error.message });
+        res.status(500).json({ mensaje: 'Error al renovar token' });
     }
 });
 

@@ -8,7 +8,7 @@ router.get('/', verificarToken, async (req, res) => {
     const metodos = await MetodoPago.find({ gymId: req.gymId }).sort({ createdAt: -1 });
     res.json(metodos);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -18,7 +18,7 @@ router.get('/:id', verificarToken, async (req, res) => {
     if (!metodo) return res.status(404).json({ error: 'Método de pago no encontrado' });
     res.json(metodo);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -28,7 +28,7 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
     await metodo.save();
     res.status(201).json(metodo);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -43,7 +43,7 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
     if (!metodo) return res.status(404).json({ error: 'Método de pago no encontrado' });
     res.json(metodo);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -53,7 +53,7 @@ router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
     if (!metodo) return res.status(404).json({ error: 'Método de pago no encontrado' });
     res.json({ mensaje: 'Método de pago eliminado correctamente' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

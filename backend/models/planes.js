@@ -22,11 +22,7 @@ const planSchema = new mongoose.Schema({
   caracteristicas: {
     type: [String],
     required: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
   }
-});
+}, { timestamps: true }); // createdAt + updatedAt automáticos (consistente con los demás modelos)
 
 module.exports = mongoose.model('Plan', planSchema);

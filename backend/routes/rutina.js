@@ -23,7 +23,11 @@ router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
     await nuevaRutina.save();
     res.status(201).json({ mensaje: 'Rutina asignada con éxito', rutina: nuevaRutina });
   } catch (error) {
-    res.status(500).json({ mensaje: 'Error al asignar rutina', error: error.message });
+    // Duplicado por el índice único {gymId,usuarioId,dia} (carrera con el findOne previo)
+    if (error.code === 11000) {
+      return res.status(400).json({ mensaje: `El socio ya tiene una rutina para el día ${req.body.dia}. Editá la existente o elegí otro día.` });
+    }
+    res.status(500).json({ mensaje: 'Error al asignar rutina' });
   }
 });
 
@@ -33,7 +37,7 @@ router.get('/:usuarioId', verificarToken, async (req, res) => {
     const rutinas = await Rutina.find({ gymId: req.gymId, usuarioId }).lean();
     res.json(rutinas);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -49,7 +53,7 @@ router.put('/actualizar/:id', verificarToken, soloAdmin, async (req, res) => {
     if (!rutina) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
     res.json({ mensaje: 'Rutina actualizada', rutina });
   } catch (error) {
-    res.status(500).json({ mensaje: 'Error al actualizar', error: error.message });
+    res.status(500).json({ mensaje: 'Error al actualizar' });
   }
 });
 
@@ -59,7 +63,7 @@ router.delete('/eliminar/:id', verificarToken, soloAdmin, async (req, res) => {
     if (!rutina) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
     res.json({ mensaje: 'Rutina borrada correctamente' });
   } catch (error) {
-    res.status(500).json({ mensaje: 'Error al borrar', error: error.message });
+    res.status(500).json({ mensaje: 'Error al borrar' });
   }
 });
 
@@ -72,7 +76,7 @@ router.patch('/reset-dia/:usuarioId', verificarToken, async (req, res) => {
     );
     res.json({ mensaje: 'Ejercicios reseteados correctamente' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -97,7 +101,7 @@ router.patch('/:rutinaId/ejercicio/:ejercicioIdx', verificarToken, async (req, r
     if (!rutina) return res.status(404).json({ mensaje: 'No existe esa rutina' });
     res.json(rutina);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
