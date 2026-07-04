@@ -11,6 +11,10 @@ if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET no está definido. Configura las variables de entorno antes de arrancar.');
 }
 
+if (!process.env.MONGO_URI) {
+  throw new Error('MONGO_URI no está definido. Configura las variables de entorno antes de arrancar.');
+}
+
 const app = express();
 app.set('trust proxy', 1); // detrás del proxy de Vercel: necesario para rate-limit por IP
 
@@ -51,11 +55,16 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // --- CONEXIÓN A MONGO OPTIMIZADA PARA VERCEL SERVERLESS ---
 let cachedDb = null;
+let connectingPromise = null;
 
 const connectDB = async () => {
   if (cachedDb && mongoose.connection.readyState === 1) return cachedDb;
 
-  cachedDb = await mongoose.connect(process.env.MONGO_URI, {
+  // Lock por promesa: si dos requests llegan durante un cold start, comparten
+  // el mismo intento de conexión en vez de abrir varias conexiones en paralelo.
+  if (connectingPromise) return connectingPromise;
+
+  connectingPromise = mongoose.connect(process.env.MONGO_URI, {
     maxPoolSize: 5,
     minPoolSize: 1,
     serverSelectionTimeoutMS: 10000,  // 10s para cold start
@@ -63,10 +72,19 @@ const connectDB = async () => {
     connectTimeoutMS: 10000,
     heartbeatFrequencyMS: 10000,
     family: 4
-  });
+  })
+    .then((conn) => {
+      cachedDb = conn;
+      console.log('✅ Conectado a MongoDB');
+      return cachedDb;
+    })
+    .catch((err) => {
+      // Permite reintentar en la siguiente request si el intento falló.
+      connectingPromise = null;
+      throw err;
+    });
 
-  console.log('✅ Conectado a MongoDB');
-  return cachedDb;
+  return connectingPromise;
 };
 
 app.use(async (req, res, next) => {
@@ -105,6 +123,21 @@ app.use('/api/gym', require('./routes/gym'));
 app.use('/api/feedback', require('./routes/feedback'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
+// --- 404: cualquier ruta no definida responde de inmediato (evita requests colgadas en serverless) ---
+app.use((req, res) => {
+  res.status(404).json({ error: 'Ruta no encontrada' });
+});
+
+// --- MANEJADOR DE ERRORES GLOBAL (Express 5 captura rechazos async de los handlers) ---
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('❌ Error no controlado:', err.message);
+  if (err && err.message === 'CORS bloqueado por seguridad Kodiak') {
+    return res.status(403).json({ error: 'Origen no permitido' });
+  }
+  res.status(err.status || 500).json({ error: 'Error interno del servidor' });
+});
 
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 10000;

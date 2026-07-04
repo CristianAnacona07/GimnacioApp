@@ -32,7 +32,7 @@ const emailTemplate = (nombre, resetUrl) => `
   <div style="background:#f8fbff;padding:32px">
     <h2 style="color:#1e293b;font-size:18px;margin:0 0 12px">Recuperar contraseña</h2>
     <p style="color:#475569;font-size:14px;margin:0 0 8px">Hola <strong>${nombre}</strong>,</p>
-    <p style="color:#475569;font-size:14px;margin:0 0 24px">Recibimos una solicitud para restablecer tu contraseña. El enlace expira en <strong>1 hora</strong>.</p>
+    <p style="color:#475569;font-size:14px;margin:0 0 24px">Recibimos una solicitud para restablecer tu contraseña. El enlace expira en <strong>30 minutos</strong>.</p>
     <div style="text-align:center;margin:24px 0">
       <a href="${resetUrl}" style="background:#1d4ed8;color:#ffffff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block">
         Restablecer contraseña
@@ -48,6 +48,11 @@ router.post('/forgot-password', async (req, res) => {
         const { email } = req.body;
         if (!email) return res.status(400).json({ mensaje: 'El correo es obligatorio' });
 
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            console.error('EMAIL_USER/EMAIL_PASS no configurados: no se puede enviar el correo de recuperación');
+            return res.status(500).json({ mensaje: 'El servicio de correo no está disponible en este momento' });
+        }
+
         // Respuesta genérica siempre (evita enumeración de usuarios).
         const respuestaGenerica = { mensaje: 'Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña.' };
 
@@ -58,7 +63,7 @@ router.post('/forgot-password', async (req, res) => {
 
         const token = crypto.randomBytes(32).toString('hex');
         usuario.resetToken = hashToken(token); // se guarda hasheado
-        usuario.resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hora
+        usuario.resetTokenExpiry = new Date(Date.now() + 1800000); // 30 minutos
         await usuario.save();
 
         const resetUrl = `${process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app'}/reset-password?token=${token}`;
@@ -84,8 +89,8 @@ router.post('/reset-password', async (req, res) => {
         if (!token || !nuevaPassword) {
             return res.status(400).json({ mensaje: 'Token y nueva contraseña son obligatorios' });
         }
-        if (nuevaPassword.length < 6) {
-            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 6 caracteres' });
+        if (typeof nuevaPassword !== 'string' || nuevaPassword.length < 8) {
+            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
         }
 
         const usuario = await User.findOne({
@@ -109,18 +114,37 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '976541861094-pcm89afbvhdi6fttf7si2cc7gbtuf2pn.apps.googleusercontent.com';
+// El Client ID debe venir de configuración (nunca hardcodeado en el código).
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+// Client IDs adicionales aceptados como audience válida (p.ej. el cliente Android nativo).
+const GOOGLE_AUDIENCES = [GOOGLE_CLIENT_ID, process.env.GOOGLE_ANDROID_CLIENT_ID].filter(Boolean);
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // ✅ LOGIN CON GOOGLE
 router.post('/google', async (req, res) => {
     try {
+        if (!GOOGLE_CLIENT_ID) {
+            console.error('GOOGLE_CLIENT_ID no está configurado');
+            return res.status(500).json({ mensaje: 'Autenticación con Google no disponible' });
+        }
+
         const { credential, access_token } = req.body;
 
         let email, name, picture, sub;
 
         if (access_token) {
+            // Un access_token NO está ligado por sí mismo a nuestra app: primero hay que
+            // validar contra tokeninfo que su audience sea uno de nuestros Client IDs,
+            // de lo contrario un token de cualquier app Google sería aceptado (suplantación).
             const tempClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+            const tokenInfoRes = await tempClient.request({
+                url: `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(access_token)}`
+            });
+            const aud = tokenInfoRes.data && (tokenInfoRes.data.aud || tokenInfoRes.data.azp);
+            if (!aud || !GOOGLE_AUDIENCES.includes(aud)) {
+                return res.status(401).json({ mensaje: 'Token de Google no válido para esta aplicación' });
+            }
+
             tempClient.setCredentials({ access_token });
             const userInfoRes = await tempClient.request({
                 url: 'https://www.googleapis.com/oauth2/v3/userinfo'
@@ -133,7 +157,7 @@ router.post('/google', async (req, res) => {
         } else {
             const ticket = await googleClient.verifyIdToken({
                 idToken: credential,
-                audience: GOOGLE_CLIENT_ID
+                audience: GOOGLE_AUDIENCES
             });
             ({ email, name, picture, sub } = ticket.getPayload());
         }
@@ -287,8 +311,8 @@ router.post('/register', async (req, res) => {
         if (!nombre || !email || !password) {
             return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
         }
-        if (password.length < 6) {
-            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 6 caracteres' });
+        if (typeof password !== 'string' || password.length < 8) {
+            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
         }
         // El registro público exige un gimnasio válido y activo (evita socios huérfanos).
         if (!gymId || !mongoose.Types.ObjectId.isValid(gymId)) {
@@ -331,10 +355,12 @@ router.post('/login', async (req, res) => {
         const esSuperAdmin = await User.findOne({ email: emailNorm, role: 'superadmin' }).lean();
         const query = esSuperAdmin ? { email: emailNorm } : { email: emailNorm, gymId: gymId || null };
         const usuario = await User.findOne(query).select('+password').lean();
-        if (!usuario) return res.status(400).json({ mensaje: 'Usuario no encontrado en este gimnasio' });
+        // Mensaje genérico idéntico para "usuario inexistente" y "contraseña incorrecta"
+        // (evita enumeración de correos registrados por gimnasio).
+        if (!usuario) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
 
         const esValida = await bcrypt.compare(password, usuario.password);
-        if (!esValida) return res.status(400).json({ mensaje: 'Contraseña incorrecta' });
+        if (!esValida) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
 
         const token = jwt.sign(
             { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },

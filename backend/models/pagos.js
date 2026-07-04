@@ -4,7 +4,7 @@ const MetodoPagoSchema = new mongoose.Schema({
     gymId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Gym',
-        required: false,
+        required: true,
         index: true
     },
     titulo: { 
@@ -19,16 +19,19 @@ const MetodoPagoSchema = new mongoose.Schema({
     },
     imagenUrl: { type: String },
     descripcion: { type: String },
-    datosClave: { 
-        type: String, 
-        help: 'Aquí puedes poner el número de celular o la ubicación'
+    datosClave: {
+        type: String
+        // Aquí puedes poner el número de celular o la ubicación
     },
     activo: { 
         type: Boolean, 
         default: true
     }
-}, { 
+}, {
     timestamps: true // Esto crea automáticamente campos 'createdAt' y 'updatedAt'
 });
+
+// Índice compuesto para optimizar consultas de métodos de pago por gimnasio
+MetodoPagoSchema.index({ gymId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('MetodoPago', MetodoPagoSchema);

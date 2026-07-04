@@ -70,6 +70,12 @@ router.delete('/eliminar/:id', verificarToken, soloAdmin, async (req, res) => {
 router.patch('/reset-dia/:usuarioId', verificarToken, async (req, res) => {
   try {
     const usuarioId = resolverUsuarioId(req, req.params.usuarioId);
+
+    // El usuario objetivo debe pertenecer al gym del solicitante (evita IDOR
+    // por enumeración de IDs entre gimnasios).
+    const usuarioObjetivo = await User.findOne({ _id: usuarioId, gymId: req.gymId }).select('_id').lean();
+    if (!usuarioObjetivo) return res.status(404).json({ mensaje: 'Usuario no encontrado en este gimnasio' });
+
     await Rutina.updateMany(
       { gymId: req.gymId, usuarioId },
       { $set: { 'ejercicios.$[].completado': false } }
@@ -92,6 +98,16 @@ router.patch('/:rutinaId/ejercicio/:ejercicioIdx', verificarToken, async (req, r
     }
 
     // El socio sólo puede modificar sus propias rutinas; el admin, las del gym.
+    const rutinaExistente = await Rutina.findOne(
+      { _id: rutinaId, gymId: req.gymId, ...filtroPropiedad(req) }
+    ).lean();
+    if (!rutinaExistente) return res.status(404).json({ mensaje: 'No existe esa rutina' });
+
+    // Validar el rango: evita crear índices sparse en el array de ejercicios.
+    if (idx >= rutinaExistente.ejercicios.length) {
+      return res.status(400).json({ mensaje: 'Índice de ejercicio fuera de rango' });
+    }
+
     const rutina = await Rutina.findOneAndUpdate(
       { _id: rutinaId, gymId: req.gymId, ...filtroPropiedad(req) },
       { $set: { [`ejercicios.${idx}.completado`]: !!completado } },

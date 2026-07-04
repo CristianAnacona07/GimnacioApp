@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Gym  = require('../models/gym');
 const User = require('../models/user');
@@ -88,7 +89,18 @@ router.patch('/:id/estado', verificarToken, soloSuperAdmin, async (req, res) => 
 // Eliminar gym
 router.delete('/:id', verificarToken, soloSuperAdmin, async (req, res) => {
   try {
-    await Gym.findByIdAndDelete(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Identificador de gimnasio inválido' });
+    }
+
+    // No permitir eliminar un gimnasio que aún tiene usuarios asociados (evita huérfanos)
+    const userCount = await User.countDocuments({ gymId: req.params.id });
+    if (userCount > 0) {
+      return res.status(400).json({ error: 'No se puede eliminar un gimnasio con usuarios activos' });
+    }
+
+    const gym = await Gym.findByIdAndDelete(req.params.id);
+    if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
     res.json({ mensaje: 'Gimnasio eliminado' });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });

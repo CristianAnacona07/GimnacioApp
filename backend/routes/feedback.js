@@ -9,13 +9,14 @@ router.post('/', verificarToken, async (req, res) => {
   try {
     const { mensaje, gymNombre } = req.body;
     if (!mensaje?.trim()) return res.status(400).json({ mensaje: 'El mensaje es requerido' });
+    if (!req.gymId) return res.status(400).json({ mensaje: 'El usuario debe pertenecer a un gimnasio para enviar feedback' });
 
     const usuario = await User.findById(req.userId).select('nombre').lean();
 
     const feedback = await Feedback.create({
       usuarioId:     req.userId,
       nombreUsuario: usuario?.nombre || 'Usuario',
-      gymId:         req.gymId || null,
+      gymId:         req.gymId,
       gymNombre:     gymNombre || null,
       mensaje:       mensaje.trim()
     });

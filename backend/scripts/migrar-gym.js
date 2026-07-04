@@ -10,6 +10,18 @@ const MetodoPago = require('../models/pagos');
 const Plan     = require('../models/planes');
 
 async function migrar() {
+  if (!process.env.MONGO_URI) {
+    console.error('❌ MONGO_URI no está definido. Aborta la migración.');
+    process.exit(1);
+  }
+
+  // Backfill masivo (updateMany): exige confirmación explícita para no correrlo
+  // por accidente contra una base de datos de producción.
+  if (process.env.NODE_ENV === 'production' && process.env.CONFIRMAR_MIGRACION !== 'si') {
+    console.error('⚠️  Migración bloqueada en producción. Ejecuta con CONFIRMAR_MIGRACION=si para forzarla.');
+    process.exit(1);
+  }
+
   await mongoose.connect(process.env.MONGO_URI);
   console.log('✅ Conectado a MongoDB');
 

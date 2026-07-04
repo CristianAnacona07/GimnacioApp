@@ -3,7 +3,7 @@ const RutinaSchema = new mongoose.Schema({
     gymId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Gym',
-        required: false,
+        required: true,
         index: true
     },
     usuarioId: {
@@ -35,10 +35,12 @@ const RutinaSchema = new mongoose.Schema({
         imagenUrl: { type: String },
         completado: { type: Boolean, default: false }
     }],
-    fechaCreacion: { 
-        type: Date, 
-        default: Date.now 
+    fechaCreacion: {
+        type: Date,
+        default: Date.now
     }
+}, {
+    timestamps: true
 });
 
 // Una sola rutina por socio y día dentro de un gym (evita duplicados por carrera).

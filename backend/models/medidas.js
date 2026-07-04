@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const MedidasSchema = new mongoose.Schema({
-  gymId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', required: false, index: true },
+  gymId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', required: true, index: true },
   usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   fecha:     { type: Date, default: Date.now },
   peso:      { type: Number, default: null },
