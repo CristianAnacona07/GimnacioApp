@@ -19,7 +19,11 @@ const app = express();
 app.set('trust proxy', 1); // detrás del proxy de Vercel: necesario para rate-limit por IP
 
 // --- MIDDLEWARES ---
-app.use(helmet());
+// COOP 'same-origin-allow-popups' permite el flujo de login por popup de Google
+// (el default 'same-origin' bloquea window.closed y rompe el Sign-In).
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
+}));
 app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
