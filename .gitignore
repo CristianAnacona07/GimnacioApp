@@ -43,3 +43,8 @@ __screenshots__/
 Thumbs.db
 .vercel
 .env*.local
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/

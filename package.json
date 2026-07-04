@@ -7,6 +7,7 @@
     "build": "ng build && node scripts/flatten-layers.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "e2e": "playwright test",
     "android:sync": "ng build && npx cap sync android",
     "android:open": "ng build && npx cap sync android && npx cap open android"
   },
@@ -51,6 +52,7 @@
     "@angular/compiler-cli": "^21.0.0",
     "@capacitor/assets": "^3.0.5",
     "@csstools/postcss-cascade-layers": "^6.0.0",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.1.12",
     "autoprefixer": "^10.5.0",
     "fake-indexeddb": "^6.2.5",
