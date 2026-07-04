@@ -23,8 +23,8 @@ export class ThemeService {
     root.style.setProperty('--color-secundario', colores.secundario || DEFAULTS.secundario);
     root.style.setProperty('--color-fondo',      colores.fondo      || DEFAULTS.fondo);
     root.style.setProperty('--color-navbar',     colores.navbar     || DEFAULTS.navbar);
-    root.style.setProperty('--color-menu',       (colores as any).menu || DEFAULTS.menu);
-    root.style.setProperty('--color-dias',       (colores as any).dias || DEFAULTS.dias);
+    root.style.setProperty('--color-menu',       colores.menu       || DEFAULTS.menu);
+    root.style.setProperty('--color-dias',       colores.dias       || DEFAULTS.dias);
   }
 
   resetear() {
@@ -33,5 +33,7 @@ export class ThemeService {
     root.style.setProperty('--color-secundario', DEFAULTS.secundario);
     root.style.setProperty('--color-fondo',      DEFAULTS.fondo);
     root.style.setProperty('--color-navbar',     DEFAULTS.navbar);
+    root.style.setProperty('--color-menu',       DEFAULTS.menu);
+    root.style.setProperty('--color-dias',       DEFAULTS.dias);
   }
 }

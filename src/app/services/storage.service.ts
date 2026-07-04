@@ -49,8 +49,11 @@ export class StorageService {
 
   /**
    * Decodifica el payload de un JWT (base64url) sin lanzar.
+   * Centraliza el decodificado usado por los guards para evitar duplicación.
+   * NOTA: no verifica la firma (el servidor es la fuente autoritativa);
+   * es solo para lectura de claims en el cliente.
    */
-  private decodeTokenPayload(token: string | null): any | null {
+  decodeTokenPayload(token: string | null): any | null {
     if (!token) return null;
     try {
       const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
@@ -77,6 +80,14 @@ export class StorageService {
    */
   getToken(): string | null {
     return localStorage.getItem('token');
+  }
+
+  /**
+   * Obtiene el gym seleccionado (slug/valor almacenado en 'gymActual').
+   * Centraliza el acceso a localStorage para que los guards no lo lean directo.
+   */
+  getGym(): string | null {
+    return localStorage.getItem('gymActual');
   }
 
   /**

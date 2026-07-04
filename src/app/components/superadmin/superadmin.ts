@@ -1,8 +1,10 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth';
 import { ToastService } from '../../services/toast.service';
@@ -16,7 +18,8 @@ import { FeedbackService, Feedback } from '../../services/feedback.service';
   templateUrl: './superadmin.html',
   styleUrl: './superadmin.css'
 })
-export class SuperAdmin implements OnInit {
+export class SuperAdmin implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   gyms: any[] = [];
   cargando = false;
   feedbacks: Feedback[] = [];
@@ -51,16 +54,24 @@ export class SuperAdmin implements OnInit {
     this.cargarFeedbacks();
   }
 
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   cargarFeedbacks() {
-    this.feedbackService.getAll().subscribe({
+    this.feedbackService.getAll().pipe(takeUntil(this.destroy$)).subscribe({
       next: (data) => { this.feedbacks = data; this.cdr.detectChanges(); },
-      error: () => {}
+      error: (err) => {
+        console.error('Error al cargar feedbacks:', err);
+        this.toast.error('Error al cargar feedbacks');
+      }
     });
   }
 
   marcarLeido(fb: Feedback) {
     if (!fb._id || fb.leido) return;
-    this.feedbackService.marcarLeido(fb._id).subscribe({
+    this.feedbackService.marcarLeido(fb._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { fb.leido = true; this.cdr.detectChanges(); }
     });
   }
@@ -75,7 +86,7 @@ export class SuperAdmin implements OnInit {
 
   cargar() {
     this.cargando = true;
-    this.http.get<any[]>(`${environment.apiUrl}/api/gym`, { headers: this.headers }).subscribe({
+    this.http.get<any[]>(`${environment.apiUrl}/api/gym`, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (data) => { this.gyms = data; this.cargando = false; this.cdr.detectChanges(); },
       error: () => { this.cargando = false; this.toast.error('Error al cargar gimnasios'); }
     });
@@ -90,9 +101,17 @@ export class SuperAdmin implements OnInit {
   procesarImagen(file: File, callback: (base64: string) => void) {
     const reader = new FileReader();
     reader.readAsDataURL(file);
+    reader.onerror = () => {
+      console.error('Error al leer la imagen:', reader.error);
+      this.toast.error('Error al leer la imagen');
+    };
     reader.onload = (e: any) => {
       const img = new Image();
       img.src = e.target.result;
+      img.onerror = () => {
+        console.error('Error al cargar la imagen');
+        this.toast.error('Error al procesar la imagen');
+      };
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const MAX = 200;
@@ -140,7 +159,7 @@ export class SuperAdmin implements OnInit {
       slogan: this.editando.slogan,
       colores: this.editando.colores,
       modulos: this.editando.modulos
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.toast.success('Gimnasio actualizado');
         this.guardando = false;
@@ -157,7 +176,7 @@ export class SuperAdmin implements OnInit {
   async crear() {
     if (!this.nuevo.nombre || !this.nuevo.slug || this.guardando) return;
     this.guardando = true;
-    this.http.post(`${environment.apiUrl}/api/gym/crear`, this.nuevo, { headers: this.headers }).subscribe({
+    this.http.post(`${environment.apiUrl}/api/gym/crear`, this.nuevo, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.toast.success('Gimnasio creado');
         this.mostrarForm = false;
@@ -180,7 +199,7 @@ export class SuperAdmin implements OnInit {
     const ok = await this.confirm.confirm(`¿${accion} "${gym.nombre}"?`);
     if (!ok) return;
     this.http.patch(`${environment.apiUrl}/api/gym/${gym._id}/estado`,
-      { activo: !gym.activo }, { headers: this.headers }).subscribe({
+      { activo: !gym.activo }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.toast.success(`Gimnasio ${accion}do`); this.cargar(); },
       error: () => this.toast.error('Error al cambiar estado')
     });
@@ -189,7 +208,7 @@ export class SuperAdmin implements OnInit {
   async eliminar(gym: any) {
     const ok = await this.confirm.confirm(`¿Eliminar permanentemente "${gym.nombre}"? Esta acción no se puede deshacer.`);
     if (!ok) return;
-    this.http.delete(`${environment.apiUrl}/api/gym/${gym._id}`, { headers: this.headers }).subscribe({
+    this.http.delete(`${environment.apiUrl}/api/gym/${gym._id}`, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.toast.success('Gimnasio eliminado'); this.cargar(); },
       error: () => this.toast.error('Error al eliminar')
     });

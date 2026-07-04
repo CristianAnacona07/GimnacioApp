@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideAppInitializer, isDevMode, inject } from '@angular/core';
+import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideAppInitializer, isDevMode, inject, ErrorHandler, Injectable } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideServiceWorker } from '@angular/service-worker';
@@ -8,10 +8,24 @@ import { authInterceptor } from './interceptors/auth.interceptor';
 import { TenantService } from './services/tenant.service';
 import { GymService } from './services/gym.service';
 import { ThemeService } from './services/theme.service';
+import { ToastService } from './services/toast.service';
+
+// Manejo centralizado de errores no capturados: los registra en consola
+// y notifica al usuario mediante el toast existente para dar visibilidad.
+@Injectable()
+export class GlobalErrorHandler implements ErrorHandler {
+  private toast = inject(ToastService);
+
+  handleError(error: unknown): void {
+    console.error('Error no controlado:', error);
+    this.toast.error('Ocurrió un error inesperado. Inténtalo de nuevo.');
+  }
+}
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
 
     // Multi-tenant por subdominio: si la URL es <slug>.gimnasios.co,
     // resuelve el gym por slug ANTES de que el router navegue.

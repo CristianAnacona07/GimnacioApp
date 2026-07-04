@@ -8,11 +8,11 @@ export const superAdminGuard: CanActivateFn = () => {
   const token = storage.getToken();
   if (!token) { router.navigate(['/login']); return false; }
 
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+  const payload = storage.decodeTokenPayload(token);
+  if (payload) {
     const expirado = !payload.exp || payload.exp * 1000 < Date.now();
     if (!expirado && payload.role?.toLowerCase().trim() === 'superadmin') return true;
-  } catch { /* token ilegible → limpiar y salir */ }
+  }
 
   // Token presente pero inválido/expirado/sin permiso: limpiar sesión obsoleta.
   storage.clearSessionPreservingData();

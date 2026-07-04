@@ -35,9 +35,10 @@ export class Register implements OnInit {
   }
 
   esFormularioValido(): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return (
       this.nuevoUsuario.nombre.length > 2 &&
-      this.nuevoUsuario.email.includes('@') &&
+      emailRegex.test(this.nuevoUsuario.email) &&
       this.nuevoUsuario.password.length >= 8 &&
       this.nuevoUsuario.password === this.nuevoUsuario.confirmPassword
     );

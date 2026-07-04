@@ -1,8 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { RouterOutlet, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs/operators';
 import { Notification } from './components/shared/notification/notification';
 import { Cronometro } from './components/shared/cronometro/cronometro';
 import { SpotifyPlayer } from './components/shared/spotify-player/spotify-player';
@@ -26,11 +24,6 @@ export class App implements OnInit {
   private router = inject(Router);
   private tokenMonitor = inject(TokenMonitorService);
 
-  isAdmin = toSignal(
-    this.userState.user$.pipe(map(user => user?.role?.toLowerCase().trim() === 'admin')),
-    { initialValue: false }
-  );
-
   isSocioRoute() {
     return this.router.url.startsWith('/socio');
   }
@@ -49,7 +42,9 @@ export class App implements OnInit {
           this.gymService.guardarGym(gymFresh);
           this.theme.aplicar(gymFresh);
         },
-        error: () => {}
+        error: (err) => {
+          console.warn('No se pudo refrescar el gimnasio. Usando datos en caché.', err);
+        }
       });
     }
   }
