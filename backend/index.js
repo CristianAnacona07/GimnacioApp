@@ -24,10 +24,17 @@ app.use(cors({
       'https://gimnacio-app.vercel.app',
       process.env.FRONTEND_URL
     ].filter(Boolean);
-    const isLocalhost = !origin || /^https?:\/\/localhost(:\d+)?$/.test(origin);
+    // Subdominios de localhost (<slug>.localhost) permiten probar multi-tenant en dev
+    const isLocalhost = !origin || /^https?:\/\/([a-z0-9-]+\.)?localhost(:\d+)?$/i.test(origin);
     // Apps nativas con Capacitor (Android usa https://localhost; iOS, capacitor://localhost)
     const isApp = origin === 'capacitor://localhost' || origin === 'ionic://localhost';
-    if (isLocalhost || isApp || allowedOrigins.includes(origin)) {
+    // Multi-tenant por subdominio: TENANT_ROOT_DOMAIN=gimnasios.co permite
+    // https://gimnasios.co y https://<slug>.gimnasios.co (solo un nivel, solo https)
+    const raizTenant = process.env.TENANT_ROOT_DOMAIN;
+    const isTenant = !!(raizTenant && origin && new RegExp(
+      `^https://([a-z0-9-]+\\.)?${raizTenant.replace(/\./g, '\\.')}$`, 'i'
+    ).test(origin));
+    if (isLocalhost || isApp || isTenant || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS bloqueado por seguridad Kodiak'));
