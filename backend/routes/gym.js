@@ -4,6 +4,7 @@ const router = express.Router();
 const Gym  = require('../models/gym');
 const User = require('../models/user');
 const { verificarToken, soloAdmin, soloSuperAdmin } = require('../middleware/auth');
+const { registrarAuditoria } = require('../helpers/audit');
 
 // ── PÚBLICAS ────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
 
     const gym = new Gym({ nombre, slug, logo, slogan, colores, modulos });
     await gym.save();
+    await registrarAuditoria(req, 'CREAR_GYM', { recurso: 'Gym', recursoId: gym._id });
     res.status(201).json(gym);
   } catch (error) {
     if (error.code === 11000) return res.status(400).json({ error: 'El código ya está en uso' });
@@ -80,6 +82,7 @@ router.patch('/:id/estado', verificarToken, soloSuperAdmin, async (req, res) => 
       { new: true }
     );
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
+    await registrarAuditoria(req, 'CAMBIAR_ESTADO_GYM', { recurso: 'Gym', recursoId: req.params.id, detalle: { activo: req.body.activo } });
     res.json(gym);
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -99,8 +102,11 @@ router.delete('/:id', verificarToken, soloSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'No se puede eliminar un gimnasio con usuarios activos' });
     }
 
-    const gym = await Gym.findByIdAndDelete(req.params.id);
-    if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
+    const resultado = await Gym.softDelete({ _id: req.params.id });
+    if (!resultado || resultado.modifiedCount === 0) {
+      return res.status(404).json({ error: 'Gimnasio no encontrado' });
+    }
+    await registrarAuditoria(req, 'ELIMINAR_GYM', { recurso: 'Gym', recursoId: req.params.id });
     res.json({ mensaje: 'Gimnasio eliminado' });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -123,6 +129,7 @@ router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => 
       { new: true, runValidators: true }
     );
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
+    await registrarAuditoria(req, 'EDITAR_GYM', { recurso: 'Gym', recursoId: req.params.id });
     res.json(gym);
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });

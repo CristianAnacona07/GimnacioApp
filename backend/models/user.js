@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const softDelete = require('./plugins/softDelete');
 
 const UserSchema = new mongoose.Schema({
     gymId: {
@@ -28,6 +29,15 @@ const UserSchema = new mongoose.Schema({
         type: String,
         enum: ['superadmin', 'admin', 'entrenador', 'socio'],
         default: 'socio'
+    },
+
+    // Entrenador asignado a un socio (opcional). Permite que un entrenador
+    // gestione sólo a los socios que le corresponden dentro de su gym.
+    entrenadorId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+        index: true
     },
 
     // Perfil
@@ -67,10 +77,26 @@ const UserSchema = new mongoose.Schema({
     resetTokenExpiry: {
         type: Date,
         default: null
+    },
+
+    // Verificación de correo (el registro envía un enlace; no bloquea el login
+    // para no dejar fuera a usuarios previos, pero expone el estado verificado).
+    emailVerified: { type: Boolean, default: false },
+    verifyToken: { type: String, default: null, select: false },
+    verifyTokenExpiry: { type: Date, default: null, select: false },
+
+    // Doble factor (TOTP) opcional. El secreto nunca se devuelve por defecto.
+    twoFactor: {
+        enabled: { type: Boolean, default: false },
+        secret: { type: String, default: null, select: false },
+        backupCodes: { type: [String], default: [], select: false }
     }
 }, {
     timestamps: true  // ⚡ Agrega createdAt y updatedAt automáticamente
 });
+
+// Borrado lógico: deletedAt + exclusión automática en las lecturas.
+UserSchema.plugin(softDelete);
 
 // Email único POR gimnasio (multi-gym): el mismo correo puede existir en
 // gimnasios distintos, pero no dos veces dentro del mismo gym.

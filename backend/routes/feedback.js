@@ -30,9 +30,19 @@ router.post('/', verificarToken, async (req, res) => {
 // GET /api/feedback — solo superadmin
 router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
   try {
-    const feedbacks = await Feedback.find()
-      .sort({ createdAt: -1 })
-      .lean();
+    const filtro = {};
+    const paginar = req.query.page !== undefined;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+
+    let q = Feedback.find(filtro).sort({ createdAt: -1 });
+    if (paginar) q = q.skip((page - 1) * limit).limit(limit);
+    const feedbacks = await q.lean();
+
+    if (paginar) {
+      const total = await Feedback.countDocuments(filtro);
+      return res.json({ data: feedbacks, total, page, limit, pages: Math.ceil(total / limit) });
+    }
     res.json(feedbacks);
   } catch {
     res.status(500).json({ mensaje: 'Error al obtener feedbacks' });

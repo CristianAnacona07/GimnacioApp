@@ -46,4 +46,6 @@ const GymSchema = new mongoose.Schema({
 
 GymSchema.index({ nombre: 'text' });
 
+GymSchema.plugin(require('./plugins/softDelete'));
+
 module.exports = mongoose.model('Gym', GymSchema);

@@ -42,4 +42,6 @@ const noticiaSchema = new mongoose.Schema({
   }
 }, { timestamps: true }); // createdAt + updatedAt automáticos (consistente con los demás modelos)
 
+noticiaSchema.plugin(require('./plugins/softDelete'));
+
 module.exports = mongoose.model('Noticia', noticiaSchema);

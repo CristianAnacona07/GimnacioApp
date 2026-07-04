@@ -34,4 +34,6 @@ const MetodoPagoSchema = new mongoose.Schema({
 // Índice compuesto para optimizar consultas de métodos de pago por gimnasio
 MetodoPagoSchema.index({ gymId: 1, createdAt: -1 });
 
+MetodoPagoSchema.plugin(require('./plugins/softDelete'));
+
 module.exports = mongoose.model('MetodoPago', MetodoPagoSchema);

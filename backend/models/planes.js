@@ -25,4 +25,6 @@ const planSchema = new mongoose.Schema({
   }
 }, { timestamps: true }); // createdAt + updatedAt automáticos (consistente con los demás modelos)
 
+planSchema.plugin(require('./plugins/softDelete'));
+
 module.exports = mongoose.model('Plan', planSchema);

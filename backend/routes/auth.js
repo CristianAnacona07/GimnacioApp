@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 const User = require('../models/user');
 const Gym = require('../models/gym');
 const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
+const { registrarAuditoria } = require('../helpers/audit');
 
 const TOKEN_EXPIRY = '8h';
 const hashToken = (t) => crypto.createHash('sha256').update(t).digest('hex');
@@ -41,6 +42,46 @@ const emailTemplate = (nombre, resetUrl) => `
     <p style="color:#94a3b8;font-size:12px;text-align:center;margin:20px 0 0">Si no solicitaste esto, ignora este correo.</p>
   </div>
 </div>`;
+
+// Template del email de verificación de cuenta
+const verifyEmailTemplate = (nombre, verifyUrl) => `
+<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12)">
+  <div style="background:linear-gradient(160deg,#1e3a8a,#0f172a);padding:28px;text-align:center">
+    <h1 style="color:#ffffff;font-size:22px;margin:0;letter-spacing:-0.5px">KODIAK GYM</h1>
+    <p style="color:#93c5fd;font-size:11px;margin:4px 0 0;letter-spacing:2px">STRENGTH · DISCIPLINE · POWER</p>
+  </div>
+  <div style="background:#f8fbff;padding:32px">
+    <h2 style="color:#1e293b;font-size:18px;margin:0 0 12px">Verifica tu cuenta</h2>
+    <p style="color:#475569;font-size:14px;margin:0 0 8px">Hola <strong>${nombre}</strong>,</p>
+    <p style="color:#475569;font-size:14px;margin:0 0 24px">Confirma tu correo para activar todas las funciones de tu cuenta. El enlace expira en <strong>24 horas</strong>.</p>
+    <div style="text-align:center;margin:24px 0">
+      <a href="${verifyUrl}" style="background:#1d4ed8;color:#ffffff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block">
+        Verificar mi correo
+      </a>
+    </div>
+    <p style="color:#94a3b8;font-size:12px;text-align:center;margin:20px 0 0">Si no creaste esta cuenta, ignora este correo.</p>
+  </div>
+</div>`;
+
+// Genera un token de verificación, lo guarda hasheado y envía el correo (best-effort).
+async function enviarVerificacion(usuario) {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+    const token = crypto.randomBytes(32).toString('hex');
+    usuario.verifyToken = hashToken(token);
+    usuario.verifyTokenExpiry = new Date(Date.now() + 24 * 3600000); // 24 horas
+    await usuario.save();
+    const verifyUrl = `${process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app'}/verify-email?token=${token}`;
+    try {
+        await transporter.sendMail({
+            from: `"Kodiak Gym" <${process.env.EMAIL_USER}>`,
+            to: usuario.email,
+            subject: 'Verifica tu cuenta — Kodiak Gym',
+            html: verifyEmailTemplate(usuario.nombre, verifyUrl)
+        });
+    } catch (err) {
+        console.error('No se pudo enviar el correo de verificación:', err.message);
+    }
+}
 
 // ✅ OLVIDÉ MI CONTRASEÑA
 router.post('/forgot-password', async (req, res) => {
@@ -171,7 +212,8 @@ router.post('/google', async (req, res) => {
                 email: email.toLowerCase(),
                 password: await bcrypt.hash(sub + Date.now(), salt),
                 role: 'socio',
-                fotoUrl: picture || ''
+                fotoUrl: picture || '',
+                emailVerified: true   // el correo ya viene verificado por Google
             });
             await usuario.save();
         }
@@ -196,10 +238,21 @@ router.post('/google', async (req, res) => {
 // ✅ OBTENER TODOS LOS USUARIOS (SOLO ADMINS)
 router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const usuarios = await User.find({ gymId: req.gymId })
-            .select('-password')
-            .sort({ createdAt: -1 })
-            .lean();
+        // Paginación retro-compatible: sin ?page se devuelve el array completo
+        // (como siempre); con ?page se devuelve { data, total, page, limit, pages }.
+        const filtroBase = { gymId: req.gymId };
+        if (req.query.buscar) {
+            const rx = new RegExp(String(req.query.buscar).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            filtroBase.$or = [{ nombre: rx }, { email: rx }];
+        }
+
+        const paginar = req.query.page !== undefined;
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+
+        let consulta = User.find(filtroBase).select('-password').sort({ createdAt: -1 });
+        if (paginar) consulta = consulta.skip((page - 1) * limit).limit(limit);
+        const usuarios = await consulta.lean();
 
         const usuariosConDatos = usuarios.map(usuario => {
             let diasRestantes = 0;
@@ -216,9 +269,67 @@ router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
             };
         });
 
+        if (paginar) {
+            const total = await User.countDocuments(filtroBase);
+            return res.json({ data: usuariosConDatos, total, page, limit, pages: Math.ceil(total / limit) });
+        }
         res.json(usuariosConDatos);
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al obtener usuarios' });
+    }
+});
+
+// ✅ CREAR ENTRENADOR (SOLO ADMINS)
+router.post('/crear-entrenador', verificarToken, soloAdmin, async (req, res) => {
+    try {
+        const { nombre, email, password } = req.body;
+        if (!nombre || !email || !password) {
+            return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
+        }
+        if (typeof password !== 'string' || password.length < 8) {
+            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
+        }
+        const emailNorm = email.toLowerCase().trim();
+        const existe = await User.findOne({ email: emailNorm, gymId: req.gymId }).lean();
+        if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+
+        const salt = await bcrypt.genSalt(10);
+        const entrenador = new User({
+            gymId: req.gymId,
+            nombre,
+            email: emailNorm,
+            password: await bcrypt.hash(password, salt),
+            role: 'entrenador',
+            emailVerified: true
+        });
+        await entrenador.save();
+        await registrarAuditoria(req, 'CREAR_ENTRENADOR', { recurso: 'User', recursoId: entrenador._id });
+
+        res.status(201).json({ mensaje: 'Entrenador creado', entrenador: { _id: entrenador._id, nombre: entrenador.nombre, email: entrenador.email } });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al crear entrenador' });
+    }
+});
+
+// ✅ ASIGNAR ENTRENADOR A UN SOCIO (SOLO ADMINS)
+router.put('/asignar-entrenador/:socioId', verificarToken, soloAdmin, async (req, res) => {
+    try {
+        const { entrenadorId } = req.body; // null para desasignar
+        if (entrenadorId) {
+            const entrenador = await User.findOne({ _id: entrenadorId, gymId: req.gymId, role: 'entrenador' }).select('_id').lean();
+            if (!entrenador) return res.status(404).json({ mensaje: 'Entrenador no encontrado en este gimnasio' });
+        }
+        const socio = await User.findOneAndUpdate(
+            { _id: req.params.socioId, gymId: req.gymId, role: 'socio' },
+            { entrenadorId: entrenadorId || null },
+            { new: true }
+        ).select('-password');
+        if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
+        await registrarAuditoria(req, 'ASIGNAR_ENTRENADOR', { recurso: 'User', recursoId: socio._id, detalle: { entrenadorId: entrenadorId || null } });
+
+        res.json({ mensaje: 'Entrenador asignado', socio });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al asignar entrenador' });
     }
 });
 
@@ -240,6 +351,7 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
         fechaBase.setDate(fechaBase.getDate() + dias);
         usuario.fechaVencimiento = fechaBase;
         await usuario.save();
+        await registrarAuditoria(req, 'RENOVAR_MEMBRESIA', { recurso: 'User', recursoId: usuario._id, detalle: { dias } });
 
         res.json({
             mensaje: 'Membresía renovada exitosamente',
@@ -340,9 +452,49 @@ router.post('/register', async (req, res) => {
         });
 
         await nuevoUsuario.save();
-        res.status(201).json({ mensaje: 'Usuario creado con éxito' });
+        // Enviar correo de verificación (no bloquea el registro si falla el email).
+        await enviarVerificacion(nuevoUsuario);
+        res.status(201).json({ mensaje: 'Usuario creado con éxito. Revisa tu correo para verificar la cuenta.' });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error en el servidor' });
+    }
+});
+
+// ✅ VERIFICAR CORREO
+router.post('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) return res.status(400).json({ mensaje: 'Token requerido' });
+
+        const usuario = await User.findOne({
+            verifyToken: hashToken(token),
+            verifyTokenExpiry: { $gt: Date.now() }
+        }).select('+verifyToken +verifyTokenExpiry');
+
+        if (!usuario) return res.status(400).json({ mensaje: 'El enlace es inválido o ya expiró' });
+
+        usuario.emailVerified = true;
+        usuario.verifyToken = null;
+        usuario.verifyTokenExpiry = null;
+        await usuario.save();
+
+        res.json({ mensaje: 'Correo verificado correctamente' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al verificar el correo' });
+    }
+});
+
+// ✅ REENVIAR VERIFICACIÓN (usuario autenticado)
+router.post('/resend-verification', verificarToken, async (req, res) => {
+    try {
+        const usuario = await User.findById(req.userId);
+        if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        if (usuario.emailVerified) return res.json({ mensaje: 'La cuenta ya está verificada' });
+
+        await enviarVerificacion(usuario);
+        res.json({ mensaje: 'Correo de verificación reenviado' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al reenviar la verificación' });
     }
 });
 

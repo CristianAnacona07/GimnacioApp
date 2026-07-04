@@ -3,6 +3,7 @@ const router = express.Router();
 const Rutina = require('../models/rutina');
 const User = require('../models/user');
 const { verificarToken, soloAdmin, resolverUsuarioId, filtroPropiedad } = require('../middleware/auth');
+const { registrarAuditoria } = require('../helpers/audit');
 
 router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
   try {
@@ -21,6 +22,11 @@ router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
 
     const nuevaRutina = new Rutina({ gymId: req.gymId, usuarioId, nombre, ejercicios, dia, enfoque });
     await nuevaRutina.save();
+    await registrarAuditoria(req, 'ASIGNAR_RUTINA', {
+      recurso: 'Rutina',
+      recursoId: nuevaRutina._id,
+      detalle: { usuarioId, dia, nombre }
+    });
     res.status(201).json({ mensaje: 'Rutina asignada con éxito', rutina: nuevaRutina });
   } catch (error) {
     // Duplicado por el índice único {gymId,usuarioId,dia} (carrera con el findOne previo)
@@ -59,8 +65,12 @@ router.put('/actualizar/:id', verificarToken, soloAdmin, async (req, res) => {
 
 router.delete('/eliminar/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const rutina = await Rutina.findOneAndDelete({ _id: req.params.id, gymId: req.gymId });
-    if (!rutina) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
+    const resultado = await Rutina.softDelete({ _id: req.params.id, gymId: req.gymId });
+    if (resultado.modifiedCount === 0) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
+    await registrarAuditoria(req, 'ELIMINAR_RUTINA', {
+      recurso: 'Rutina',
+      recursoId: req.params.id
+    });
     res.json({ mensaje: 'Rutina borrada correctamente' });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al borrar' });

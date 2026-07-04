@@ -110,6 +110,17 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth/reset-password', authLimiter);
 app.use('/api/auth/google', authLimiter);
+app.use('/api/2fa/verify', authLimiter);
+
+// Límite general para el resto de la API (anti-abuso/DoS); más holgado que el de auth.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { mensaje: 'Demasiadas solicitudes. Intenta de nuevo más tarde.' }
+});
+app.use('/api', apiLimiter);
 
 // --- RUTAS DE API ---
 app.use('/api/auth', require('./routes/auth'));
@@ -121,6 +132,10 @@ app.use('/api/progreso', require('./routes/progreso'));
 app.use('/api/medidas', require('./routes/medidas'));
 app.use('/api/gym', require('./routes/gym'));
 app.use('/api/feedback', require('./routes/feedback'));
+app.use('/api/transacciones', require('./routes/transacciones'));
+app.use('/api/entrenador', require('./routes/entrenador'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/2fa', require('./routes/twofa'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 
