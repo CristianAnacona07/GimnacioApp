@@ -1,0 +1,109 @@
+<section>
+  <a
+    routerLink="../../socios"
+    class="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+  >
+    <span>‹</span> Volver a mis socios
+  </a>
+
+  <!-- Cargando -->
+  <div *ngIf="cargando" class="space-y-4">
+    <div class="animate-pulse flex items-center gap-4 rounded-xl bg-white p-5 shadow-sm">
+      <div class="h-16 w-16 rounded-full bg-slate-200"></div>
+      <div class="flex-1 space-y-2">
+        <div class="h-4 w-1/3 rounded bg-slate-200"></div>
+        <div class="h-3 w-1/2 rounded bg-slate-200"></div>
+      </div>
+    </div>
+    <div class="animate-pulse h-32 rounded-xl bg-white shadow-sm"></div>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="!cargando && error" class="rounded-xl bg-white p-6 text-center shadow-sm">
+    <p class="text-3xl mb-2">⚠️</p>
+    <p class="text-slate-600 mb-4">No se pudo cargar el perfil de este socio.</p>
+    <button
+      type="button"
+      (click)="cargar()"
+      class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 transition-colors"
+    >
+      Reintentar
+    </button>
+  </div>
+
+  <!-- Contenido -->
+  <div *ngIf="!cargando && !error && socio" class="space-y-6">
+    <!-- Perfil -->
+    <div class="flex items-center gap-4 rounded-xl bg-white p-5 shadow-sm">
+      <img
+        [src]="avatar()"
+        (error)="onErrorFoto($event)"
+        alt="Foto de {{ socio.nombre }}"
+        class="h-16 w-16 rounded-full object-cover"
+      />
+      <div class="min-w-0">
+        <h2 class="text-xl font-bold text-slate-800 truncate">{{ socio.nombre || 'Socio' }}</h2>
+        <p class="text-sm text-slate-500 truncate">{{ socio.email }}</p>
+      </div>
+    </div>
+
+    <!-- Datos -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div class="rounded-xl bg-white p-4 shadow-sm">
+        <p class="text-xs text-slate-400">Racha</p>
+        <p class="text-lg font-semibold text-slate-800">{{ socio.racha ?? 0 }} 🔥</p>
+      </div>
+      <div class="rounded-xl bg-white p-4 shadow-sm">
+        <p class="text-xs text-slate-400">Asistencias/mes</p>
+        <p class="text-lg font-semibold text-slate-800">{{ socio.asistenciasMes ?? 0 }}</p>
+      </div>
+      <div class="rounded-xl bg-white p-4 shadow-sm">
+        <p class="text-xs text-slate-400">Peso actual</p>
+        <p class="text-lg font-semibold text-slate-800">
+          {{ socio.datosPersonales?.pesoActual ? socio.datosPersonales?.pesoActual + ' kg' : '—' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Rutinas -->
+    <div>
+      <h3 class="text-lg font-bold text-slate-800 mb-3">Rutinas</h3>
+
+      <div *ngIf="socio.rutinas.length === 0" class="rounded-xl bg-white p-8 text-center shadow-sm">
+        <p class="text-4xl mb-2">📋</p>
+        <p class="text-slate-600">Este socio todavía no tiene rutinas asignadas.</p>
+      </div>
+
+      <div *ngFor="let rutina of socio.rutinas" class="rounded-xl bg-white p-5 shadow-sm mb-3">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <p class="font-semibold text-slate-800">{{ rutina.nombre || 'Rutina' }}</p>
+            <p class="text-xs text-slate-500">
+              <span *ngIf="rutina.dia">{{ rutina.dia }}</span>
+              <span *ngIf="rutina.dia && rutina.enfoque"> · </span>
+              <span *ngIf="rutina.enfoque">{{ rutina.enfoque }}</span>
+            </p>
+          </div>
+          <span class="text-xs text-slate-400">
+            {{ rutina.ejercicios?.length || 0 }} ejercicio{{ (rutina.ejercicios?.length || 0) === 1 ? '' : 's' }}
+          </span>
+        </div>
+
+        <ul class="space-y-2">
+          <li
+            *ngFor="let ejer of rutina.ejercicios"
+            class="flex items-center gap-3 rounded-lg bg-slate-50 p-3"
+          >
+            <span class="text-lg">{{ ejer.completado ? '✅' : '⬜' }}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-800 truncate">{{ ejer.nombre }}</p>
+              <p class="text-xs text-slate-500">
+                {{ ejer.series || '—' }} series × {{ ejer.repeticiones || '—' }} reps
+              </p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

@@ -127,6 +127,24 @@ export const routes: Routes = [
     ]
   },
 
+  // ENTRENADOR
+  {
+    path: 'entrenador',
+    canActivate: [authGuard],
+    loadComponent: () => import('./components/entrenador/dashboard/dashboard').then(m => m.EntrenadorDashboard),
+    children: [
+      {
+        path: 'socios',
+        loadComponent: () => import('./components/entrenador/mis-socios/mis-socios').then(m => m.MisSocios)
+      },
+      {
+        path: 'socio/:id',
+        loadComponent: () => import('./components/entrenador/socio-detalle/socio-detalle').then(m => m.SocioDetalle)
+      },
+      { path: '', redirectTo: 'socios', pathMatch: 'full' }
+    ]
+  },
+
   // SUPERADMIN
   {
     path: 'sa',

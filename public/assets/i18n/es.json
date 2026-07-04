@@ -1,0 +1,38 @@
+{
+  "common": {
+    "guardar": "Guardar",
+    "cancelar": "Cancelar",
+    "eliminar": "Eliminar",
+    "editar": "Editar",
+    "aceptar": "Aceptar",
+    "cerrar": "Cerrar",
+    "buscar": "Buscar",
+    "cargando": "Cargando...",
+    "error": "Ha ocurrido un error",
+    "exito": "Operación realizada con éxito",
+    "confirmar": "Confirmar",
+    "volver": "Volver",
+    "siguiente": "Siguiente",
+    "anterior": "Anterior"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "registrarse": "Registrarse",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirmarPassword": "Confirmar contraseña",
+    "olvidePassword": "¿Olvidaste tu contraseña?",
+    "recordarme": "Recordarme",
+    "nombre": "Nombre"
+  },
+  "nav": {
+    "inicio": "Inicio",
+    "perfil": "Perfil",
+    "salir": "Salir",
+    "ajustes": "Ajustes",
+    "noticias": "Noticias",
+    "planes": "Planes",
+    "pagos": "Pagos"
+  }
+}

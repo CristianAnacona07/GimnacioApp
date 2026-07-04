@@ -34,15 +34,29 @@ export const authGuard: CanActivateFn = (route, state) => {
 
   const role = payload.role?.toLowerCase().trim();
 
+  // Root del panel según rol: se usa para redirigir cuando alguien entra
+  // a una zona que no le corresponde.
+  const rootPorRol = (r?: string): string => {
+    if (r === 'admin' || r === 'superadmin') return '/admin';
+    if (r === 'entrenador') return '/entrenador';
+    return '/socio';
+  };
+
   // Zona admin: solo admin o superadmin.
   if (state.url.startsWith('/admin') && role !== 'admin' && role !== 'superadmin') {
-    router.navigate(['/socio']);
+    router.navigate([rootPorRol(role)]);
     return false;
   }
 
-  // Zona socio: solo socio (admin/superadmin tienen su propio panel).
+  // Zona entrenador: solo entrenador (admin/superadmin/socio a su propio panel).
+  if (state.url.startsWith('/entrenador') && role !== 'entrenador') {
+    router.navigate([rootPorRol(role)]);
+    return false;
+  }
+
+  // Zona socio: solo socio (admin/superadmin/entrenador tienen su propio panel).
   if (state.url.startsWith('/socio') && role !== 'socio') {
-    router.navigate(['/admin']);
+    router.navigate([rootPorRol(role)]);
     return false;
   }
 

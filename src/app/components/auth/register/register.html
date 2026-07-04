@@ -20,56 +20,56 @@
       <div class="card-body">
 
         <div class="field-group">
-          <label class="field-label">Nombre completo</label>
+          <label class="field-label" for="reg-nombre">Nombre completo</label>
           <div class="field-wrap">
-            <span class="field-icon">👤</span>
-            <input type="text" name="nombre" [(ngModel)]="nuevoUsuario.nombre" required
+            <span class="field-icon" aria-hidden="true">👤</span>
+            <input id="reg-nombre" type="text" name="nombre" [(ngModel)]="nuevoUsuario.nombre" required
               class="field-input" placeholder="Juan Pérez">
           </div>
         </div>
 
         <div class="field-group">
-          <label class="field-label">Correo electrónico</label>
+          <label class="field-label" for="reg-email">Correo electrónico</label>
           <div class="field-wrap">
-            <span class="field-icon">✉️</span>
-            <input type="email" name="email" [(ngModel)]="nuevoUsuario.email" required
+            <span class="field-icon" aria-hidden="true">✉️</span>
+            <input id="reg-email" type="email" name="email" [(ngModel)]="nuevoUsuario.email" required
               class="field-input" placeholder="correo@kodiak.com">
           </div>
         </div>
 
         <div class="reg-grid">
           <div class="field-group">
-            <label class="field-label">Contraseña</label>
+            <label class="field-label" for="reg-password">Contraseña</label>
             <div class="field-wrap">
-              <input #passInput [type]="verPass ? 'text' : 'password'" name="password"
+              <input id="reg-password" #passInput [type]="verPass ? 'text' : 'password'" name="password"
                 [(ngModel)]="nuevoUsuario.password" required
                 class="field-input" placeholder="Min. 8">
-              <button type="button" class="toggle-pass" (click)="verPass = !verPass; passInput.focus()">
-                {{ verPass ? '🙉' : '🙈' }}
+              <button type="button" class="toggle-pass" [attr.aria-label]="verPass ? 'Ocultar contraseña' : 'Mostrar contraseña'" (click)="verPass = !verPass; passInput.focus()">
+                <span aria-hidden="true">{{ verPass ? '🙉' : '🙈' }}</span>
               </button>
             </div>
           </div>
 
           <div class="field-group">
-            <label class="field-label">Confirmar</label>
+            <label class="field-label" for="reg-confirm">Confirmar</label>
             <div class="field-wrap"
                  [class.field-error]="nuevoUsuario.confirmPassword && !contrasenasCoinciden()"
                  [class.field-ok]="nuevoUsuario.confirmPassword && contrasenasCoinciden()">
-              <input #confirmInput [type]="verConfirmPass ? 'text' : 'password'" name="confirmPassword"
+              <input id="reg-confirm" #confirmInput [type]="verConfirmPass ? 'text' : 'password'" name="confirmPassword"
                 [(ngModel)]="nuevoUsuario.confirmPassword" required
                 class="field-input" placeholder="Repetir">
-              <button type="button" class="toggle-pass" (click)="verConfirmPass = !verConfirmPass; confirmInput.focus()">
-                {{ verConfirmPass ? '🙉' : '🙈' }}
+              <button type="button" class="toggle-pass" [attr.aria-label]="verConfirmPass ? 'Ocultar contraseña' : 'Mostrar contraseña'" (click)="verConfirmPass = !verConfirmPass; confirmInput.focus()">
+                <span aria-hidden="true">{{ verConfirmPass ? '🙉' : '🙈' }}</span>
               </button>
             </div>
           </div>
         </div>
 
         @if (nuevoUsuario.password && nuevoUsuario.password.length < 8) {
-          <p class="msg-warn">⚠️ Mínimo 8 caracteres</p>
+          <p class="msg-warn" role="alert"><span aria-hidden="true">⚠️</span> Mínimo 8 caracteres</p>
         }
         @if (nuevoUsuario.confirmPassword && !contrasenasCoinciden()) {
-          <p class="msg-error">❌ Las contraseñas no coinciden</p>
+          <p class="msg-error" role="alert"><span aria-hidden="true">❌</span> Las contraseñas no coinciden</p>
         }
 
         <button type="button" [disabled]="!esFormularioValido()" (click)="registrar()" class="btn-login">

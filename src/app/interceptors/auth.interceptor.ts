@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { HttpInterceptorFn } from '@angular/common/http';
-import { catchError } from 'rxjs/operators';
-import { throwError } from 'rxjs';
+import { catchError, retry, timeout } from 'rxjs/operators';
+import { throwError, timer } from 'rxjs';
 import { Router } from '@angular/router';
 import { StorageService } from '../services/storage.service';
 
@@ -20,7 +20,24 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     ? req.clone({ setHeaders: { 'Authorization': `Bearer ${token}` } })
     : req;
 
+  // Resiliencia solo para peticiones idempotentes (GET): timeout + reintentos
+  // ante errores transitorios (sin respuesta o error de servidor).
+  const esGet = req.method === 'GET';
+
   return next(authReq).pipe(
+    timeout(20000),
+    retry({
+      count: esGet ? 2 : 0,
+      delay: (error) => {
+        const status = error?.status;
+        const esTransitorio = status === 0 || status >= 500;
+        if (esGet && esTransitorio) {
+          return timer(800);
+        }
+        // No reintentar: propagar el error inmediatamente.
+        return throwError(() => error);
+      },
+    }),
     catchError(err => {
       const esEndpointAuth = AUTH_ENDPOINTS.some(ep => req.url.includes(ep));
       // Solo cerrar sesión si había un token (sesión real) y no es un login fallido.

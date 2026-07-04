@@ -1,0 +1,38 @@
+{
+  "common": {
+    "guardar": "Save",
+    "cancelar": "Cancel",
+    "eliminar": "Delete",
+    "editar": "Edit",
+    "aceptar": "Accept",
+    "cerrar": "Close",
+    "buscar": "Search",
+    "cargando": "Loading...",
+    "error": "An error has occurred",
+    "exito": "Operation completed successfully",
+    "confirmar": "Confirm",
+    "volver": "Back",
+    "siguiente": "Next",
+    "anterior": "Previous"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "registrarse": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "confirmarPassword": "Confirm password",
+    "olvidePassword": "Forgot your password?",
+    "recordarme": "Remember me",
+    "nombre": "Name"
+  },
+  "nav": {
+    "inicio": "Home",
+    "perfil": "Profile",
+    "salir": "Log out",
+    "ajustes": "Settings",
+    "noticias": "News",
+    "planes": "Plans",
+    "pagos": "Payments"
+  }
+}
