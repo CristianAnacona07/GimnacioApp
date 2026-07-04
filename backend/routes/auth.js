@@ -175,13 +175,11 @@ router.post('/google', async (req, res) => {
 
         if (access_token) {
             // Un access_token NO está ligado por sí mismo a nuestra app: primero hay que
-            // validar contra tokeninfo que su audience sea uno de nuestros Client IDs,
+            // validar con tokeninfo que su audience sea uno de nuestros Client IDs,
             // de lo contrario un token de cualquier app Google sería aceptado (suplantación).
             const tempClient = new OAuth2Client(GOOGLE_CLIENT_ID);
-            const tokenInfoRes = await tempClient.request({
-                url: `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(access_token)}`
-            });
-            const aud = tokenInfoRes.data && (tokenInfoRes.data.aud || tokenInfoRes.data.azp);
+            const tokenInfo = await tempClient.getTokenInfo(access_token);
+            const aud = tokenInfo.aud || tokenInfo.azp;
             if (!aud || !GOOGLE_AUDIENCES.includes(aud)) {
                 return res.status(401).json({ mensaje: 'Token de Google no válido para esta aplicación' });
             }
