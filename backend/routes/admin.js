@@ -221,3 +221,9 @@ router.get('/audit', verificarToken, soloAdmin, async (req, res) => {
 });
 
 module.exports = router;
+
+// Exposición de los helpers puros (CSV/fechas) para pruebas unitarias.
+// No altera el comportamiento del router (solo añade propiedades al objeto exportado).
+module.exports.escaparCSV = escaparCSV;
+module.exports.construirCSV = construirCSV;
+module.exports.fechaISO = fechaISO;

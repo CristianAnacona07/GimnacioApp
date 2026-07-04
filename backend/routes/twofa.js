@@ -245,3 +245,11 @@ router.post('/verify', async (req, res) => {
 });
 
 module.exports = router;
+
+// Exposición de los helpers TOTP puros para pruebas unitarias.
+// No altera el comportamiento del router (solo añade propiedades al objeto exportado).
+module.exports.base32Encode = base32Encode;
+module.exports.base32Decode = base32Decode;
+module.exports.totp = totp;
+module.exports.verify = verify;
+module.exports.hashBackup = hashBackup;
