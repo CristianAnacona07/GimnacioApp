@@ -3,6 +3,7 @@ import { authGuard } from './guards/auth';
 import { AdminDashboard } from './components/admin/dashboardAdmin/dashboardAdmin';
 import { noAuthGuard } from './guards/no-auth-guard';
 import { superAdminGuard } from './guards/superadmin.guard';
+import { tenantGuard } from './guards/tenant.guard';
 
 // Rutas compartidas entre admin y socio
 const sharedRoutes: Routes = [
@@ -25,6 +26,7 @@ export const routes: Routes = [
 
   {
     path: 'gimnasios',
+    canActivate: [tenantGuard], // en subdominio de gym el selector se salta → /login
     loadComponent: () => import('./components/gym-selector/gym-selector').then(m => m.GymSelector)
   },
   {
