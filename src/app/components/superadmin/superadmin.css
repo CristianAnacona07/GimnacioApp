@@ -522,3 +522,6 @@
   padding: .5rem 1rem; border-radius: 8px; cursor: default;
 }
 .preview-link { font-weight: 600; font-size: .82rem; text-decoration: underline; }
+
+.colores-nota { font-size: .72rem; color: #94a3b8; margin: .1rem 0 .5rem; }
+.colores-nota strong { color: #f97316; }

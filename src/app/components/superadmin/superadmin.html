@@ -99,20 +99,20 @@
       </div>
 
       <p class="form-titulo" style="margin-top:.75rem">Colores</p>
+      <p class="colores-nota">El <strong>color principal</strong> se aplica a la barra, los botones, el menú y los días de rutina.</p>
       <div class="colores-row">
-        @for (c of [
-          {key:'primario',label:'Primario'},
-          {key:'secundario',label:'Secundario'},
-          {key:'fondo',label:'Fondo'},
-          {key:'navbar',label:'Navbar'},
-          {key:'menu',label:'Menú'},
-          {key:'dias',label:'Días Rutina'}
-        ]; track c.key) {
-          <div class="color-item">
-            <label class="flabel">{{ c.label }}</label>
-            <input type="color" [(ngModel)]="nuevo.colores[c.key]" class="cpicker">
-          </div>
-        }
+        <div class="color-item">
+          <label class="flabel">Principal</label>
+          <input type="color" [ngModel]="nuevo.colores['navbar']" (ngModelChange)="aplicarPrincipal(nuevo, $event)" class="cpicker">
+        </div>
+        <div class="color-item">
+          <label class="flabel">Fondo</label>
+          <input type="color" [(ngModel)]="nuevo.colores['fondo']" class="cpicker">
+        </div>
+        <div class="color-item">
+          <label class="flabel">Secundario</label>
+          <input type="color" [(ngModel)]="nuevo.colores['secundario']" class="cpicker">
+        </div>
       </div>
 
       <!-- Vista previa en vivo -->
@@ -211,20 +211,20 @@
       </div>
 
       <p class="form-titulo" style="margin-top:.75rem">Colores</p>
+      <p class="colores-nota">El <strong>color principal</strong> se aplica a la barra, los botones, el menú y los días de rutina.</p>
       <div class="colores-row">
-        @for (c of [
-          {key:'primario',label:'Primario'},
-          {key:'secundario',label:'Secundario'},
-          {key:'fondo',label:'Fondo'},
-          {key:'navbar',label:'Navbar'},
-          {key:'menu',label:'Menú'},
-          {key:'dias',label:'Días Rutina'}
-        ]; track c.key) {
-          <div class="color-item">
-            <label class="flabel">{{ c.label }}</label>
-            <input type="color" [(ngModel)]="editando.colores[c.key]" class="cpicker">
-          </div>
-        }
+        <div class="color-item">
+          <label class="flabel">Principal</label>
+          <input type="color" [ngModel]="editando.colores['navbar']" (ngModelChange)="aplicarPrincipal(editando, $event)" class="cpicker">
+        </div>
+        <div class="color-item">
+          <label class="flabel">Fondo</label>
+          <input type="color" [(ngModel)]="editando.colores['fondo']" class="cpicker">
+        </div>
+        <div class="color-item">
+          <label class="flabel">Secundario</label>
+          <input type="color" [(ngModel)]="editando.colores['secundario']" class="cpicker">
+        </div>
       </div>
 
       <!-- Vista previa en vivo de cómo se ve el gimnasio -->

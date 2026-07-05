@@ -32,6 +32,16 @@ export class SuperAdmin implements OnInit, OnDestroy {
   // Ej: slug "sogafit" → sogafit.micro-gimnacios.com (al desplegar en el VPS).
   readonly dominioBase = 'micro-gimnacios.com';
 
+  // Simplificación de colores: el color PRINCIPAL (navbar) se aplica también a
+  // botones (primario), menú lateral y días de rutina — así solo hay que elegir
+  // 3 colores (Principal, Fondo, Secundario) en vez de 6.
+  aplicarPrincipal(obj: any, valor: string) {
+    obj.colores.navbar = valor;
+    obj.colores.primario = valor;
+    obj.colores.menu = valor;
+    obj.colores.dias = valor;
+  }
+
   // Normaliza lo que el usuario escribe como subdominio (minúsculas, sin espacios/acentos).
   sanitizarSlug(valor: string): string {
     return (valor || '')
@@ -42,7 +52,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
   nuevo = {
     nombre: '', slug: '', slogan: '',
     logo: null as string | null,
-    colores: { primario: '#f97316', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#1e293b', dias: '#1d4ed8' } as Record<string, string>,
+    colores: { primario: '#0f172a', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#0f172a', dias: '#0f172a' } as Record<string, string>,
     modulos: { rutinas: true, progreso: true, medidas: true, pagos: true, noticias: true, cronometro: true } as Record<string, boolean>
   };
 
@@ -154,6 +164,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
       colores: { ...gym.colores } as Record<string, string>,
       modulos: { ...gym.modulos } as Record<string, boolean>
     };
+    // Simplificación: botones/menú/días siguen al color principal (navbar).
+    this.aplicarPrincipal(this.editando, this.editando.colores['navbar'] || '#0f172a');
     this.mostrarForm = false;
   }
 
@@ -193,7 +205,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
         this.toast.success('Gimnasio creado');
         this.mostrarForm = false;
         this.nuevo = { nombre: '', slug: '', slogan: '', logo: null,
-          colores: { primario: '#f97316', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#1e293b', dias: '#1d4ed8' } as Record<string, string>,
+          colores: { primario: '#0f172a', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#0f172a', dias: '#0f172a' } as Record<string, string>,
           modulos: { rutinas: true, progreso: true, medidas: true, pagos: true, noticias: true, cronometro: true } as Record<string, boolean>
         };
         this.guardando = false;
