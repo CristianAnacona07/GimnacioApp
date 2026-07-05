@@ -1,0 +1,76 @@
+name: Build iOS (nube)
+
+# Compila la app iOS en un runner macOS de GitHub (trae Xcode + Swift PM).
+# Así puedes construir iOS SIN tener un Mac compatible localmente.
+#
+# Por defecto hace un build SIN FIRMA (verifica que compila; no necesita cuenta
+# de Apple). Para generar un .ipa instalable / subir a TestFlight, hace falta una
+# cuenta de Apple Developer y añadir los secretos de firma — ver ios/README-iOS.md.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'src/**'
+      - 'package.json'
+      - 'capacitor.config.ts'
+
+jobs:
+  build-unsigned:
+    runs-on: macos-14 # incluye Xcode 15/16 y las herramientas de compilación
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build web (Angular)
+        run: npm run build
+
+      - name: Sincronizar Capacitor iOS
+        run: npx cap sync ios
+
+      - name: Compilar iOS (sin firma, simulador)
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PASO SIGUIENTE (opcional): generar un .ipa firmado y subirlo a TestFlight.
+  # Requiere una cuenta de Apple Developer (99 USD/año) y configurar como
+  # secretos del repo: el certificado de distribución, el perfil de
+  # aprovisionamiento y las claves de App Store Connect. Descomenta y completa
+  # cuando tengas la cuenta. Guía en ios/README-iOS.md.
+  # ─────────────────────────────────────────────────────────────────────────
+  # build-signed:
+  #   runs-on: macos-14
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: 22, cache: npm }
+  #     - run: npm ci && npm run build && npx cap sync ios
+  #     - name: Importar certificado y perfil
+  #       run: |  # usa secrets.IOS_CERT_P12, secrets.IOS_PROFILE, etc.
+  #         echo "configurar keychain + provisioning"
+  #     - name: Archivar y exportar IPA
+  #       run: |
+  #         xcodebuild -project ios/App/App.xcodeproj -scheme App \
+  #           -configuration Release -archivePath build/App.xcarchive archive
+  #         xcodebuild -exportArchive -archivePath build/App.xcarchive \
+  #           -exportPath build -exportOptionsPlist ios/ExportOptions.plist
+  #     - name: Subir a TestFlight
+  #       run: xcrun altool --upload-app -f build/App.ipa ...
