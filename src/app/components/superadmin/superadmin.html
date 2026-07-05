@@ -79,13 +79,23 @@
           <input [(ngModel)]="nuevo.nombre" (input)="generarSlug()" placeholder="Ej: Leones Gym" class="finput">
         </div>
         <div class="field">
-          <label class="flabel">Slug *</label>
-          <input [(ngModel)]="nuevo.slug" placeholder="leones-gym" class="finput">
-        </div>
-        <div class="field">
           <label class="flabel">Slogan</label>
           <input [(ngModel)]="nuevo.slogan" placeholder="Opcional" class="finput">
         </div>
+      </div>
+
+      <!-- Subdominio (multi-tenant) -->
+      <div class="field" style="margin-top:.75rem">
+        <label class="flabel">Subdominio *</label>
+        <div class="subdominio-group">
+          <input [ngModel]="nuevo.slug" (ngModelChange)="nuevo.slug = sanitizarSlug($event)"
+                 placeholder="leones-gym" class="finput subdominio-input">
+          <span class="subdominio-suffix">.{{ dominioBase }}</span>
+        </div>
+        <p class="subdominio-hint">
+          El gimnasio se abrirá en:
+          <strong>{{ nuevo.slug || 'tu-gym' }}.{{ dominioBase }}</strong>
+        </p>
       </div>
 
       <p class="form-titulo" style="margin-top:.75rem">Colores</p>
@@ -103,6 +113,36 @@
             <input type="color" [(ngModel)]="nuevo.colores[c.key]" class="cpicker">
           </div>
         }
+      </div>
+
+      <!-- Vista previa en vivo -->
+      <p class="form-titulo" style="margin-top:.75rem">Vista previa</p>
+      <div class="preview-box" [style.background]="nuevo.colores['fondo']">
+        <div class="preview-navbar" [style.background]="nuevo.colores['navbar']">
+          @if (nuevo.logo) {
+            <img [src]="nuevo.logo" class="preview-logo" alt="Logo">
+          } @else {
+            <div class="preview-logo preview-logo-empty" [style.background]="nuevo.colores['primario']">
+              {{ (nuevo.nombre || 'G').charAt(0) }}
+            </div>
+          }
+          <div class="preview-nav-text">
+            <span class="preview-nav-name">{{ nuevo.nombre || 'Nombre del gimnasio' }}</span>
+            @if (nuevo.slogan) { <span class="preview-nav-slogan">{{ nuevo.slogan }}</span> }
+          </div>
+        </div>
+        <div class="preview-body">
+          <div class="preview-menu" [style.background]="nuevo.colores['menu']">Menú lateral</div>
+          <div class="preview-dias">
+            @for (d of ['L','M','X','J','V']; track d) {
+              <span class="preview-dia" [style.background]="nuevo.colores['dias']">{{ d }}</span>
+            }
+          </div>
+          <div class="preview-row">
+            <button class="preview-btn" [style.background]="nuevo.colores['primario']" type="button">Botón</button>
+            <span class="preview-link" [style.color]="nuevo.colores['secundario']">Enlace secundario</span>
+          </div>
+        </div>
       </div>
 
       <p class="form-titulo" style="margin-top:.75rem">Módulos</p>
@@ -156,6 +196,20 @@
         </div>
       </div>
 
+      <!-- Subdominio (multi-tenant) -->
+      <div class="field" style="margin-top:.75rem">
+        <label class="flabel">Subdominio</label>
+        <div class="subdominio-group">
+          <input [ngModel]="editando.slug" (ngModelChange)="editando.slug = sanitizarSlug($event)"
+                 placeholder="sogafit" class="finput subdominio-input">
+          <span class="subdominio-suffix">.{{ dominioBase }}</span>
+        </div>
+        <p class="subdominio-hint">
+          El gimnasio se abrirá en:
+          <strong>{{ editando.slug || 'tu-gym' }}.{{ dominioBase }}</strong>
+        </p>
+      </div>
+
       <p class="form-titulo" style="margin-top:.75rem">Colores</p>
       <div class="colores-row">
         @for (c of [
@@ -171,6 +225,36 @@
             <input type="color" [(ngModel)]="editando.colores[c.key]" class="cpicker">
           </div>
         }
+      </div>
+
+      <!-- Vista previa en vivo de cómo se ve el gimnasio -->
+      <p class="form-titulo" style="margin-top:.75rem">Vista previa</p>
+      <div class="preview-box" [style.background]="editando.colores.fondo">
+        <div class="preview-navbar" [style.background]="editando.colores.navbar">
+          @if (editando.logo) {
+            <img [src]="editando.logo" class="preview-logo" alt="Logo">
+          } @else {
+            <div class="preview-logo preview-logo-empty" [style.background]="editando.colores.primario">
+              {{ (editando.nombre || 'G').charAt(0) }}
+            </div>
+          }
+          <div class="preview-nav-text">
+            <span class="preview-nav-name">{{ editando.nombre || 'Nombre del gimnasio' }}</span>
+            @if (editando.slogan) { <span class="preview-nav-slogan">{{ editando.slogan }}</span> }
+          </div>
+        </div>
+        <div class="preview-body">
+          <div class="preview-menu" [style.background]="editando.colores.menu">Menú lateral</div>
+          <div class="preview-dias">
+            @for (d of ['L','M','X','J','V']; track d) {
+              <span class="preview-dia" [style.background]="editando.colores.dias">{{ d }}</span>
+            }
+          </div>
+          <div class="preview-row">
+            <button class="preview-btn" [style.background]="editando.colores.primario" type="button">Botón</button>
+            <span class="preview-link" [style.color]="editando.colores.secundario">Enlace secundario</span>
+          </div>
+        </div>
       </div>
 
       <p class="form-titulo" style="margin-top:.75rem">Módulos</p>

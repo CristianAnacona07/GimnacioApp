@@ -457,3 +457,68 @@
   transition: all .2s;
 }
 .btn-eliminar:hover { background: rgba(239,68,68,.1); border-color: #ef4444; }
+
+/* ── Subdominio (multi-tenant) ── */
+.subdominio-group { display: flex; align-items: stretch; }
+.subdominio-input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+  min-width: 0;
+  flex: 1;
+}
+.subdominio-suffix {
+  display: flex;
+  align-items: center;
+  padding: 0 .7rem;
+  background: #0b1220;
+  border: 1px solid #334155;
+  border-left: none;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  color: #94a3b8;
+  font-size: .85rem;
+  white-space: nowrap;
+}
+.subdominio-hint { font-size: .75rem; color: #94a3b8; margin: .4rem 0 0; }
+.subdominio-hint strong { color: #f97316; }
+
+/* ── Vista previa del gimnasio ── */
+.preview-box {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #334155;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+}
+.preview-navbar { display: flex; align-items: center; gap: .6rem; padding: .6rem .9rem; }
+.preview-logo {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+  border: 2px solid rgba(255,255,255,.25);
+}
+.preview-logo-empty {
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 1.1rem; text-transform: uppercase;
+}
+.preview-nav-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.preview-nav-name { color: #fff; font-weight: 700; font-size: .95rem; }
+.preview-nav-slogan { color: rgba(255,255,255,.7); font-size: .7rem; }
+.preview-body { padding: .9rem; display: flex; flex-direction: column; gap: .6rem; }
+.preview-menu {
+  color: #fff; font-size: .78rem; font-weight: 600;
+  padding: .4rem .8rem; border-radius: 8px; align-self: flex-start;
+}
+.preview-dias { display: flex; gap: .4rem; }
+.preview-dia {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: .8rem;
+}
+.preview-row { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+.preview-btn {
+  border: none; color: #fff; font-weight: 700; font-size: .82rem;
+  padding: .5rem 1rem; border-radius: 8px; cursor: default;
+}
+.preview-link { font-weight: 600; font-size: .82rem; text-decoration: underline; }

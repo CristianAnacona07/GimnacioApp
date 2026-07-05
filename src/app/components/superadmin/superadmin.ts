@@ -28,6 +28,17 @@ export class SuperAdmin implements OnInit, OnDestroy {
   guardando = false;
   editando: any = null; // gym que se está editando
 
+  // Dominio raíz de la plataforma para los subdominios por gimnasio.
+  // Ej: slug "sogafit" → sogafit.micro-gimnacios.com (al desplegar en el VPS).
+  readonly dominioBase = 'micro-gimnacios.com';
+
+  // Normaliza lo que el usuario escribe como subdominio (minúsculas, sin espacios/acentos).
+  sanitizarSlug(valor: string): string {
+    return (valor || '')
+      .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-');
+  }
+
   nuevo = {
     nombre: '', slug: '', slogan: '',
     logo: null as string | null,
@@ -155,19 +166,20 @@ export class SuperAdmin implements OnInit, OnDestroy {
     this.guardando = true;
     this.http.put(`${environment.apiUrl}/api/gym/${this.editando._id}/configuracion`, {
       nombre: this.editando.nombre,
+      slug: this.editando.slug,
       logo: this.editando.logo,
       slogan: this.editando.slogan,
       colores: this.editando.colores,
       modulos: this.editando.modulos
-    }).pipe(takeUntil(this.destroy$)).subscribe({
+    }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.toast.success('Gimnasio actualizado');
         this.guardando = false;
         this.editando = null;
         this.cargar();
       },
-      error: () => {
-        this.toast.error('Error al guardar');
+      error: (err) => {
+        this.toast.error(err.error?.error || 'Error al guardar');
         this.guardando = false;
       }
     });
