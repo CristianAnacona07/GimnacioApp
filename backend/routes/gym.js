@@ -123,15 +123,28 @@ router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => 
       return res.status(403).json({ error: 'No autorizado para configurar este gimnasio' });
     }
     const { nombre, logo, slogan, colores, modulos } = req.body;
+    const cambios = { nombre, logo, slogan, colores, modulos };
+
+    // El subdominio (slug) solo lo puede cambiar el superadmin: afecta el enrutamiento
+    // multi-tenant (<slug>.dominio) y es único entre gimnasios.
+    if (req.userRole === 'superadmin' && typeof req.body.slug === 'string') {
+      const slug = req.body.slug.toLowerCase().trim();
+      if (!/^[a-z0-9][a-z0-9-]{1,30}$/.test(slug)) {
+        return res.status(400).json({ error: 'Subdominio inválido (usa minúsculas, números y guiones)' });
+      }
+      cambios.slug = slug;
+    }
+
     const gym = await Gym.findByIdAndUpdate(
       req.params.id,
-      { nombre, logo, slogan, colores, modulos },
+      cambios,
       { new: true, runValidators: true }
     );
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
     await registrarAuditoria(req, 'EDITAR_GYM', { recurso: 'Gym', recursoId: req.params.id });
     res.json(gym);
   } catch (error) {
+    if (error.code === 11000) return res.status(400).json({ error: 'Ese subdominio ya está en uso' });
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
