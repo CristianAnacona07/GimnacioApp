@@ -1,0 +1,14 @@
+node_modules
+dist
+.angular
+android
+.git
+.gitignore
+e2e
+playwright-report
+test-results
+coverage
+*.md
+.DS_Store
+Dockerfile
+.dockerignore
