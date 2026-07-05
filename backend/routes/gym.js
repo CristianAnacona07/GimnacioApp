@@ -17,7 +17,7 @@ router.get('/buscar', async (req, res) => {
       : { activo: true };
 
     const gyms = await Gym.find(filtro)
-      .select('nombre slug logo slogan colores modulos')
+      .select('nombre slug logo slogan colores modulos spotifyPlaylist')
       .limit(20).lean();
 
     res.json(gyms);
@@ -30,7 +30,7 @@ router.get('/buscar', async (req, res) => {
 router.get('/:slug', async (req, res) => {
   try {
     const gym = await Gym.findOne({ slug: req.params.slug, activo: true })
-      .select('nombre slug logo slogan colores modulos').lean();
+      .select('nombre slug logo slogan colores modulos spotifyPlaylist').lean();
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
     res.json(gym);
   } catch (error) {
@@ -59,11 +59,11 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
 // Crear gym (solo superadmin)
 router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
   try {
-    const { nombre, slug, logo, slogan, colores, modulos } = req.body;
+    const { nombre, slug, logo, slogan, colores, modulos, spotifyPlaylist } = req.body;
     const existe = await Gym.findOne({ slug });
     if (existe) return res.status(400).json({ error: 'Ya existe un gimnasio con ese código' });
 
-    const gym = new Gym({ nombre, slug, logo, slogan, colores, modulos });
+    const gym = new Gym({ nombre, slug, logo, slogan, colores, modulos, spotifyPlaylist });
     await gym.save();
     await registrarAuditoria(req, 'CREAR_GYM', { recurso: 'Gym', recursoId: gym._id });
     res.status(201).json(gym);
@@ -122,8 +122,9 @@ router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => 
     if (req.userRole !== 'superadmin' && String(req.gymId) !== String(req.params.id)) {
       return res.status(403).json({ error: 'No autorizado para configurar este gimnasio' });
     }
-    const { nombre, logo, slogan, colores, modulos } = req.body;
+    const { nombre, logo, slogan, colores, modulos, spotifyPlaylist } = req.body;
     const cambios = { nombre, logo, slogan, colores, modulos };
+    if (typeof spotifyPlaylist === 'string') cambios.spotifyPlaylist = spotifyPlaylist;
 
     // El subdominio (slug) solo lo puede cambiar el superadmin: afecta el enrutamiento
     // multi-tenant (<slug>.dominio) y es único entre gimnasios.

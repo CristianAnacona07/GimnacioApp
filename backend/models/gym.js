@@ -41,6 +41,12 @@ const GymSchema = new mongoose.Schema({
   activo: {
     type: Boolean,
     default: true
+  },
+  // ID de la playlist de Spotify del gimnasio (para el reproductor embebido).
+  // Vacío = usa la playlist por defecto ("Beast Mode").
+  spotifyPlaylist: {
+    type: String,
+    default: ''
   }
 }, { timestamps: true });
 
