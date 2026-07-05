@@ -19,9 +19,11 @@ export const noAuthGuard: CanActivateFn = (route, state) => {
       return true;
     }
     // Sesión activa → redirigir según rol del token (única fuente de verdad).
+    // El superadmin puede quedarse en el login para entrar como miembro de un
+    // gimnasio (al iniciar sesión se sobrescribe su sesión). No lo redirigimos.
     const role = payload.role?.toLowerCase().trim();
-    if (role === 'superadmin') router.navigate(['/plataforma']);
-    else if (role === 'admin') router.navigate(['/admin']);
+    if (role === 'superadmin') return true;
+    if (role === 'admin') router.navigate(['/admin']);
     else router.navigate(['/socio']);
     return false;
   }

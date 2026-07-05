@@ -1,7 +1,8 @@
 /* ===== FONDO ===== */
 .login-bg {
   min-height: 100vh;
-  background: linear-gradient(150deg, var(--color-navbar) 0%, color-mix(in srgb, var(--color-navbar) 80%, var(--color-primario)) 50%, var(--color-navbar) 100%);
+  /* Fondo gris neutro (igual para todos los gimnasios), con profundidad suave */
+  background: radial-gradient(125% 125% at 30% 0%, #3b414d 0%, #262a32 45%, #191c22 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -19,22 +20,22 @@
 .deco-1 {
   width: 380px; height: 380px;
   top: -120px; right: -100px;
-  background: radial-gradient(circle, rgba(96,165,250,0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
 }
 .deco-2 {
   width: 280px; height: 280px;
   bottom: -80px; left: -80px;
-  background: radial-gradient(circle, rgba(29,78,216,0.25) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
 }
 .deco-3 {
   width: 180px; height: 180px;
   top: 40%; left: 8%;
-  background: radial-gradient(circle, rgba(147,197,253,0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
 }
 .deco-4 {
   width: 120px; height: 120px;
   bottom: 20%; right: 10%;
-  background: radial-gradient(circle, rgba(96,165,250,0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
 }
 
 /* ===== WRAPPER ===== */
@@ -122,7 +123,7 @@
 
 /* Header dentro de la card */
 .card-header {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--color-navbar) 75%, var(--color-primario)) 0%, var(--color-navbar) 100%);
+  background: linear-gradient(160deg, #2f333b 0%, #23262d 100%);
   padding: 1.5rem 1.5rem 1.25rem;
   text-align: center;
   display: flex;
