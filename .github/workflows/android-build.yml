@@ -1,0 +1,82 @@
+name: Build APK Android (nube)
+
+# Construye el APK de Android en un runner Linux de GitHub (gratis, sin Android
+# Studio ni Mac). Al terminar, descarga el .apk desde la pestaña Actions →
+# el run → sección "Artifacts". El APK debug es instalable en cualquier Android
+# (Ajustes → permitir orígenes desconocidos).
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'package.json'
+      - 'capacitor.config.ts'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build web (Angular)
+        run: npm run build
+
+      - name: Sincronizar Capacitor Android
+        run: npx cap sync android
+
+      - name: Compilar APK debug
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Publicar APK como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kodiak-gym-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PASO SIGUIENTE (opcional): APK/AAB FIRMADO para Google Play.
+  # Sube tu keystore (.jks) y contraseñas como secretos del repo y descomenta.
+  # ─────────────────────────────────────────────────────────────────────────
+  # build-release:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: 22, cache: npm }
+  #     - uses: actions/setup-java@v4
+  #       with: { distribution: temurin, java-version: '21' }
+  #     - run: npm ci && npm run build && npx cap sync android
+  #     - name: Restaurar keystore
+  #       run: echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > android/app/release.jks
+  #     - name: Compilar AAB firmado
+  #       run: |
+  #         cd android
+  #         ./gradlew bundleRelease --no-daemon \
+  #           -Pandroid.injected.signing.store.file=release.jks \
+  #           -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_STORE_PASSWORD }} \
+  #           -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
+  #           -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
+  #     - uses: actions/upload-artifact@v4
+  #       with: { name: kodiak-gym-release-aab, path: android/app/build/outputs/bundle/release/app-release.aab }
