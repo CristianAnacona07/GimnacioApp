@@ -140,6 +140,7 @@ app.use('/api/transacciones', require('./routes/transacciones'));
 app.use('/api/entrenador', require('./routes/entrenador'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/2fa', require('./routes/twofa'));
+app.use('/api/asistencia', require('./routes/asistencia'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 

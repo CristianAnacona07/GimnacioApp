@@ -40,6 +40,14 @@ const UserSchema = new mongoose.Schema({
         index: true
     },
 
+    // Código de acceso del socio (para check-in por código/QR en recepción).
+    // Se genera automáticamente; el QR del perfil codifica este valor.
+    codigoAcceso: {
+        type: String,
+        default: '',
+        index: true
+    },
+
     // Perfil
     fotoUrl: { 
         type: String, 
