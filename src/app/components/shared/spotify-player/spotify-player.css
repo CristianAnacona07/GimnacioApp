@@ -89,3 +89,14 @@
 @media (max-width: 480px) {
   .spotify-container { bottom: 15px; left: 15px; }
 }
+
+/* Minimizado: la tarjeta sale de la vista PERO el iframe sigue renderizado y
+   montado (no display:none), así la música no se corta al minimizar. */
+.spotify-card.oculto {
+  position: fixed;
+  left: -9999px;
+  bottom: 0;
+  box-shadow: none;
+  animation: none;
+  pointer-events: none;
+}

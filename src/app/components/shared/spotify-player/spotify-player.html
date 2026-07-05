@@ -1,12 +1,12 @@
 <div class="spotify-container">
-  @if (abierto) {
-    <div class="spotify-card">
+  @if (iframeMontado) {
+    <div class="spotify-card" [class.oculto]="minimizado">
       <div class="spotify-card-header">
         <span class="spotify-title">🎵 Música para entrenar</span>
         <button class="spotify-open" (click)="abrirEnSpotify()" title="Abrir en Spotify">
           Abrir app
         </button>
-        <button class="spotify-close" (click)="toggle()" aria-label="Cerrar">✕</button>
+        <button class="spotify-close" (click)="toggle()" aria-label="Minimizar" title="Minimizar">─</button>
       </div>
       <iframe
         [src]="embedUrl"
@@ -19,7 +19,7 @@
     </div>
   }
 
-  <button class="spotify-fab" (click)="toggle()" [class.activo]="abierto" title="Música">
+  <button class="spotify-fab" (click)="toggle()" [class.activo]="!minimizado" title="Música">
     <svg viewBox="0 0 24 24" width="26" height="26" fill="#fff" aria-hidden="true">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.586 14.424a.622.622 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.622.622 0 1 1-.277-1.213c3.809-.87 7.077-.496 9.712 1.115a.622.622 0 0 1 .207.855zm1.223-2.722a.778.778 0 0 1-1.07.257c-2.687-1.652-6.785-2.131-9.965-1.166a.779.779 0 0 1-.451-1.49c3.632-1.102 8.147-.568 11.229 1.329a.778.778 0 0 1 .258 1.07zm.105-2.835C14.692 8.95 9.375 8.775 6.298 9.71a.933.933 0 1 1-.542-1.786c3.532-1.072 9.404-.865 13.115 1.338a.933.933 0 1 1-.953 1.605z"/>
     </svg>

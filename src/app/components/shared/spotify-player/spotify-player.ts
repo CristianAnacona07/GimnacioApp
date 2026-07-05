@@ -17,7 +17,11 @@ const DEFAULT_PLAYLIST = '37i9dQZF1DX76Wlfdnj7AP';
   styleUrl: './spotify-player.css'
 })
 export class SpotifyPlayer {
-  abierto = false;
+  // Arranca colapsado (solo el botón flotante). Al abrir por primera vez se monta
+  // el iframe y NUNCA se desmonta: al minimizar solo se oculta, así la música
+  // sigue sonando aunque la tarjeta no esté a la vista.
+  minimizado = true;
+  iframeMontado = false;
   readonly playlistId: string;
   readonly embedUrl: SafeResourceUrl;
 
@@ -31,7 +35,12 @@ export class SpotifyPlayer {
   }
 
   toggle() {
-    this.abierto = !this.abierto;
+    if (this.minimizado) {
+      this.iframeMontado = true;   // monta el reproductor la primera vez
+      this.minimizado = false;     // muestra la tarjeta
+    } else {
+      this.minimizado = true;      // minimiza: la tarjeta se oculta, el iframe sigue sonando
+    }
   }
 
   // Abre la app nativa de Spotify (deep link) y, si no está instalada,
