@@ -1,0 +1,34 @@
+# Despliegue con imágenes YA PUBLICADAS en GHCR (no construye nada localmente).
+#
+# Uso en el servidor:
+#   1) Crea un archivo .env junto a este compose con las variables de abajo.
+#   2) docker compose pull        # descarga las imágenes desde ghcr.io
+#   3) docker compose up -d       # levanta backend + frontend
+#
+# MongoDB sigue en Atlas (la nube): se conecta por MONGO_URI, no hay contenedor de BD.
+
+services:
+  backend:
+    image: ghcr.io/cristiananacona/gimnacioapp-backend:latest
+    ports:
+      - "10000:10000"
+    environment:
+      NODE_ENV: production
+      PORT: 10000
+      MONGO_URI: ${MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      FRONTEND_URL: ${FRONTEND_URL}
+      TENANT_ROOT_DOMAIN: ${TENANT_ROOT_DOMAIN}
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/cristiananacona/gimnacioapp:latest
+    ports:
+      - "8080:80" # la app queda en http://<servidor>:8080
+    depends_on:
+      - backend
+    restart: unless-stopped
