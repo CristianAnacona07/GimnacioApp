@@ -157,8 +157,12 @@ router.post('/reset-password', async (req, res) => {
 
 // El Client ID debe venir de configuración (nunca hardcodeado en el código).
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-// Client IDs adicionales aceptados como audience válida (p.ej. el cliente Android nativo).
-const GOOGLE_AUDIENCES = [GOOGLE_CLIENT_ID, process.env.GOOGLE_ANDROID_CLIENT_ID].filter(Boolean);
+// Client IDs adicionales aceptados como audience válida (clientes nativos Android/iOS).
+const GOOGLE_AUDIENCES = [
+    GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_ANDROID_CLIENT_ID,
+    process.env.GOOGLE_IOS_CLIENT_ID
+].filter(Boolean);
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // ✅ LOGIN CON GOOGLE
