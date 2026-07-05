@@ -162,6 +162,14 @@
         }
       </div>
 
+      <!-- Playlist de Spotify (opcional) -->
+      <div class="field" style="margin-top:.75rem">
+        <label class="flabel">🎵 Playlist de Spotify (opcional)</label>
+        <input [ngModel]="nuevo.spotifyPlaylist" (ngModelChange)="nuevo.spotifyPlaylist = extraerPlaylistId($event)"
+               placeholder="Pega el enlace de la playlist" class="finput">
+        <p class="subdominio-hint">En Spotify: Compartir → Copiar enlace. Vacío = música por defecto.</p>
+      </div>
+
       <button class="btn-crear" (click)="crear()" [disabled]="!nuevo.nombre || !nuevo.slug || guardando">
         {{ guardando ? 'Creando...' : '🚀 Crear Gimnasio' }}
       </button>
@@ -272,6 +280,14 @@
             {{ m.label }}
           </label>
         }
+      </div>
+
+      <!-- Playlist de Spotify (opcional) -->
+      <div class="field" style="margin-top:.75rem">
+        <label class="flabel">🎵 Playlist de Spotify (opcional)</label>
+        <input [ngModel]="editando.spotifyPlaylist" (ngModelChange)="editando.spotifyPlaylist = extraerPlaylistId($event)"
+               placeholder="Pega el enlace de la playlist" class="finput">
+        <p class="subdominio-hint">En Spotify: Compartir → Copiar enlace. Vacío = música por defecto.</p>
       </div>
 
       <div class="edit-actions">

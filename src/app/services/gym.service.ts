@@ -15,6 +15,7 @@ export interface Gym {
     rutinas: boolean; progreso: boolean; medidas: boolean;
     pagos: boolean; noticias: boolean; cronometro: boolean;
   };
+  spotifyPlaylist?: string;
 }
 
 const GYM_KEY = 'gymActual';

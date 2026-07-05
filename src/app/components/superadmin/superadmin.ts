@@ -42,6 +42,16 @@ export class SuperAdmin implements OnInit, OnDestroy {
     obj.colores.dias = valor;
   }
 
+  // Extrae el ID de una playlist de Spotify desde su enlace, URI o el ID pelado.
+  // Ej: https://open.spotify.com/playlist/37i9dQZF1DX76Wlfdnj7AP?si=... → 37i9dQZF1DX76Wlfdnj7AP
+  extraerPlaylistId(valor: string): string {
+    if (!valor) return '';
+    const s = valor.trim();
+    const m = s.match(/playlist[/:]([a-zA-Z0-9]+)/);
+    if (m) return m[1];
+    return /^[a-zA-Z0-9]+$/.test(s) ? s : '';
+  }
+
   // Normaliza lo que el usuario escribe como subdominio (minúsculas, sin espacios/acentos).
   sanitizarSlug(valor: string): string {
     return (valor || '')
@@ -50,7 +60,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
   }
 
   nuevo = {
-    nombre: '', slug: '', slogan: '',
+    nombre: '', slug: '', slogan: '', spotifyPlaylist: '',
     logo: null as string | null,
     colores: { primario: '#0f172a', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#0f172a', dias: '#0f172a' } as Record<string, string>,
     modulos: { rutinas: true, progreso: true, medidas: true, pagos: true, noticias: true, cronometro: true } as Record<string, boolean>
@@ -182,7 +192,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
       logo: this.editando.logo,
       slogan: this.editando.slogan,
       colores: this.editando.colores,
-      modulos: this.editando.modulos
+      modulos: this.editando.modulos,
+      spotifyPlaylist: this.editando.spotifyPlaylist
     }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.toast.success('Gimnasio actualizado');
@@ -204,7 +215,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
       next: () => {
         this.toast.success('Gimnasio creado');
         this.mostrarForm = false;
-        this.nuevo = { nombre: '', slug: '', slogan: '', logo: null,
+        this.nuevo = { nombre: '', slug: '', slogan: '', spotifyPlaylist: '', logo: null,
           colores: { primario: '#0f172a', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#0f172a', dias: '#0f172a' } as Record<string, string>,
           modulos: { rutinas: true, progreso: true, medidas: true, pagos: true, noticias: true, cronometro: true } as Record<string, boolean>
         };
