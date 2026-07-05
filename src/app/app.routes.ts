@@ -66,9 +66,13 @@ export const routes: Routes = [
         path: 'entrenadores',
         loadComponent: () => import('./components/admin/entrenadores/entrenadores').then(m => m.Entrenadores) 
       },
-      { 
-        path: 'socios', 
-        loadComponent: () => import('./components/admin/socios/socios').then(m => m.Socios) 
+      {
+        path: 'socios',
+        loadComponent: () => import('./components/admin/socios/socios').then(m => m.Socios)
+      },
+      {
+        path: 'recepcion',
+        loadComponent: () => import('./components/admin/recepcion/recepcion').then(m => m.Recepcion)
       },
       { 
         path: 'rutinas', 

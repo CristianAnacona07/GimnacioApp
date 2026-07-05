@@ -4,10 +4,13 @@ import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
+import QRCode from 'qrcode';
+
 import { AuthService } from '../../../services/auth';
 import { UserStateService } from '../../../services/user-state.service';
 import { ToastService } from '../../../services/toast.service';
 import { GymService } from '../../../services/gym.service';
+import { AsistenciaService } from '../../../services/asistencia.service';
 
 @Component({
   selector: 'app-perfil',
@@ -20,6 +23,13 @@ import { GymService } from '../../../services/gym.service';
 export class Perfil implements OnInit, OnDestroy {
   perfil: any = null;
   diasRestantes = 0;
+
+  // Mi acceso: código y QR
+  codigoAcceso = '';
+  qrDataUrl = '';
+  cargandoCodigo = true;
+  errorCodigo = false;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -27,12 +37,47 @@ export class Perfil implements OnInit, OnDestroy {
     private userStateService: UserStateService,
     private toast: ToastService,
     private cdr: ChangeDetectorRef,
-    public gymService: GymService
+    public gymService: GymService,
+    private asistenciaService: AsistenciaService
   ) {}
 
   ngOnInit() {
     const usuario = this.userStateService.getCurrentUser();
     if (usuario?._id) this.cargarPerfil(usuario._id);
+    this.cargarMiCodigo();
+  }
+
+  cargarMiCodigo() {
+    this.cargandoCodigo = true;
+    this.errorCodigo = false;
+    this.cdr.markForCheck();
+
+    this.asistenciaService.miCodigo()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: async (res) => {
+          this.codigoAcceso = res?.codigoAcceso || '';
+          if (!this.codigoAcceso) {
+            this.errorCodigo = true;
+            this.cargandoCodigo = false;
+            this.cdr.markForCheck();
+            return;
+          }
+          try {
+            this.qrDataUrl = await QRCode.toDataURL(this.codigoAcceso, { width: 220, margin: 1 });
+          } catch {
+            this.errorCodigo = true;
+          } finally {
+            this.cargandoCodigo = false;
+            this.cdr.markForCheck();
+          }
+        },
+        error: () => {
+          this.errorCodigo = true;
+          this.cargandoCodigo = false;
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   cargarPerfil(id: string) {

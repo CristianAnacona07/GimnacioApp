@@ -1,0 +1,156 @@
+<div class="recepcion">
+  <header class="recepcion__header">
+    <h1 class="recepcion__titulo">🎫 Recepción</h1>
+    <p class="recepcion__subtitulo">Registra las entradas de los socios</p>
+  </header>
+
+  <!-- Tarjeta de check-in exitoso -->
+  <div *ngIf="ultimoCheckin as c" class="tarjeta" [class.tarjeta--activo]="c.socio.estado === 'activo'" [class.tarjeta--vencido]="c.socio.estado === 'vencido'">
+    <button type="button" class="tarjeta__cerrar" (click)="cerrarTarjeta()" aria-label="Cerrar">✕</button>
+
+    <img
+      class="tarjeta__foto"
+      [src]="fotoOFallback(c.socio.fotoUrl, c.socio.nombre)"
+      (error)="avatarFallback($event, c.socio.nombre)"
+      alt="Foto de {{ c.socio.nombre }}"
+    />
+
+    <h2 class="tarjeta__nombre">{{ c.socio.nombre }}</h2>
+
+    <p class="tarjeta__dias" [class.dias--activo]="c.socio.estado === 'activo'" [class.dias--vencido]="c.socio.estado === 'vencido'">
+      <ng-container *ngIf="c.socio.estado === 'activo'; else vencidoTpl">
+        LE QUEDAN {{ c.socio.diasRestantes }} DÍA{{ c.socio.diasRestantes === 1 ? '' : 'S' }}
+      </ng-container>
+      <ng-template #vencidoTpl>MEMBRESÍA VENCIDA</ng-template>
+    </p>
+
+    <p class="tarjeta__asistencias">Asistencias este mes: <strong>{{ c.socio.asistenciasMes }}</strong></p>
+
+    <p *ngIf="c.yaRegistradoHoy" class="tarjeta__aviso">Ya tenía un registro hoy</p>
+
+    <!-- WhatsApp -->
+    <div class="tarjeta__wa">
+      <span *ngIf="c.whatsapp?.enviado" class="wa-enviado">Recibo enviado ✅</span>
+      <a
+        *ngIf="!c.whatsapp?.enviado && c.whatsapp?.link"
+        class="btn btn--wa"
+        [href]="c.whatsapp!.link"
+        target="_blank"
+        rel="noopener"
+      >
+        Enviar recibo por WhatsApp
+      </a>
+      <span *ngIf="!c.whatsapp?.enviado && !c.whatsapp?.link && c.whatsapp?.motivo" class="wa-motivo">
+        {{ c.whatsapp?.motivo }}
+      </span>
+    </div>
+  </div>
+
+  <div class="recepcion__grid">
+    <!-- Columna izquierda: registro -->
+    <section class="panel">
+      <h3 class="panel__titulo">Registrar entrada</h3>
+
+      <!-- Código manual -->
+      <div class="codigo-box">
+        <input
+          class="input input--codigo"
+          type="text"
+          inputmode="text"
+          placeholder="CÓDIGO"
+          [(ngModel)]="codigo"
+          (keyup.enter)="registrarPorCodigo()"
+          [disabled]="registrando"
+          autocomplete="off"
+        />
+        <button type="button" class="btn btn--primary" (click)="registrarPorCodigo()" [disabled]="registrando">
+          {{ registrando ? 'Registrando…' : 'Registrar entrada' }}
+        </button>
+      </div>
+
+      <!-- QR -->
+      <button type="button" class="btn btn--qr" (click)="toggleEscaner()">
+        {{ escaneando ? '✕ Cerrar cámara' : '📷 Escanear QR' }}
+      </button>
+
+      <div class="qr-wrap" [class.qr-wrap--activo]="escaneando">
+        <div id="qr-lector" class="qr-lector"></div>
+      </div>
+
+      <!-- Buscador -->
+      <div class="buscador">
+        <input
+          class="input"
+          type="text"
+          placeholder="Buscar socio por nombre o email…"
+          [(ngModel)]="textoBusqueda"
+          (ngModelChange)="onBuscar()"
+          autocomplete="off"
+        />
+
+        <p *ngIf="buscando" class="hint">Buscando…</p>
+        <p *ngIf="!buscando && textoBusqueda.trim() && resultados.length === 0" class="hint">
+          Sin resultados
+        </p>
+
+        <ul class="lista" *ngIf="resultados.length">
+          <li
+            *ngFor="let s of resultados"
+            class="lista__item"
+            (click)="seleccionarSocio(s)"
+            [class.lista__item--disabled]="registrando"
+          >
+            <img
+              class="lista__foto"
+              [src]="fotoOFallback(s.fotoUrl, s.nombre)"
+              (error)="avatarFallback($event, s.nombre)"
+              alt="Foto de {{ s.nombre }}"
+            />
+            <div class="lista__info">
+              <span class="lista__nombre">{{ s.nombre }}</span>
+              <span
+                class="lista__dias"
+                [class.dias--activo]="(s.diasRestantes ?? 0) > 0"
+                [class.dias--vencido]="(s.diasRestantes ?? 0) <= 0"
+              >
+                {{ (s.diasRestantes ?? 0) > 0 ? (s.diasRestantes + ' días') : 'Vencido' }}
+              </span>
+            </div>
+            <span class="lista__accion">Registrar →</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Columna derecha: asistencias de hoy -->
+    <section class="panel">
+      <div class="panel__head">
+        <h3 class="panel__titulo">Asistencias de hoy</h3>
+        <button type="button" class="btn btn--ghost" (click)="cargarHoy()" [disabled]="cargandoHoy">
+          {{ cargandoHoy ? '…' : '↻' }}
+        </button>
+      </div>
+
+      <p *ngIf="cargandoHoy" class="hint">Cargando…</p>
+      <p *ngIf="!cargandoHoy && asistenciasHoy.length === 0" class="hint">
+        Aún no hay entradas registradas hoy
+      </p>
+
+      <ul class="lista" *ngIf="asistenciasHoy.length">
+        <li *ngFor="let a of asistenciasHoy" class="lista__item lista__item--static">
+          <img
+            class="lista__foto"
+            [src]="fotoOFallback(a.socio?.fotoUrl, a.socio?.nombre)"
+            (error)="avatarFallback($event, a.socio?.nombre)"
+            alt="Foto de {{ a.socio?.nombre }}"
+          />
+          <div class="lista__info">
+            <span class="lista__nombre">{{ a.socio?.nombre }}</span>
+            <span class="lista__hora">{{ a.fecha | date: 'HH:mm' }}</span>
+          </div>
+          <span *ngIf="a.metodo" class="lista__metodo">{{ a.metodo }}</span>
+        </li>
+      </ul>
+    </section>
+  </div>
+</div>

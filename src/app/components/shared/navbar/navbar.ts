@@ -58,6 +58,7 @@ export class Navbar implements OnInit, OnDestroy {
     if (this.role === 'admin') {
       return [
         { icon: '📰', name: 'noticias',     route: '/admin/noticias',     show: m('noticias') },
+        { icon: '🎫', name: 'Recepción',    route: '/admin/recepcion',    show: true },
         { icon: '👥', name: 'socios',        route: '/admin/socios',        show: true },
         { icon: '💳', name: 'planes',        route: '/admin/planes',        show: m('pagos') },
         { icon: '💰', name: 'pagos',         route: '/admin/pagos',         show: m('pagos') },

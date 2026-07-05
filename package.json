@@ -43,7 +43,9 @@
     "@capacitor/local-notifications": "^8.2.0",
     "@capgo/capacitor-social-login": "^8.3.30",
     "chart.js": "^4.5.1",
+    "html5-qrcode": "^2.3.8",
     "ng2-charts": "^10.0.0",
+    "qrcode": "^1.5.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -55,6 +57,7 @@
     "@csstools/postcss-cascade-layers": "^6.0.0",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.1.12",
+    "@types/qrcode": "^1.5.6",
     "autoprefixer": "^10.5.0",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^27.1.0",
