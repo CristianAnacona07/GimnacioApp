@@ -281,6 +281,48 @@ router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
     }
 });
 
+// ✅ CREAR SOCIO (SOLO ADMINS) — para matrícula desde recepción
+router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
+    try {
+        const { nombre, email, telefono, password } = req.body;
+        if (!nombre) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
+
+        // El correo es opcional; si no se da, se genera uno interno para cumplir el índice único.
+        const emailNorm = email
+            ? email.toLowerCase().trim()
+            : `socio_${Date.now()}${Math.floor(Math.random() * 1000)}@sin-correo.local`;
+
+        const existe = await User.findOne({ email: emailNorm, gymId: req.gymId }).lean();
+        if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+
+        // Contraseña: la dada (mín 8) o una temporal aleatoria si no la ponen.
+        const passPlano = (typeof password === 'string' && password.length >= 8)
+            ? password
+            : crypto.randomBytes(6).toString('hex');
+        const salt = await bcrypt.genSalt(10);
+
+        const socio = new User({
+            gymId: req.gymId,
+            nombre,
+            email: emailNorm,
+            password: await bcrypt.hash(passPlano, salt),
+            role: 'socio',
+            emailVerified: true,
+            datosPersonales: { telefono: telefono || '' }
+        });
+        await socio.save();
+        await registrarAuditoria(req, 'CREAR_SOCIO', { recurso: 'User', recursoId: socio._id });
+
+        res.status(201).json({
+            mensaje: 'Socio creado',
+            socio: { _id: socio._id, nombre: socio.nombre, email: socio.email },
+            passwordTemporal: (typeof password === 'string' && password.length >= 8) ? null : passPlano
+        });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al crear socio' });
+    }
+});
+
 // ✅ CREAR ENTRENADOR (SOLO ADMINS)
 router.post('/crear-entrenador', verificarToken, soloAdmin, async (req, res) => {
     try {

@@ -88,6 +88,23 @@ router.post('/checkin', verificarToken, soloAdmin, async (req, res) => {
     const socio = await User.findOne({ ...filtro, role: { $in: ['socio', 'entrenador'] } });
     if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
+    const dias = diasRestantes(socio.fechaVencimiento);
+    const estado = dias > 0 ? 'activo' : 'vencido';
+
+    // Membresía vencida → NO se permite el ingreso ni se registra asistencia.
+    if (estado === 'vencido') {
+      return res.json({
+        acceso: 'denegado',
+        mensaje: 'Membresía vencida. Renueva para poder ingresar.',
+        socio: {
+          _id: socio._id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '',
+          diasRestantes: 0, estado, asistenciasMes: socio.stats?.asistenciasMes || 0,
+        },
+        yaRegistradoHoy: false,
+        whatsapp: null,
+      });
+    }
+
     // ¿Ya registró hoy? Evita contar dos veces la misma asistencia del día.
     const inicioDia = new Date(); inicioDia.setHours(0, 0, 0, 0);
     const yaHoy = await Asistencia.findOne({
@@ -105,21 +122,18 @@ router.post('/checkin', verificarToken, soloAdmin, async (req, res) => {
       await socio.save();
     }
 
-    const dias = diasRestantes(socio.fechaVencimiento);
-    const estado = dias > 0 ? 'activo' : 'vencido';
     const fechaTxt = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
 
     // Recibo por WhatsApp: automático (plantilla) si está configurado, y siempre
     // un link wa.me de respaldo para enviarlo manualmente desde recepción.
     const texto = `Hola ${socio.nombre}, tu asistencia del ${fechaTxt} quedó registrada en el gimnasio. `
-      + (estado === 'activo'
-        ? `Te quedan ${dias} días de membresía. ¡A entrenar! 💪`
-        : `Tu membresía está vencida. Acércate a recepción para renovar. 🙏`);
+      + `Te quedan ${dias} días de membresía. ¡A entrenar! 💪`;
 
     const wa = await enviarRecibo(socio.datosPersonales?.telefono, [socio.nombre, fechaTxt, String(dias)]);
     const link = linkWhatsApp(socio.datosPersonales?.telefono, texto);
 
     res.json({
+      acceso: 'permitido',
       socio: {
         _id: socio._id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '',
         diasRestantes: dias, estado,

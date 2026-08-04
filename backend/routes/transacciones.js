@@ -4,6 +4,13 @@ const Transaccion = require('../models/transaccion');
 const User = require('../models/user');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { enviarRecibo, linkWhatsApp } = require('../helpers/whatsapp');
+
+function diasRestantes(fechaVencimiento) {
+    if (!fechaVencimiento) return 0;
+    const d = Math.ceil((new Date(fechaVencimiento) - new Date()) / (1000 * 60 * 60 * 24));
+    return d > 0 ? d : 0;
+}
 
 // Registrar un pago/transacción para un socio del gimnasio.
 router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
@@ -62,7 +69,25 @@ router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
             detalle: { monto, dias: diasAgregados }
         });
 
-        res.status(201).json(tx);
+        // Recibo por WhatsApp: automático (plantilla) si está configurado + link de respaldo.
+        const diasRest = diasRestantes(socio.fechaVencimiento);
+        const montoTxt = `$${Number(monto).toLocaleString('es-CO')}`;
+        const fechaVenceTxt = socio.fechaVencimiento
+            ? new Date(socio.fechaVencimiento).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })
+            : '—';
+        const texto = `Hola ${socio.nombre}, recibimos tu pago de ${montoTxt} (${concepto || 'Membresía'}). `
+            + `Tu membresía queda activa hasta el ${fechaVenceTxt} (${diasRest} días). ¡Gracias! 💪`;
+        const wa = await enviarRecibo(socio.datosPersonales?.telefono, [socio.nombre, montoTxt, fechaVenceTxt]);
+        const link = linkWhatsApp(socio.datosPersonales?.telefono, texto);
+
+        res.status(201).json({
+            transaccion: tx,
+            socio: {
+                _id: socio._id, nombre: socio.nombre,
+                fechaVencimiento: socio.fechaVencimiento, diasRestantes: diasRest,
+            },
+            whatsapp: { enviado: wa.enviado, motivo: wa.motivo || null, link },
+        });
     } catch (error) {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
