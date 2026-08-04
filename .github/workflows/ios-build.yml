@@ -11,10 +11,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'ios/**'
-      - 'src/**'
-      - 'package.json'
-      - 'capacitor.config.ts'
+      - 'frontend/gym-aplication/ios/**'
+      - 'frontend/gym-aplication/src/**'
+      - 'frontend/gym-aplication/package.json'
+      - 'frontend/gym-aplication/capacitor.config.ts'
+
+defaults:
+  run:
+    working-directory: frontend/gym-aplication
 
 jobs:
   build-unsigned:
@@ -28,6 +32,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: frontend/gym-aplication/package-lock.json
 
       - name: Instalar dependencias
         run: npm ci

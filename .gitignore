@@ -1,0 +1,16 @@
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.angular/
+.env
+**/.env
+*.log
+.DS_Store
+android/app/build/
+android/.gradle/
+frontend/gym-aplication/android/app/build/
+frontend/gym-aplication/android/.gradle/
+
+# Ajustes locales de Claude Code (no se comparten)
+.claude/settings.local.json

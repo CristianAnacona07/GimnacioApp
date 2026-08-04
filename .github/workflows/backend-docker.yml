@@ -1,22 +1,28 @@
-name: Publicar imagen Docker (frontend)
+name: Publicar imagen Docker (backend)
 
-# Construye y publica la imagen del frontend en GitHub Container Registry (GHCR)
-# en cada push a main. NO necesitas Docker en tu PC: todo corre en el runner.
+# Construye y publica la imagen del backend en GitHub Container Registry (GHCR)
+# en cada push a main que toque el backend. NO necesitas Docker en tu PC: todo
+# corre en el runner.
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-docker.yml'
+  workflow_dispatch: {} # permite lanzarlo a mano desde la pestaña Actions
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }} # CristianAnacona/GimnacioApp
+  # En el monorepo cada imagen lleva sufijo para no pisarse con la del frontend:
+  # ghcr.io/CristianAnacona/GimnacioApp/backend
+  IMAGE_NAME: ${{ github.repository }}/backend
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      packages: write # necesario para publicar en GHCR
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +32,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }} # token automático, no configuras nada
 
       - name: Calcular tags y labels
         id: meta
@@ -40,7 +46,7 @@ jobs:
       - name: Construir y publicar
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: backend
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

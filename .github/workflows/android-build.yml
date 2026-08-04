@@ -9,10 +9,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'android/**'
-      - 'src/**'
-      - 'package.json'
-      - 'capacitor.config.ts'
+      - 'frontend/gym-aplication/android/**'
+      - 'frontend/gym-aplication/src/**'
+      - 'frontend/gym-aplication/package.json'
+      - 'frontend/gym-aplication/capacitor.config.ts'
+
+defaults:
+  run:
+    working-directory: frontend/gym-aplication
 
 jobs:
   build-apk:
@@ -26,6 +30,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: frontend/gym-aplication/package-lock.json
 
       - name: JDK 21 (Temurin)
         uses: actions/setup-java@v4
@@ -52,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kodiak-gym-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: frontend/gym-aplication/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -79,4 +84,4 @@ jobs:
   #           -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
   #           -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
   #     - uses: actions/upload-artifact@v4
-  #       with: { name: kodiak-gym-release-aab, path: android/app/build/outputs/bundle/release/app-release.aab }
+  #       with: { name: kodiak-gym-release-aab, path: frontend/gym-aplication/android/app/build/outputs/bundle/release/app-release.aab }
