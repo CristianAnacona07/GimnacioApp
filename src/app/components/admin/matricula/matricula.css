@@ -1,0 +1,324 @@
+.matricula {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.matricula__header {
+  margin-bottom: 1.25rem;
+}
+
+.matricula__titulo {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.matricula__subtitulo {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+/* Panel */
+.panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1.1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.tab--activo {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #fff;
+}
+
+/* Campos */
+.campos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.campos__fila {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+}
+
+@media (min-width: 500px) {
+  .campos__fila {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.campo__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.req {
+  color: #dc2626;
+}
+
+.input {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.65rem;
+  font-size: 1rem;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.sep {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 1.1rem 0;
+}
+
+/* Botones */
+.btn {
+  border: none;
+  border-radius: 0.65rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.05s;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: #4f46e5;
+  color: #fff;
+}
+
+.btn--full {
+  width: 100%;
+  margin-top: 1.1rem;
+}
+
+.btn--ghost {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 0.45rem 0.8rem;
+}
+
+.btn--wa {
+  display: inline-block;
+  background: #25d366;
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Hint y listas */
+.hint {
+  color: #64748b;
+  font-size: 0.9rem;
+  padding: 0.25rem 0.2rem;
+}
+
+.lista {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lista__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.7rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.lista__item:hover {
+  background: #f8fafc;
+  border-color: #c7d2fe;
+}
+
+.lista__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.lista__nombre {
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lista__dias {
+  font-size: 0.8rem;
+}
+
+.lista__accion {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #4f46e5;
+  flex-shrink: 0;
+}
+
+.dias--activo {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.dias--vencido {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Socio seleccionado */
+.seleccionado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  border-radius: 0.7rem;
+}
+
+.seleccionado__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.seleccionado__nombre {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.seleccionado__dias {
+  font-size: 0.85rem;
+}
+
+/* Tarjeta de confirmación */
+.tarjeta {
+  position: relative;
+  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  border-radius: 1.25rem;
+  border: 2px solid #16a34a;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.tarjeta__cerrar {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.tarjeta__check {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #16a34a;
+}
+
+.tarjeta__nombre {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.tarjeta__monto,
+.tarjeta__vence,
+.tarjeta__dias {
+  color: #334155;
+  font-size: 0.98rem;
+  margin: 0.2rem 0;
+}
+
+.tarjeta__password {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 0.65rem;
+  color: #9a3412;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.tarjeta__password-hint {
+  font-size: 0.8rem;
+  color: #b45309;
+}
+
+.tarjeta__wa {
+  margin-top: 1rem;
+}
+
+.wa-enviado {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.wa-motivo {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}

@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
@@ -41,9 +42,11 @@ interface WhatsappInfo {
 }
 
 interface CheckinResp {
+  acceso?: 'permitido' | 'denegado';
+  mensaje?: string;
   socio: CheckinSocio;
   yaRegistradoHoy: boolean;
-  whatsapp: WhatsappInfo;
+  whatsapp: WhatsappInfo | null;
 }
 
 interface AsistenciaHoy {
@@ -56,7 +59,7 @@ interface AsistenciaHoy {
 @Component({
   selector: 'app-recepcion',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './recepcion.html',
   styleUrl: './recepcion.css',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -159,7 +162,9 @@ export class Recepcion implements OnInit, OnDestroy {
           this.registrando = false;
           this.ultimoCheckin = res;
 
-          if (res?.yaRegistradoHoy) {
+          if (res?.acceso === 'denegado') {
+            this.toast.error(`${res.socio?.nombre}: membresía vencida — no puede ingresar`);
+          } else if (res?.yaRegistradoHoy) {
             this.toast.info(`${res.socio?.nombre} ya tenía registro hoy`);
           } else {
             this.toast.success(`Entrada registrada: ${res?.socio?.nombre ?? ''}`);

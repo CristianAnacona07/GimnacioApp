@@ -4,8 +4,10 @@
     <p class="recepcion__subtitulo">Registra las entradas de los socios</p>
   </header>
 
-  <!-- Tarjeta de check-in exitoso -->
-  <div *ngIf="ultimoCheckin as c" class="tarjeta" [class.tarjeta--activo]="c.socio.estado === 'activo'" [class.tarjeta--vencido]="c.socio.estado === 'vencido'">
+  <!-- Tarjeta de resultado del check-in -->
+  <div *ngIf="ultimoCheckin as c" class="tarjeta"
+       [class.tarjeta--activo]="c.acceso !== 'denegado'"
+       [class.tarjeta--vencido]="c.acceso === 'denegado'">
     <button type="button" class="tarjeta__cerrar" (click)="cerrarTarjeta()" aria-label="Cerrar">✕</button>
 
     <img
@@ -17,33 +19,37 @@
 
     <h2 class="tarjeta__nombre">{{ c.socio.nombre }}</h2>
 
-    <p class="tarjeta__dias" [class.dias--activo]="c.socio.estado === 'activo'" [class.dias--vencido]="c.socio.estado === 'vencido'">
-      <ng-container *ngIf="c.socio.estado === 'activo'; else vencidoTpl">
+    <!-- ACCESO DENEGADO (membresía vencida) -->
+    <ng-container *ngIf="c.acceso === 'denegado'; else permitidoTpl">
+      <p class="tarjeta__dias dias--vencido">🚫 NO PUEDE INGRESAR</p>
+      <p class="tarjeta__aviso tarjeta__aviso--fuerte">Membresía vencida. Renueva para poder ingresar.</p>
+      <a class="btn btn--primary" routerLink="/admin/matricula">💳 Renovar / Registrar pago</a>
+    </ng-container>
+
+    <!-- ACCESO PERMITIDO -->
+    <ng-template #permitidoTpl>
+      <p class="tarjeta__dias dias--activo">
         LE QUEDAN {{ c.socio.diasRestantes }} DÍA{{ c.socio.diasRestantes === 1 ? '' : 'S' }}
-      </ng-container>
-      <ng-template #vencidoTpl>MEMBRESÍA VENCIDA</ng-template>
-    </p>
+      </p>
 
-    <p class="tarjeta__asistencias">Asistencias este mes: <strong>{{ c.socio.asistenciasMes }}</strong></p>
+      <p class="tarjeta__asistencias">Asistencias este mes: <strong>{{ c.socio.asistenciasMes }}</strong></p>
 
-    <p *ngIf="c.yaRegistradoHoy" class="tarjeta__aviso">Ya tenía un registro hoy</p>
+      <p *ngIf="c.yaRegistradoHoy" class="tarjeta__aviso">Ya tenía un registro hoy</p>
 
-    <!-- WhatsApp -->
-    <div class="tarjeta__wa">
-      <span *ngIf="c.whatsapp?.enviado" class="wa-enviado">Recibo enviado ✅</span>
-      <a
-        *ngIf="!c.whatsapp?.enviado && c.whatsapp?.link"
-        class="btn btn--wa"
-        [href]="c.whatsapp!.link"
-        target="_blank"
-        rel="noopener"
-      >
-        Enviar recibo por WhatsApp
-      </a>
-      <span *ngIf="!c.whatsapp?.enviado && !c.whatsapp?.link && c.whatsapp?.motivo" class="wa-motivo">
-        {{ c.whatsapp?.motivo }}
-      </span>
-    </div>
+      <!-- WhatsApp -->
+      <div class="tarjeta__wa">
+        <span *ngIf="c.whatsapp?.enviado" class="wa-enviado">Recibo enviado ✅</span>
+        <a
+          *ngIf="!c.whatsapp?.enviado && c.whatsapp?.link"
+          class="btn btn--wa"
+          [href]="c.whatsapp!.link"
+          target="_blank"
+          rel="noopener"
+        >
+          Enviar recibo por WhatsApp
+        </a>
+      </div>
+    </ng-template>
   </div>
 
   <div class="recepcion__grid">

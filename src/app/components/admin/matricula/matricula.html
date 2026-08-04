@@ -1,0 +1,183 @@
+<div class="matricula">
+  <header class="matricula__header">
+    <h1 class="matricula__titulo">💳 Matrícula / Registrar pago</h1>
+    <p class="matricula__subtitulo">Registra un socio y su membresía en un solo paso</p>
+  </header>
+
+  <!-- Tarjeta de confirmación -->
+  <div *ngIf="confirmacion as c" class="tarjeta">
+    <button type="button" class="tarjeta__cerrar" (click)="cerrarConfirmacion()" aria-label="Cerrar">✕</button>
+
+    <p class="tarjeta__check">✅ Pago registrado</p>
+    <h2 class="tarjeta__nombre">{{ c.nombre }}</h2>
+
+    <p class="tarjeta__monto">Monto: <strong>{{ c.monto | number: '1.0-2' }}</strong></p>
+
+    <p *ngIf="c.fechaVencimiento" class="tarjeta__vence">
+      Membresía activa hasta <strong>{{ c.fechaVencimiento | date: 'longDate' }}</strong>
+    </p>
+
+    <p class="tarjeta__dias">
+      Le quedan <strong>{{ c.diasRestantes }}</strong> día{{ c.diasRestantes === 1 ? '' : 's' }}
+    </p>
+
+    <p *ngIf="c.passwordTemporal" class="tarjeta__password">
+      Contraseña temporal: <strong>{{ c.passwordTemporal }}</strong>
+      <span class="tarjeta__password-hint">Entrégasela al socio</span>
+    </p>
+
+    <div class="tarjeta__wa">
+      <span *ngIf="c.whatsapp?.enviado" class="wa-enviado">Recibo enviado ✅</span>
+      <a
+        *ngIf="!c.whatsapp?.enviado && c.whatsapp?.link"
+        class="btn btn--wa"
+        [href]="c.whatsapp!.link!"
+        target="_blank"
+        rel="noopener"
+      >
+        Enviar recibo por WhatsApp
+      </a>
+      <span *ngIf="!c.whatsapp?.enviado && !c.whatsapp?.link && c.whatsapp?.motivo" class="wa-motivo">
+        {{ c.whatsapp?.motivo }}
+      </span>
+    </div>
+  </div>
+
+  <section class="panel">
+    <!-- Selector tipo de socio -->
+    <div class="tabs">
+      <button
+        type="button"
+        class="tab"
+        [class.tab--activo]="tipoSocio === 'nuevo'"
+        (click)="cambiarTipo('nuevo')"
+      >
+        Socio nuevo
+      </button>
+      <button
+        type="button"
+        class="tab"
+        [class.tab--activo]="tipoSocio === 'existente'"
+        (click)="cambiarTipo('existente')"
+      >
+        Socio existente
+      </button>
+    </div>
+
+    <!-- Socio nuevo -->
+    <div *ngIf="tipoSocio === 'nuevo'" class="campos">
+      <label class="campo">
+        <span class="campo__label">Nombre <span class="req">*</span></span>
+        <input class="input" type="text" [(ngModel)]="nombre" placeholder="Nombre del socio" autocomplete="off" />
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Teléfono</span>
+        <input class="input" type="tel" [(ngModel)]="telefono" placeholder="Ej: 3001234567" autocomplete="off" />
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Correo (opcional)</span>
+        <input class="input" type="email" [(ngModel)]="correo" placeholder="correo@ejemplo.com" autocomplete="off" />
+      </label>
+    </div>
+
+    <!-- Socio existente -->
+    <div *ngIf="tipoSocio === 'existente'" class="campos">
+      <label class="campo">
+        <span class="campo__label">Buscar socio</span>
+        <input
+          class="input"
+          type="text"
+          [(ngModel)]="textoBusqueda"
+          (ngModelChange)="onBuscar()"
+          placeholder="Nombre, email o código…"
+          autocomplete="off"
+        />
+      </label>
+
+      <p *ngIf="buscando" class="hint">Buscando…</p>
+      <p *ngIf="!buscando && !socioSeleccionado && textoBusqueda.trim() && resultados.length === 0" class="hint">
+        Sin resultados
+      </p>
+
+      <ul class="lista" *ngIf="resultados.length && !socioSeleccionado">
+        <li *ngFor="let s of resultados" class="lista__item" (click)="seleccionarSocio(s)">
+          <div class="lista__info">
+            <span class="lista__nombre">{{ s.nombre }}</span>
+            <span
+              class="lista__dias"
+              [class.dias--activo]="(s.diasRestantes ?? 0) > 0"
+              [class.dias--vencido]="(s.diasRestantes ?? 0) <= 0"
+            >
+              {{ (s.diasRestantes ?? 0) > 0 ? (s.diasRestantes + ' días') : 'Vencido' }}
+            </span>
+          </div>
+          <span class="lista__accion">Seleccionar →</span>
+        </li>
+      </ul>
+
+      <div *ngIf="socioSeleccionado as sel" class="seleccionado">
+        <div class="seleccionado__info">
+          <span class="seleccionado__nombre">{{ sel.nombre }}</span>
+          <span
+            class="seleccionado__dias"
+            [class.dias--activo]="(sel.diasRestantes ?? 0) > 0"
+            [class.dias--vencido]="(sel.diasRestantes ?? 0) <= 0"
+          >
+            Días restantes actuales: {{ sel.diasRestantes ?? 0 }}
+          </span>
+        </div>
+        <button type="button" class="btn btn--ghost" (click)="limpiarSeleccion()">Cambiar</button>
+      </div>
+    </div>
+
+    <hr class="sep" />
+
+    <!-- Datos del pago -->
+    <div class="campos">
+      <label class="campo">
+        <span class="campo__label">Plan (opcional)</span>
+        <select class="input" [(ngModel)]="planId" (ngModelChange)="onPlanChange()">
+          <option value="">— Sin plan —</option>
+          <option *ngFor="let p of planes" [value]="p._id">
+            {{ p.nombre }}{{ p.precio != null ? ' (' + (p.precio | number: '1.0-2') + ')' : '' }}
+          </option>
+        </select>
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Método de pago</span>
+        <select *ngIf="metodosPago.length" class="input" [(ngModel)]="metodoId">
+          <option value="">— Selecciona —</option>
+          <option *ngFor="let m of metodosPago" [value]="m._id">{{ m.titulo }}</option>
+        </select>
+        <select *ngIf="!metodosPago.length" class="input" [(ngModel)]="metodoTexto">
+          <option value="">— Selecciona —</option>
+          <option *ngFor="let m of metodosFallback" [value]="m">{{ m }}</option>
+        </select>
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Concepto</span>
+        <input class="input" type="text" [(ngModel)]="concepto" placeholder="Ej: Mensualidad" autocomplete="off" />
+      </label>
+
+      <div class="campos__fila">
+        <label class="campo">
+          <span class="campo__label">Monto</span>
+          <input class="input" type="number" min="0" step="any" [(ngModel)]="monto" placeholder="0" />
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">Días de membresía</span>
+          <input class="input" type="number" min="0" step="1" [(ngModel)]="dias" />
+        </label>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn--primary btn--full" (click)="registrar()" [disabled]="registrando">
+      {{ registrando ? 'Registrando…' : 'Registrar pago' }}
+    </button>
+  </section>
+</div>
