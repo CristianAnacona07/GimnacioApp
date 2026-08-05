@@ -14,7 +14,7 @@ const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
 // de administradores) comparta exactamente la misma configuración.
 const { hashToken } = require('../helpers/tokens');
-const { transporter } = require('../helpers/email');
+const { transporter, emailConfigurado, remitente } = require('../helpers/email');
 
 // Template del email
 const emailTemplate = (nombre, resetUrl) => `
@@ -58,7 +58,7 @@ const verifyEmailTemplate = (nombre, verifyUrl) => `
 
 // Genera un token de verificación, lo guarda hasheado y envía el correo (best-effort).
 async function enviarVerificacion(usuario) {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+    if (!emailConfigurado()) return;
     const token = crypto.randomBytes(32).toString('hex');
     usuario.verifyToken = hashToken(token);
     usuario.verifyTokenExpiry = new Date(Date.now() + 24 * 3600000); // 24 horas
@@ -66,7 +66,7 @@ async function enviarVerificacion(usuario) {
     const verifyUrl = `${process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app'}/verify-email?token=${token}`;
     try {
         await transporter.sendMail({
-            from: `"Kodiak Gym" <${process.env.EMAIL_USER}>`,
+            from: remitente(),
             to: usuario.email,
             subject: 'Verifica tu cuenta — Kodiak Gym',
             html: verifyEmailTemplate(usuario.nombre, verifyUrl)
@@ -82,8 +82,8 @@ router.post('/forgot-password', async (req, res) => {
         const { email } = req.body;
         if (!email) return res.status(400).json({ mensaje: 'El correo es obligatorio' });
 
-        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-            console.error('EMAIL_USER/EMAIL_PASS no configurados: no se puede enviar el correo de recuperación');
+        if (!emailConfigurado()) {
+            console.error('Sin configuración de correo (SMTP_HOST o EMAIL_USER/EMAIL_PASS): no se puede enviar el correo de recuperación');
             return res.status(500).json({ mensaje: 'El servicio de correo no está disponible en este momento' });
         }
 
@@ -103,7 +103,7 @@ router.post('/forgot-password', async (req, res) => {
         const resetUrl = `${process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app'}/reset-password?token=${token}`;
 
         await transporter.sendMail({
-            from: `"Kodiak Gym" <${process.env.EMAIL_USER}>`,
+            from: remitente(),
             to: usuario.email,
             subject: 'Recuperar contraseña — Kodiak Gym',
             html: emailTemplate(usuario.nombre, resetUrl)

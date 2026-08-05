@@ -31,6 +31,11 @@ npx vitest run -t "verificarToken" # single test by name
 node scripts/crear-superadmin.js   # bootstrap a superadmin user
 node scripts/migrar-gym.js         # backfill gymId on legacy data
 
+# Email in dev: Mailpit captures every message instead of delivering it
+docker compose -f docker-compose.dev.yml up -d   # SMTP :1025, inbox http://localhost:8025
+# then set SMTP_HOST=127.0.0.1 / SMTP_PORT=1025 in backend/.env
+# (ports already taken? MAILPIT_SMTP_PORT=1026 MAILPIT_UI_PORT=8026 docker compose …)
+
 # Frontend
 cd frontend/gym-aplication
 npm install
@@ -53,6 +58,12 @@ There is **no linter configured** (no ESLint). Formatting is Prettier, configure
 `GOOGLE_ANDROID_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `EMAIL_USER`, `EMAIL_PASS`,
 `FRONTEND_URL`, `NODE_ENV`, `PORT`, `TENANT_ROOT_DOMAIN`, and optionally
 `WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID`/`WHATSAPP_TEMPLATE`/`WHATSAPP_LANG`.
+
+Mail goes through [helpers/email.js](backend/helpers/email.js), which picks its transport
+from env: **`SMTP_HOST` set → plain SMTP** (Mailpit in dev, no credentials needed) and Gmail
+is ignored entirely; otherwise `EMAIL_USER`/`EMAIL_PASS` over Gmail (production). Leave the
+`SMTP_*` vars empty in production. `emailConfigurado()` is the single check for "can we send
+at all" — use it instead of testing `EMAIL_USER` directly, or the dev setup breaks.
 
 **CI** (`.github/workflows/`, each triggered only by changes in its own area):
 `backend-docker.yml` / `frontend-docker.yml` publish images to GHCR,

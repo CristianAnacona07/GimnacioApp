@@ -4,19 +4,50 @@ const nodemailer = require('nodemailer');
  * Envío de correo de la plataforma.
  *
  * El transporter vive aquí para que auth.js y gym.js compartan una única
- * configuración. Si EMAIL_USER/EMAIL_PASS no están definidos no se envía nada:
- * las funciones devuelven false en vez de lanzar, porque un correo que no sale
- * nunca debe tumbar la operación de negocio que sí tuvo éxito.
+ * configuración. Si no hay forma de enviar no se envía nada: las funciones
+ * devuelven false en vez de lanzar, porque un correo que no sale nunca debe
+ * tumbar la operación de negocio que sí tuvo éxito.
+ *
+ * Dos modos:
+ *  - SMTP genérico, si está definido SMTP_HOST. Es el que se usa en desarrollo
+ *    con Mailpit (`SMTP_HOST=127.0.0.1`, `SMTP_PORT=1025`), que captura los
+ *    correos en una bandeja web en vez de entregarlos a nadie. Sin auth: si
+ *    SMTP_USER está vacío no se manda ninguna credencial.
+ *  - Gmail, si no hay SMTP_HOST pero sí EMAIL_USER/EMAIL_PASS. Es producción.
  */
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const usaSmtpPropio = () => !!process.env.SMTP_HOST;
 
-const emailConfigurado = () => !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+const construirTransporter = () => {
+  if (usaSmtpPropio()) {
+    const puerto = Number(process.env.SMTP_PORT) || 1025;
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: puerto,
+      // Mailpit y demás capturadores locales hablan SMTP en claro.
+      secure: process.env.SMTP_SECURE === 'true',
+      ignoreTLS: process.env.SMTP_SECURE !== 'true',
+      auth: process.env.SMTP_USER
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
+    });
+  }
+
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+};
+
+const transporter = construirTransporter();
+
+const emailConfigurado = () => usaSmtpPropio() || !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+
+// Remitente único para todos los correos. Con Mailpit no hay cuenta de Gmail,
+// así que se usa una dirección de relleno: el buzón local acepta cualquiera.
+const remitente = () => `"Kodiak Gym" <${process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@kodiak.local'}>`;
 
 const urlFrontend = () => process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app';
 
@@ -51,7 +82,7 @@ const plantillaInvitacionAdmin = (nombre, gymNombre, url, dias) => `
  */
 async function enviarInvitacionAdmin({ email, nombre, gymNombre, token, dias }) {
   if (!emailConfigurado()) {
-    console.error('EMAIL_USER/EMAIL_PASS no configurados: no se envía la invitación de administrador');
+    console.error('Sin configuración de correo (SMTP_HOST o EMAIL_USER/EMAIL_PASS): no se envía la invitación de administrador');
     return false;
   }
 
@@ -60,7 +91,7 @@ async function enviarInvitacionAdmin({ email, nombre, gymNombre, token, dias }) 
 
   try {
     await transporter.sendMail({
-      from: `"Kodiak Gym" <${process.env.EMAIL_USER}>`,
+      from: remitente(),
       to: email,
       subject: `Activa tu cuenta de administrador — ${gymNombre}`,
       html: plantillaInvitacionAdmin(nombre, gymNombre, url, dias),
@@ -72,4 +103,4 @@ async function enviarInvitacionAdmin({ email, nombre, gymNombre, token, dias }) 
   }
 }
 
-module.exports = { transporter, emailConfigurado, enviarInvitacionAdmin };
+module.exports = { transporter, emailConfigurado, remitente, enviarInvitacionAdmin };
