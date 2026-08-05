@@ -54,12 +54,19 @@ export class NotificacionesService {
 
   private leidas = new Set<string>();
   private sondeo?: Subscription;
+  /** Usuario para el que corre el sondeo actual. */
+  private usuarioSondeo = '';
   /** La primera carga no suena: al entrar, todo es "nuevo" y sería un ruido inútil. */
   private primeraCarga = true;
 
   /** Arranca el sondeo periódico. Idempotente: llamarlo dos veces no duplica. */
   iniciar(): void {
-    if (this.sondeo) return;
+    const usuario = this.userState.getUserId() || 'anon';
+    // Si cambió la cuenta sin recargar la página (logout → login), el sondeo
+    // vivo seguiría usando las firmas leídas del usuario anterior: se reinicia.
+    if (this.sondeo && usuario === this.usuarioSondeo) return;
+    this.detener();
+    this.usuarioSondeo = usuario;
     this.leidas = this.cargarLeidas();
     this.sondeo = timer(0, INTERVALO_MS)
       .pipe(

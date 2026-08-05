@@ -19,6 +19,12 @@ export class StorageService {
     'progreso_ejercicio'   // Ejercicio del formulario
   ];
 
+  // Prefijos de claves dinámicas (una por usuario) que también se preservan.
+  // Las firmas de avisos leídos llevan el userId en la clave, así que guardarlas
+  // entre sesiones no filtra nada entre cuentas — y si se borraran, la campana
+  // volvería a marcar como nuevos avisos ya revisados en cada login.
+  private readonly PRESERVED_PREFIXES = ['avisosLeidos:'];
+
   // Claves relacionadas con autenticación que se deben eliminar
   private readonly AUTH_KEYS = [
     'token',
@@ -71,7 +77,7 @@ export class StorageService {
   clearSessionPreservingData(): void {
     const preserved = new Set(this.PRESERVED_KEYS);
     Object.keys(localStorage)
-      .filter(key => !preserved.has(key))
+      .filter(key => !preserved.has(key) && !this.PRESERVED_PREFIXES.some(p => key.startsWith(p)))
       .forEach(key => localStorage.removeItem(key));
   }
 

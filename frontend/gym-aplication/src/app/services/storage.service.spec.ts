@@ -34,6 +34,19 @@ describe('StorageService', () => {
       expect(localStorage.getItem('gymActual')).toBeTruthy();
     });
 
+    it('debe preservar las firmas de avisos leídos (clave por usuario)', () => {
+      // Arrange
+      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('avisosLeidos:abc123', '["membresias-vencidas:3"]');
+
+      // Act
+      service.clearSessionPreservingData();
+
+      // Assert
+      expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('avisosLeidos:abc123')).toBe('["membresias-vencidas:3"]');
+    });
+
     it('debe preservar tema dark/light', () => {
       // Arrange
       localStorage.setItem('token', 'fake-token');
