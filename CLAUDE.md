@@ -32,9 +32,9 @@ node scripts/crear-superadmin.js   # bootstrap a superadmin user
 node scripts/migrar-gym.js         # backfill gymId on legacy data
 
 # Email in dev: Mailpit captures every message instead of delivering it
-docker compose -f docker-compose.dev.yml up -d   # SMTP :1025, inbox http://localhost:8025
-# then set SMTP_HOST=127.0.0.1 / SMTP_PORT=1025 in backend/.env
-# (ports already taken? MAILPIT_SMTP_PORT=1026 MAILPIT_UI_PORT=8026 docker compose …)
+docker compose -f docker-compose.dev.yml up -d   # SMTP :1026, inbox http://localhost:8026
+# then set SMTP_HOST=127.0.0.1 / SMTP_PORT=1026 in backend/.env
+# Non-standard ports on purpose: other projects on this machine own 1025/8025.
 
 # Frontend
 cd frontend/gym-aplication
