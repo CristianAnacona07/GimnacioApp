@@ -14,6 +14,7 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 import { AsistenciaService, SocioBuscado } from '../../../services/asistencia.service';
 import { ToastService } from '../../../services/toast.service';
+import { ConfirmService } from '../../../services/confirm.service';
 import { PagoService } from '../../../services/pago.service';
 
 /** Plan de membresía del gym. */
@@ -61,6 +62,7 @@ export class Matricula implements OnInit {
   private asistenciaService = inject(AsistenciaService);
   private pagoService = inject(PagoService);
   private toast = inject(ToastService);
+  private confirm = inject(ConfirmService);
   private cdr = inject(ChangeDetectorRef);
   private destroyRef = inject(DestroyRef);
 
@@ -214,7 +216,7 @@ export class Matricula implements OnInit {
   }
 
   // ---- Envío ----
-  registrar(): void {
+  async registrar(): Promise<void> {
     if (this.registrando) return;
 
     // Validaciones
@@ -240,6 +242,23 @@ export class Matricula implements OnInit {
       return;
     }
 
+    // Si al socio le quedan días, hay dos lecturas posibles del pago y solo él
+    // sabe cuál quiere: sumarlos (renovación normal) o reescribir la membresía
+    // desde hoy (corregir una carga anterior). Preguntar evita ambas sorpresas.
+    let reemplazar = false;
+    const restantes = this.socioSeleccionado?.diasRestantes ?? 0;
+    if (this.tipoSocio === 'existente' && restantes > 0 && dias > 0) {
+      const eleccion = await this.confirm.elegir(
+        this.mensajeMembresiaActiva(this.socioSeleccionado!.nombre, restantes, dias),
+        [
+          { texto: 'Reasignar', valor: 'reasignar' },
+          { texto: `Sumar ${dias} días`, valor: 'sumar', estilo: 'primario' }
+        ]
+      );
+      if (eleccion === null) return; // cerró el diálogo: no se registra nada
+      reemplazar = eleccion === 'reasignar';
+    }
+
     this.registrando = true;
     this.confirmacion = null;
     this.cdr.markForCheck();
@@ -247,8 +266,24 @@ export class Matricula implements OnInit {
     if (this.tipoSocio === 'nuevo') {
       this.crearYRegistrar(monto, dias);
     } else {
-      this.registrarPago(this.socioSeleccionado!._id, monto, dias, null);
+      this.registrarPago(this.socioSeleccionado!._id, monto, dias, null, reemplazar);
     }
+  }
+
+  /** Texto del diálogo, con la fecha en la que quedaría cada opción. */
+  private mensajeMembresiaActiva(nombre: string, restantes: number, dias: number): string {
+    const fecha = (sumar: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + sumar);
+      return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+    };
+    const plural = restantes === 1 ? 'día' : 'días';
+    return (
+      `A ${nombre.trim()} todavía le ${restantes === 1 ? 'queda' : 'quedan'} ${restantes} ${plural} de membresía.\n\n` +
+      `• Sumar: se añaden a los que ya tiene y quedará hasta el ${fecha(restantes + dias)}.\n` +
+      `• Reasignar: la membresía se reescribe desde hoy y quedará hasta el ${fecha(dias)}, ` +
+      `perdiendo los ${restantes} ${plural} que le quedaban.`
+    );
   }
 
   private crearYRegistrar(monto: number, dias: number): void {
@@ -284,7 +319,8 @@ export class Matricula implements OnInit {
     usuarioId: string,
     monto: number,
     dias: number,
-    passwordTemporal: string | null
+    passwordTemporal: string | null,
+    reemplazar = false
   ): void {
     const body: {
       usuarioId: string;
@@ -292,7 +328,11 @@ export class Matricula implements OnInit {
       metodoId?: string;
       concepto?: string;
       dias?: number;
+      reemplazar?: boolean;
     } = { usuarioId, monto, dias };
+
+    // Solo se manda cuando toca, para no cambiar el cuerpo del resto de pagos.
+    if (reemplazar) body.reemplazar = true;
 
     if (this.metodoId) body.metodoId = this.metodoId;
     const concepto = this.concepto.trim() || this.metodoTexto.trim();

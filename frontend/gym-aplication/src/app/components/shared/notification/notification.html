@@ -14,14 +14,27 @@
 </div>
 
 <!-- CONFIRM MODAL -->
-@if ((confirmState$ | async)?.visible) {
-  <div class="confirm-overlay">
-    <div class="confirm-box">
-      <p class="confirm-message">{{ (confirmState$ | async)?.message }}</p>
-      <div class="confirm-actions">
-        <button class="btn-cancel" (click)="responder(false)">Cancelar</button>
-        <button class="btn-confirm" (click)="responder(true)">Confirmar</button>
+@if (confirmState$ | async; as confirmar) {
+  @if (confirmar.visible) {
+    <div class="confirm-overlay">
+      <div class="confirm-box">
+        <p class="confirm-message">{{ confirmar.message }}</p>
+        <div class="confirm-actions">
+          @if (confirmar.opciones?.length) {
+            <!-- Diálogo de varias salidas: cerrar sin elegir devuelve null. -->
+            <button class="btn-cancel" (click)="responder(null)">Cancelar</button>
+            @for (opcion of confirmar.opciones; track opcion.valor) {
+              <button
+                [class]="opcion.estilo === 'primario' ? 'btn-confirm' : 'btn-cancel'"
+                (click)="responder(opcion.valor)"
+              >{{ opcion.texto }}</button>
+            }
+          } @else {
+            <button class="btn-cancel" (click)="responder(false)">Cancelar</button>
+            <button class="btn-confirm" (click)="responder(true)">Confirmar</button>
+          }
+        </div>
       </div>
     </div>
-  </div>
+  }
 }

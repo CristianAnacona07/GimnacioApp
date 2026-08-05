@@ -66,13 +66,18 @@ export class PagoService {
     return this.http.post<SocioCreado>(`${this.url}/api/auth/crear-socio`, datos);
   }
 
-  /** Registra un pago/transacción para un socio y renueva su membresía. */
+  /**
+   * Registra un pago/transacción para un socio y renueva su membresía.
+   * Con `reemplazar` la membresía se reescribe desde hoy en lugar de sumarse a
+   * los días que le queden.
+   */
   registrarPago(datos: {
     usuarioId: string;
     monto: number;
     metodoId?: string;
     concepto?: string;
     dias?: number;
+    reemplazar?: boolean;
   }): Observable<ResultadoPago> {
     return this.http.post<ResultadoPago>(`${this.url}/api/transacciones/registrar`, datos);
   }

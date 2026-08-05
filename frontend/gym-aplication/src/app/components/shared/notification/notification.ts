@@ -17,7 +17,8 @@ export class Notification {
   toasts$ = this.toastService.toasts$;
   confirmState$ = this.confirmService.state$;
 
-  responder(value: boolean) {
+  /** `boolean` en los diálogos sí/no; el `valor` del botón (o null) en los demás. */
+  responder(value: boolean | string | null) {
     this.confirmService.respond(value);
   }
 }

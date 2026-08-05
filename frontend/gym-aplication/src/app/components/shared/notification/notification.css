@@ -78,12 +78,16 @@
   font-weight: 500;
   margin-bottom: 1.5rem;
   line-height: 1.5;
+  /* Permite componer el mensaje con saltos de línea desde el código. */
+  white-space: pre-line;
 }
 
 .confirm-actions {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+  /* Con tres botones y pantalla estrecha, que bajen en vez de desbordar. */
+  flex-wrap: wrap;
 }
 
 .btn-cancel {

@@ -15,7 +15,7 @@ function diasRestantes(fechaVencimiento) {
 // Registrar un pago/transacción para un socio del gimnasio.
 router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const { usuarioId, monto, metodoId, concepto, dias } = req.body;
+        const { usuarioId, monto, metodoId, concepto, dias, reemplazar } = req.body;
 
         if (!usuarioId) {
             return res.status(400).json({ error: 'usuarioId es obligatorio' });
@@ -41,14 +41,17 @@ router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
             return res.status(404).json({ error: 'Usuario no encontrado en este gimnasio' });
         }
 
-        // Extender vencimiento desde max(hoy, vencimiento actual).
+        // Por defecto se extiende desde max(hoy, vencimiento actual), de modo que
+        // renovar antes de tiempo no le quite al socio los días que ya pagó.
+        // Con `reemplazar` la membresía se reescribe desde hoy, descartando lo que
+        // le quedaba: es la salida para corregir una carga anterior equivocada.
         if (diasAgregados > 0) {
             const ahora = new Date();
-            const vencimientoActual = socio.fechaVencimiento && socio.fechaVencimiento > ahora
+            const base = !reemplazar && socio.fechaVencimiento && socio.fechaVencimiento > ahora
                 ? new Date(socio.fechaVencimiento)
-                : ahora;
-            vencimientoActual.setDate(vencimientoActual.getDate() + diasAgregados);
-            socio.fechaVencimiento = vencimientoActual;
+                : new Date(ahora);
+            base.setDate(base.getDate() + diasAgregados);
+            socio.fechaVencimiento = base;
             await socio.save();
         }
 
@@ -66,7 +69,9 @@ router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
         await registrarAuditoria(req, 'REGISTRAR_PAGO', {
             recurso: 'Transaccion',
             recursoId: tx._id,
-            detalle: { monto, dias: diasAgregados }
+            // `reemplazar` descarta días que el socio ya había pagado, así que
+            // conviene poder rastrear quién y cuándo lo hizo.
+            detalle: { monto, dias: diasAgregados, reemplazar: !!reemplazar }
         });
 
         // Recibo por WhatsApp: automático (plantilla) si está configurado + link de respaldo.
