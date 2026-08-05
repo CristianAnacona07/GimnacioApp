@@ -92,10 +92,7 @@ export class Login implements OnInit, AfterViewInit {
       const gymId = this.gym?._id || null;
       this.authService.loginGoogleNativo(idToken, gymId).subscribe({
         next: (r: any) => this.guardarSesion(r),
-        error: () => {
-          this.procesandoGoogle = false;
-          this.toast.error('Error al iniciar sesión con Google');
-        }
+        error: (err) => this.errorGoogle(err)
       });
     } catch (e: any) {
       const msg = (e?.message || e?.code || '').toString().toLowerCase();
@@ -142,10 +139,7 @@ export class Login implements OnInit, AfterViewInit {
       const gymId = this.gym?._id || null;
       this.authService.loginConGoogle(accessToken, gymId).subscribe({
         next: (r: any) => this.guardarSesion(r),
-        error: () => {
-          this.procesandoGoogle = false;
-          this.toast.error('Error al iniciar sesión con Google');
-        }
+        error: (err) => this.errorGoogle(err)
       });
     } catch (e: any) {
       this.procesandoGoogle = false;
@@ -187,11 +181,15 @@ export class Login implements OnInit, AfterViewInit {
       next: (res: any) => {
         this.guardarSesion(res);
       },
-      error: () => {
-        this.procesandoGoogle = false;
-        this.toast.error('Error al iniciar sesión con Google');
-      }
+      error: (err) => this.errorGoogle(err)
     });
+  }
+
+  // El backend explica el motivo (gimnasio no seleccionado, token inválido…);
+  // mostrarlo evita el genérico que no dice nada al usuario.
+  private errorGoogle(err: any) {
+    this.procesandoGoogle = false;
+    this.toast.error(err?.error?.mensaje || 'Error al iniciar sesión con Google');
   }
 
   iniciarSesion() {

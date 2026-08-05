@@ -173,7 +173,7 @@ router.post('/google', async (req, res) => {
             return res.status(500).json({ mensaje: 'Autenticación con Google no disponible' });
         }
 
-        const { credential, access_token } = req.body;
+        const { credential, access_token, gymId } = req.body;
 
         let email, name, picture, sub;
 
@@ -205,19 +205,54 @@ router.post('/google', async (req, res) => {
             ({ email, name, picture, sub } = ticket.getPayload());
         }
 
-        let usuario = await User.findOne({ email: email.toLowerCase() });
+        if (!email) {
+            return res.status(401).json({ mensaje: 'La cuenta de Google no expone un correo' });
+        }
+        const emailNorm = email.toLowerCase().trim();
+
+        // El superadmin no pertenece a ningún gimnasio (mismo criterio que /login).
+        let usuario = await User.findOne({ email: emailNorm, role: 'superadmin' });
 
         if (!usuario) {
-            const salt = await bcrypt.genSalt(10);
-            usuario = new User({
-                nombre: name,
-                email: email.toLowerCase(),
-                password: await bcrypt.hash(sub + Date.now(), salt),
-                role: 'socio',
-                fotoUrl: picture || '',
-                emailVerified: true   // el correo ya viene verificado por Google
-            });
-            await usuario.save();
+            // Multi-gym: la cuenta vive DENTRO del gimnasio elegido en el selector.
+            // Sin gymId el usuario quedaría huérfano y su JWT saldría con gymId null,
+            // dejando vacía toda consulta con alcance de gimnasio.
+            if (!gymId || !mongoose.Types.ObjectId.isValid(gymId)) {
+                return res.status(400).json({ mensaje: 'Debes seleccionar un gimnasio válido' });
+            }
+            const gymValido = await Gym.findOne({ _id: gymId, activo: true }).select('_id').lean();
+            if (!gymValido) {
+                return res.status(400).json({ mensaje: 'El gimnasio no existe o no está activo' });
+            }
+
+            // El índice único es {email, gymId}: el mismo correo puede ser socio de
+            // varios gimnasios, así que la búsqueda va acotada al gym elegido.
+            usuario = await User.findOne({ email: emailNorm, gymId });
+
+            // Cuentas heredadas que Google creó sin gimnasio: se adoptan en el gym
+            // elegido en vez de duplicarlas (el índice compuesto lo permitiría).
+            if (!usuario) {
+                const huerfano = await User.findOne({ email: emailNorm, gymId: null });
+                if (huerfano) {
+                    huerfano.gymId = gymId;
+                    await huerfano.save();
+                    usuario = huerfano;
+                }
+            }
+
+            if (!usuario) {
+                const salt = await bcrypt.genSalt(10);
+                usuario = new User({
+                    gymId,
+                    nombre: name,
+                    email: emailNorm,
+                    password: await bcrypt.hash(sub + Date.now(), salt),
+                    role: 'socio',
+                    fotoUrl: picture || '',
+                    emailVerified: true   // el correo ya viene verificado por Google
+                });
+                await usuario.save();
+            }
         }
 
         const token = jwt.sign(
