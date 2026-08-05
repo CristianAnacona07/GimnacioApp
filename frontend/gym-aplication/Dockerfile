@@ -6,6 +6,17 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+
+# URL de la API. Angular la incrusta en el bundle al compilar, así que no se
+# puede cambiar después arrancando el contenedor: hay que reconstruir la imagen.
+# Vacío (por defecto) = se respeta environment.prod.ts, que apunta a Vercel.
+# Para un servidor propio: --build-arg API_URL=https://api.tudominio.com
+ARG API_URL=""
+RUN if [ -n "$API_URL" ]; then \
+      sed -i "s|apiUrl: *'[^']*'|apiUrl: '$API_URL'|" src/environments/environment.prod.ts && \
+      echo "apiUrl fijado a $API_URL" && grep apiUrl src/environments/environment.prod.ts; \
+    fi
+
 # npm run build = ng build (producción) + flatten-layers.mjs
 # Salida en dist/frontend/browser
 RUN npm run build
