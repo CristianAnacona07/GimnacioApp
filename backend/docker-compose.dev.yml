@@ -15,6 +15,11 @@
 # Con SMTP_HOST definido el backend ignora Gmail por completo (ver helpers/email.js),
 # así que en desarrollo no hacen falta EMAIL_USER/EMAIL_PASS.
 
+# Nombre del proyecto en Docker: sin esto Compose usaría el de la carpeta desde
+# la que se lanza ("backend"), que no dice nada y se confunde con los demás
+# proyectos del equipo. Así los contenedores quedan agrupados bajo "gimnacio-app".
+name: gimnacio-app
+
 services:
   mailpit:
     image: axllent/mailpit:latest
