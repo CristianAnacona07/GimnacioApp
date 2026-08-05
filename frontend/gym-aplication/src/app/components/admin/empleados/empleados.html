@@ -1,0 +1,73 @@
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">🧑‍💼 Empleados</h2>
+      <p class="page-sub">Recepcionistas, entrenadores y demás personal del gimnasio</p>
+    </div>
+    <button class="btn-nuevo" (click)="mostrarForm = !mostrarForm">
+      {{ mostrarForm ? '✕ Cancelar' : '+ Nuevo empleado' }}
+    </button>
+  </div>
+
+  @if (mostrarForm) {
+    <div class="form-card">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Nombre</label>
+          <input class="form-input" type="text" [(ngModel)]="nuevo.nombre" placeholder="ej: Laura Gómez">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Cargo</label>
+          <select class="form-input" [(ngModel)]="nuevo.cargo">
+            @for (c of cargos; track c.valor) {
+              <option [value]="c.valor">{{ c.icono }} {{ c.etiqueta }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Correo</label>
+          <input class="form-input" type="email" [(ngModel)]="nuevo.email" placeholder="correo@ejemplo.com">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Contraseña (mín. 8)</label>
+          <input class="form-input" type="password" [(ngModel)]="nuevo.password" placeholder="********">
+        </div>
+      </div>
+      <p class="form-hint">
+        El empleado entra a la app con este correo y contraseña. El recepcionista
+        ve la pantalla de Recepción para registrar el ingreso de los socios.
+      </p>
+      <button class="btn-guardar" (click)="crear()" [disabled]="guardando || !formValido">
+        @if (guardando) { Creando... } @else { ✓ Crear empleado }
+      </button>
+    </div>
+  }
+
+  @if (!cargando && !empleados.length) {
+    <div class="empty-state">
+      <span class="empty-icon">🧑‍💼</span>
+      <p class="empty-title">Aún no hay empleados registrados</p>
+      <p class="empty-sub">Creá el primero con el botón "+ Nuevo empleado".</p>
+    </div>
+  }
+
+  @if (empleados.length) {
+    <div class="lista">
+      @for (e of empleados; track e._id) {
+        <div class="fila">
+          <span class="fila-icono">{{ infoCargo(e).icono }}</span>
+          <div class="fila-datos">
+            <p class="fila-nombre">{{ e.nombre }}</p>
+            <p class="fila-email">{{ e.email }}</p>
+          </div>
+          <span class="fila-cargo">{{ infoCargo(e).etiqueta }}</span>
+          <button class="btn-borrar" (click)="eliminar(e)" title="Eliminar">🗑️</button>
+        </div>
+      }
+    </div>
+  }
+
+</div>

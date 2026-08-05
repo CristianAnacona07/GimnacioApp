@@ -252,7 +252,7 @@ router.post('/google', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
+            { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRY }
         );
@@ -260,7 +260,7 @@ router.post('/google', async (req, res) => {
         res.json({
             mensaje: 'Login con Google exitoso',
             token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, gymId: usuario.gymId || null }
+            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
         });
     } catch (error) {
         console.error('Error Google auth:', error.message);
@@ -383,6 +383,79 @@ router.post('/crear-entrenador', verificarToken, soloAdmin, async (req, res) => 
         res.status(201).json({ mensaje: 'Entrenador creado', entrenador: { _id: entrenador._id, nombre: entrenador.nombre, email: entrenador.email } });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al crear entrenador' });
+    }
+});
+
+// Cargos válidos al crear personal. 'entrenador' se acepta como cargo en el
+// formulario pero crea un usuario con role 'entrenador' (rol propio, con su
+// zona de la app); los demás crean role 'empleado' con el cargo indicado.
+const CARGOS_EMPLEADO = ['recepcionista', 'limpieza', 'nutricionista', 'entrenador'];
+
+// ✅ CREAR EMPLEADO (SOLO ADMINS) — recepcionista, entrenador, limpieza, nutricionista
+router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
+    try {
+        const { nombre, email, password, cargo } = req.body;
+        if (!nombre || !email || !password) {
+            return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
+        }
+        if (typeof password !== 'string' || password.length < 8) {
+            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
+        }
+        if (!CARGOS_EMPLEADO.includes(cargo)) {
+            return res.status(400).json({ mensaje: 'Cargo inválido' });
+        }
+        const emailNorm = email.toLowerCase().trim();
+        const existe = await User.findOne({ email: emailNorm, gymId: req.gymId }).lean();
+        if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+
+        const salt = await bcrypt.genSalt(10);
+        const empleado = new User({
+            gymId: req.gymId,
+            nombre,
+            email: emailNorm,
+            password: await bcrypt.hash(password, salt),
+            role: cargo === 'entrenador' ? 'entrenador' : 'empleado',
+            cargo: cargo === 'entrenador' ? null : cargo,
+            emailVerified: true
+        });
+        await empleado.save();
+        await registrarAuditoria(req, 'CREAR_EMPLEADO', { recurso: 'User', recursoId: empleado._id, detalle: { cargo } });
+
+        res.status(201).json({
+            mensaje: 'Empleado creado',
+            empleado: { _id: empleado._id, nombre: empleado.nombre, email: empleado.email, role: empleado.role, cargo: empleado.cargo }
+        });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al crear empleado' });
+    }
+});
+
+// ✅ LISTAR EMPLEADOS (SOLO ADMINS) — entrenadores y empleados del gym
+router.get('/empleados', verificarToken, soloAdmin, async (req, res) => {
+    try {
+        const empleados = await User.find({ gymId: req.gymId, role: { $in: ['entrenador', 'empleado'] } })
+            .select('nombre email role cargo fotoUrl createdAt')
+            .sort({ createdAt: -1 })
+            .lean();
+        res.json(empleados);
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al obtener empleados' });
+    }
+});
+
+// ✅ ELIMINAR EMPLEADO (SOLO ADMINS) — borrado suave, solo entrenadores/empleados
+router.delete('/empleados/:id', verificarToken, soloAdmin, async (req, res) => {
+    try {
+        // El filtro por rol evita que por esta ruta se borre a un socio o a otro admin.
+        const filtro = { _id: req.params.id, gymId: req.gymId, role: { $in: ['entrenador', 'empleado'] } };
+        const empleado = await User.findOne(filtro).select('_id').lean();
+        if (!empleado) return res.status(404).json({ mensaje: 'Empleado no encontrado' });
+
+        await User.softDelete(filtro);
+        await registrarAuditoria(req, 'ELIMINAR_EMPLEADO', { recurso: 'User', recursoId: req.params.id });
+        res.json({ mensaje: 'Empleado eliminado' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al eliminar empleado' });
     }
 });
 
@@ -629,7 +702,7 @@ router.post('/login', async (req, res) => {
         if (!esValida) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
 
         const token = jwt.sign(
-            { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
+            { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRY }
         );
@@ -637,7 +710,7 @@ router.post('/login', async (req, res) => {
         res.json({
             mensaje: 'Login exitoso',
             token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, gymId: usuario.gymId || null }
+            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error en el login' });
@@ -702,7 +775,7 @@ router.post('/refresh-token', verificarToken, async (req, res) => {
 
         // Generar nuevo token (misma expiración que el login: 8 horas)
         const nuevoToken = jwt.sign(
-            { id: usuario._id, role: usuario.role, gymId: usuario.gymId || null },
+            { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRY }
         );
@@ -715,6 +788,7 @@ router.post('/refresh-token', verificarToken, async (req, res) => {
                 nombre: usuario.nombre,
                 email: usuario.email,
                 role: usuario.role,
+                cargo: usuario.cargo || null,
                 gymId: usuario.gymId || null
             }
         });

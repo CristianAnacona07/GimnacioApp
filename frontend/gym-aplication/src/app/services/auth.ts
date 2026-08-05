@@ -74,6 +74,20 @@ export class AuthService {
     return this.http.put(`${this.apiUrl}/limpiar-membresia/${id}`, {});
   }
 
+  // --- EMPLEADOS (Admin) ---
+
+  getEmpleados(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/empleados`);
+  }
+
+  crearEmpleado(datos: { nombre: string; email: string; password: string; cargo: string }): Observable<any> {
+    return this.http.post(`${this.apiUrl}/crear-empleado`, datos);
+  }
+
+  eliminarEmpleado(id: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/empleados/${id}`);
+  }
+
   // --- PERFIL ---
 
   getPerfilSocio(id: string): Observable<any> {

@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/user');
 const Asistencia = require('../models/asistencia');
-const { verificarToken, soloAdmin } = require('../middleware/auth');
+// Las rutas operativas de recepción usan soloRecepcion: además del admin, las
+// puede usar un empleado con cargo de recepcionista (es su trabajo diario).
+const { verificarToken, soloRecepcion } = require('../middleware/auth');
 const { enviarRecibo, linkWhatsApp } = require('../helpers/whatsapp');
 
 // Días restantes de membresía (0 si ya venció o no tiene fecha).
@@ -23,7 +25,7 @@ async function generarCodigoUnico(gymId) {
 }
 
 // Devuelve (creándolo si hace falta) el código de acceso de un socio.
-router.post('/codigo/:usuarioId', verificarToken, soloAdmin, async (req, res) => {
+router.post('/codigo/:usuarioId', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const socio = await User.findOne({ _id: req.params.usuarioId, gymId: req.gymId });
     if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
@@ -53,7 +55,7 @@ router.get('/mi-codigo', verificarToken, async (req, res) => {
 });
 
 // Buscar socios por nombre, correo, cédula o código (para recepción y matrícula).
-router.get('/buscar', verificarToken, soloAdmin, async (req, res) => {
+router.get('/buscar', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     if (!q) return res.json([]);
@@ -84,7 +86,7 @@ router.get('/buscar', verificarToken, soloAdmin, async (req, res) => {
 });
 
 // Registrar entrada (check-in). Acepta el código de acceso o el _id del socio.
-router.post('/checkin', verificarToken, soloAdmin, async (req, res) => {
+router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const { codigo, usuarioId, metodo } = req.body;
     const filtro = usuarioId
@@ -157,7 +159,7 @@ router.post('/checkin', verificarToken, soloAdmin, async (req, res) => {
 });
 
 // Asistencias de hoy (lista de recepción).
-router.get('/hoy', verificarToken, soloAdmin, async (req, res) => {
+router.get('/hoy', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const inicioDia = new Date(); inicioDia.setHours(0, 0, 0, 0);
     const asistencias = await Asistencia.find({ gymId: req.gymId, fecha: { $gte: inicioDia } })
@@ -174,7 +176,7 @@ router.get('/hoy', verificarToken, soloAdmin, async (req, res) => {
 });
 
 // Historial de asistencia de un socio (paginado retro-compatible).
-router.get('/historial/:usuarioId', verificarToken, soloAdmin, async (req, res) => {
+router.get('/historial/:usuarioId', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const filtro = { gymId: req.gymId, usuarioId: req.params.usuarioId };
     const paginar = req.query.page !== undefined;

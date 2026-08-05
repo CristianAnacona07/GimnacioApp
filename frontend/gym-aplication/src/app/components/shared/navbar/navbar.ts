@@ -68,9 +68,17 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '👥', name: 'socios',        route: '/admin/socios',        show: true },
         { icon: '💳', name: 'planes',        route: '/admin/planes',        show: m('pagos') },
         { icon: '💰', name: 'pagos',         route: '/admin/pagos',         show: m('pagos') },
-        { icon: '🏋️', name: 'entrenadores', route: '/admin/entrenadores',  show: true },
+        { icon: '🧑‍💼', name: 'empleados',   route: '/admin/empleados',     show: true },
         { icon: '📋', name: 'rutinas',       route: '/admin/rutinas',       show: m('rutinas') },
         { icon: '⚙️', name: 'Configuración', route: '/admin/configuracion', show: true },
+        { icon: '🚪', name: 'Cerrar Sesión', route: 'logout', isAction: true, show: true }
+      ].filter(l => l.show);
+    } else if (this.role === 'empleado') {
+      // El recepcionista trabaja en Recepción; los demás cargos solo tienen su inicio.
+      const cargo = this.userStateService.getCurrentUser()?.cargo || '';
+      return [
+        { icon: '🎫', name: 'Recepción',     route: '/empleado/recepcion', show: cargo === 'recepcionista' },
+        { icon: '🏠', name: 'Inicio',        route: '/empleado/inicio',    show: cargo !== 'recepcionista' },
         { icon: '🚪', name: 'Cerrar Sesión', route: 'logout', isAction: true, show: true }
       ].filter(l => l.show);
     } else if (this.role === 'socio') {

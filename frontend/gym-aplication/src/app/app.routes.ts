@@ -62,10 +62,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       ...sharedRoutes, // Rutas compartidas
-      { 
-        path: 'entrenadores',
-        loadComponent: () => import('./components/admin/entrenadores/entrenadores').then(m => m.Entrenadores) 
+      {
+        path: 'empleados',
+        loadComponent: () => import('./components/admin/empleados/empleados').then(m => m.Empleados)
       },
+      // La ruta vieja queda como alias por si hay enlaces guardados.
+      { path: 'entrenadores', redirectTo: 'empleados', pathMatch: 'full' },
       {
         path: 'socios',
         loadComponent: () => import('./components/admin/socios/socios').then(m => m.Socios)
@@ -155,6 +157,26 @@ export const routes: Routes = [
         loadComponent: () => import('./components/socio/feedback/feedback').then(m => m.FeedbackComponent)
       },
       { path: '', redirectTo: 'noticias', pathMatch: 'full' }
+    ]
+  },
+
+  // EMPLEADO (recepcionista, limpieza, nutricionista)
+  {
+    path: 'empleado',
+    canActivate: [authGuard],
+    loadComponent: () => import('./components/empleado/dashboard/dashboard').then(m => m.EmpleadoDashboard),
+    children: [
+      {
+        path: 'recepcion',
+        // Reusa la pantalla de Recepción del admin: el backend ya permite
+        // sus endpoints al empleado con cargo de recepcionista.
+        loadComponent: () => import('./components/admin/recepcion/recepcion').then(m => m.Recepcion)
+      },
+      {
+        path: 'inicio',
+        loadComponent: () => import('./components/empleado/inicio/inicio').then(m => m.EmpleadoInicio)
+      },
+      { path: '', redirectTo: 'inicio', pathMatch: 'full' }
     ]
   },
 

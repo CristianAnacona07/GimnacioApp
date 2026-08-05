@@ -39,6 +39,7 @@ export const authGuard: CanActivateFn = (route, state) => {
   const rootPorRol = (r?: string): string => {
     if (r === 'admin' || r === 'superadmin') return '/admin';
     if (r === 'entrenador') return '/entrenador';
+    if (r === 'empleado') return '/empleado';
     return '/socio';
   };
 
@@ -50,6 +51,12 @@ export const authGuard: CanActivateFn = (route, state) => {
 
   // Zona entrenador: solo entrenador (admin/superadmin/socio a su propio panel).
   if (state.url.startsWith('/entrenador') && role !== 'entrenador') {
+    router.navigate([rootPorRol(role)]);
+    return false;
+  }
+
+  // Zona empleado: solo empleados (recepcionista, limpieza, nutricionista).
+  if (state.url.startsWith('/empleado') && role !== 'empleado') {
     router.navigate([rootPorRol(role)]);
     return false;
   }

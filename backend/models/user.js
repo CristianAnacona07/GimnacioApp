@@ -27,8 +27,17 @@ const UserSchema = new mongoose.Schema({
   
     role: {
         type: String,
-        enum: ['superadmin', 'admin', 'entrenador', 'socio'],
+        enum: ['superadmin', 'admin', 'entrenador', 'empleado', 'socio'],
         default: 'socio'
+    },
+
+    // Cargo del empleado (solo cuando role === 'empleado'); el entrenador es un
+    // rol propio y no lo necesita. Determina qué puede hacer: el recepcionista
+    // accede a la pantalla de Recepción, los demás solo a su cuenta.
+    cargo: {
+        type: String,
+        enum: ['recepcionista', 'limpieza', 'nutricionista', null],
+        default: null
     },
 
     // Entrenador asignado a un socio (opcional). Permite que un entrenador

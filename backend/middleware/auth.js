@@ -12,9 +12,10 @@ const verificarToken = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.userId   = decoded.id;
-        req.userRole = decoded.role;
-        req.gymId    = decoded.gymId || null;
+        req.userId    = decoded.id;
+        req.userRole  = decoded.role;
+        req.userCargo = decoded.cargo || null;
+        req.gymId     = decoded.gymId || null;
         next();
     } catch {
         return res.status(401).json({ mensaje: 'Token inválido o expirado' });
@@ -37,6 +38,16 @@ const soloSuperAdmin = (req, res, next) => {
 
 const esAdmin = (req) => req.userRole === 'admin' || req.userRole === 'superadmin';
 
+// Recepción (check-in, búsqueda de socios, historial de asistencia): el admin
+// o un empleado con cargo de recepcionista.
+const soloRecepcion = (req, res, next) => {
+    const esRecepcionista = req.userRole === 'empleado' && req.userCargo === 'recepcionista';
+    if (!esAdmin(req) && !esRecepcionista) {
+        return res.status(403).json({ mensaje: 'Acceso denegado.' });
+    }
+    next();
+};
+
 // Resuelve el usuarioId que el solicitante puede consultar/escribir.
 // Admin/superadmin: el solicitado (param/body) o el propio si no se indica.
 // Socio/entrenador: siempre el propio (ignora lo que mande el cliente).
@@ -51,6 +62,7 @@ module.exports = {
     verificarToken,
     soloAdmin,
     soloSuperAdmin,
+    soloRecepcion,
     esAdmin,
     resolverUsuarioId,
     filtroPropiedad
