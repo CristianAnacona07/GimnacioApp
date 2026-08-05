@@ -200,6 +200,11 @@
   text-overflow: ellipsis;
 }
 
+.lista__cedula {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
 .lista__dias {
   font-size: 0.8rem;
 }

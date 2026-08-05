@@ -91,7 +91,7 @@
           type="text"
           [(ngModel)]="textoBusqueda"
           (ngModelChange)="onBuscar()"
-          placeholder="Nombre, email o código…"
+          placeholder="Nombre, cédula, email o código…"
           autocomplete="off"
         />
       </label>
@@ -105,6 +105,8 @@
         <li *ngFor="let s of resultados" class="lista__item" (click)="seleccionarSocio(s)">
           <div class="lista__info">
             <span class="lista__nombre">{{ s.nombre }}</span>
+            <!-- La cédula distingue a dos socios con nombres parecidos. -->
+            <span class="lista__cedula" *ngIf="s.identificacion">CC {{ s.identificacion }}</span>
             <span
               class="lista__dias"
               [class.dias--activo]="(s.diasRestantes ?? 0) > 0"

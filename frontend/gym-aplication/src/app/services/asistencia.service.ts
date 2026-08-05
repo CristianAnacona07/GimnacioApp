@@ -10,6 +10,8 @@ export interface SocioBuscado {
   email: string;
   fotoUrl?: string;
   codigoAcceso: string;
+  /** Cédula del socio; vacía si no la tiene registrada. */
+  identificacion?: string;
   diasRestantes: number;
 }
 
@@ -70,7 +72,7 @@ export class AsistenciaService {
 
   constructor(private http: HttpClient) {}
 
-  /** Busca socios por nombre, email o código para el check-in manual. */
+  /** Busca socios por nombre, email, cédula o código para el check-in manual. */
   buscar(q: string): Observable<SocioBuscado[]> {
     const params = new HttpParams().set('q', q);
     return this.http.get<SocioBuscado[]>(`${this.url}/buscar`, { params });

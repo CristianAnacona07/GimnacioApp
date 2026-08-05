@@ -88,7 +88,7 @@
         <input
           class="input"
           type="text"
-          placeholder="Buscar socio por nombre o email…"
+          placeholder="Buscar socio por nombre, cédula o email…"
           [(ngModel)]="textoBusqueda"
           (ngModelChange)="onBuscar()"
           autocomplete="off"
@@ -114,6 +114,7 @@
             />
             <div class="lista__info">
               <span class="lista__nombre">{{ s.nombre }}</span>
+              <span class="lista__cedula" *ngIf="s.identificacion">CC {{ s.identificacion }}</span>
               <span
                 class="lista__dias"
                 [class.dias--activo]="(s.diasRestantes ?? 0) > 0"

@@ -52,7 +52,7 @@ router.get('/mi-codigo', verificarToken, async (req, res) => {
   }
 });
 
-// Buscar socios por nombre, correo o código (para la pantalla de recepción).
+// Buscar socios por nombre, correo, cédula o código (para recepción y matrícula).
 router.get('/buscar', verificarToken, soloAdmin, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
@@ -61,12 +61,21 @@ router.get('/buscar', verificarToken, soloAdmin, async (req, res) => {
     const socios = await User.find({
       gymId: req.gymId,
       role: { $in: ['socio', 'entrenador'] },
-      $or: [{ nombre: rx }, { email: rx }, { codigoAcceso: q }],
-    }).select('nombre email fotoUrl codigoAcceso fechaVencimiento').limit(15).lean();
+      // La cédula se busca con la misma regex que el nombre para permitir
+      // coincidencias parciales (teclear los últimos dígitos ya filtra).
+      $or: [
+        { nombre: rx },
+        { email: rx },
+        { 'datosPersonales.identificacion': rx },
+        { codigoAcceso: q },
+      ],
+    }).select('nombre email fotoUrl codigoAcceso fechaVencimiento datosPersonales.identificacion')
+      .limit(15).lean();
 
     res.json(socios.map(s => ({
       _id: s._id, nombre: s.nombre, email: s.email, fotoUrl: s.fotoUrl || '',
       codigoAcceso: s.codigoAcceso || '',
+      identificacion: (s.datosPersonales && s.datosPersonales.identificacion) || '',
       diasRestantes: diasRestantes(s.fechaVencimiento),
     })));
   } catch (error) {

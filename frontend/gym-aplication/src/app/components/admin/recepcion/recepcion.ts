@@ -23,6 +23,8 @@ interface SocioBusqueda {
   email?: string;
   fotoUrl?: string;
   codigoAcceso?: string;
+  /** Cédula del socio; vacía si no la tiene registrada. */
+  identificacion?: string;
   diasRestantes?: number;
 }
 

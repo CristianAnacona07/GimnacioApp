@@ -239,6 +239,11 @@
   color: #64748b;
 }
 
+.lista__cedula {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
 .lista__metodo {
   text-transform: capitalize;
   background: #f1f5f9;
