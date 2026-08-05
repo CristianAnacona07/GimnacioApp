@@ -124,11 +124,10 @@
             <span>Variación</span>
           </div>
           <div class="historial-scroll">
-            @for (p of pesosHistorialReverso; track $index) {
-              @let idxReal = pesosHistorial.length - 1 - $index;
-              @let anterior = idxReal > 0 ? pesosHistorial[idxReal - 1].pesoKg : null;
+            @for (p of pesosHistorial; track $index) {
+              @let anterior = $index > 0 ? pesosHistorial[$index - 1].pesoKg : null;
               @let variacion = anterior !== null ? p.pesoKg - anterior : null;
-              <div class="peso-fila" [class.fila-destacada]="$index === 0">
+              <div class="peso-fila" [class.fila-destacada]="$index === pesosHistorial.length - 1">
                 <span class="h-fecha">{{ p.fecha }}</span>
                 <span class="h-val h-peso">{{ p.pesoKg }} kg</span>
                 <span class="variacion"
@@ -249,7 +248,7 @@
             <span class="h-acciones"></span>
           </div>
           <div class="historial-scroll">
-            @for (p of historialReverso; track p._id) {
+            @for (p of historial; track p._id) {
               @if (editandoId === p._id) {
                 <div class="historial-fila fila-edicion">
                   <span class="h-fecha">{{ p.fecha }}</span>
@@ -264,7 +263,7 @@
                   </span>
                 </div>
               } @else {
-                <div class="historial-fila" [class.fila-destacada]="$index === 0">
+                <div class="historial-fila" [class.fila-destacada]="$index === historial.length - 1">
                   <span class="h-fecha">{{ p.fecha }}</span>
                   <span class="h-val h-peso">{{ p.peso !== null ? p.peso + ' kg' : '—' }}</span>
                   <span class="h-val h-reps">{{ p.reps !== null ? p.reps + ' reps' : '—' }}</span>

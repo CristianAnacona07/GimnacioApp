@@ -2,8 +2,8 @@ import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angula
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { Subject, forkJoin, of } from 'rxjs';
-import { takeUntil, map, catchError } from 'rxjs/operators';
+import { Subject, concat, of } from 'rxjs';
+import { takeUntil, map, catchError, toArray } from 'rxjs/operators';
 
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
@@ -177,8 +177,11 @@ export class MiRutina implements OnInit, OnDestroy {
 
     this.guardando = true;
 
-    // Enviar todas las series en paralelo; cada una reporta éxito/fallo sin
-    // abortar a las demás (no se trata un fallo parcial como éxito total).
+    // Enviar las series una por una, en el orden del formulario: la fecha del
+    // registro la pone el servidor al recibirlo, así que en paralelo el orden
+    // de llegada era aleatorio y el historial/gráfica quedaban desordenados.
+    // Cada una reporta éxito/fallo sin abortar a las demás (no se trata un
+    // fallo parcial como éxito total).
     const peticiones = setsConDatos.map(set =>
       this.progresoService.guardarRegistro({
         usuarioId: usuario._id,
@@ -191,7 +194,7 @@ export class MiRutina implements OnInit, OnDestroy {
       )
     );
 
-    forkJoin(peticiones).pipe(takeUntil(this.destroy$)).subscribe(resultados => {
+    concat(...peticiones).pipe(toArray(), takeUntil(this.destroy$)).subscribe(resultados => {
       const guardados = resultados.filter(Boolean).length;
       const fallidos = resultados.length - guardados;
 

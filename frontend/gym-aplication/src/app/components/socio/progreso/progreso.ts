@@ -221,10 +221,6 @@ export class Progreso implements OnInit {
     });
   }
 
-  get pesosHistorialReverso(): RegistroPeso[] {
-    return [...this.pesosHistorial].reverse();
-  }
-
   get pesoPrimero(): number | null { return this.pesosHistorial[0]?.pesoKg ?? null; }
   get pesoUltimo():  number | null { return this.pesosHistorial[this.pesosHistorial.length - 1]?.pesoKg ?? null; }
 
@@ -300,8 +296,6 @@ export class Progreso implements OnInit {
     const v = this.valoresValidos;
     return v.length >= 2 && v[v.length - 1] >= v[0];
   }
-
-  get historialReverso(): typeof this.historial { return [...this.historial].reverse(); }
 
   // ─── SVG helpers — peso corporal ──────────────────────────────────────────
 

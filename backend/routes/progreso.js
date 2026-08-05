@@ -42,7 +42,9 @@ router.get('/:usuarioId/:ejercicio', verificarToken, async (req, res) => {
       gymId: req.gymId,
       usuarioId,
       ejercicioNombre: decodeURIComponent(req.params.ejercicio)
-    }).sort({ fecha: 1 }).lean();
+      // El _id desempata registros con la misma fecha (series guardadas en tanda)
+      // para que el orden sea siempre el de inserción.
+    }).sort({ fecha: 1, _id: 1 }).lean();
     res.json(registros);
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
