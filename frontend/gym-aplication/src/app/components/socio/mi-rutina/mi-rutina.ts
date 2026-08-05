@@ -177,12 +177,13 @@ export class MiRutina implements OnInit, OnDestroy {
 
     this.guardando = true;
 
-    // Enviar las series una por una, en el orden del formulario: la fecha del
-    // registro la pone el servidor al recibirlo, así que en paralelo el orden
-    // de llegada era aleatorio y el historial/gráfica quedaban desordenados.
+    // Enviar las series una por una (en paralelo el orden de llegada al servidor
+    // era aleatorio y el historial quedaba desordenado), y de la última a la
+    // primera: el historial y la gráfica muestran el registro más nuevo primero,
+    // así que guardando la serie 1 de última, queda de primera en pantalla.
     // Cada una reporta éxito/fallo sin abortar a las demás (no se trata un
     // fallo parcial como éxito total).
-    const peticiones = setsConDatos.map(set =>
+    const peticiones = [...setsConDatos].reverse().map(set =>
       this.progresoService.guardarRegistro({
         usuarioId: usuario._id,
         ejercicioNombre: ejer.nombre,

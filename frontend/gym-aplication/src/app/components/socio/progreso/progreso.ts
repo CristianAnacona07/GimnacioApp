@@ -95,12 +95,14 @@ export class Progreso implements OnInit {
     this.editandoId = null;
     this.progresoService.getHistorial(this.usuarioId, nombre).subscribe({
       next: (data) => {
+        // Del más nuevo al más viejo: es el orden en que el socio ve la tabla
+        // y también el de la gráfica (el primero de la lista, primero a la izquierda).
         this.historial = data.map(r => ({
           _id: r._id,
           fecha: this.formatFecha(r.fecha),
           peso: r.pesoKg,
           reps: r.repeticiones
-        }));
+        })).reverse();
         this.cargando = false;
         this.cdr.detectChanges();
         setTimeout(() => {
@@ -221,6 +223,10 @@ export class Progreso implements OnInit {
     });
   }
 
+  get pesosHistorialReverso(): RegistroPeso[] {
+    return [...this.pesosHistorial].reverse();
+  }
+
   get pesoPrimero(): number | null { return this.pesosHistorial[0]?.pesoKg ?? null; }
   get pesoUltimo():  number | null { return this.pesosHistorial[this.pesosHistorial.length - 1]?.pesoKg ?? null; }
 
@@ -284,17 +290,19 @@ export class Progreso implements OnInit {
     }));
   }
 
+  // El array va del más nuevo al más viejo: el registro reciente es v[0].
   get mejora(): string {
     const v = this.valoresValidos;
     if (v.length < 2) return '';
-    const diff = v[v.length - 1] - v[0];
-    const pct = ((diff / v[0]) * 100).toFixed(0);
+    const primero = v[v.length - 1];
+    const diff = v[0] - primero;
+    const pct = ((diff / primero) * 100).toFixed(0);
     return diff >= 0 ? `+${pct}%` : `${pct}%`;
   }
 
   get mejoraPositiva(): boolean {
     const v = this.valoresValidos;
-    return v.length >= 2 && v[v.length - 1] >= v[0];
+    return v.length >= 2 && v[0] >= v[v.length - 1];
   }
 
   // ─── SVG helpers — peso corporal ──────────────────────────────────────────
