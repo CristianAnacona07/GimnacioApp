@@ -20,4 +20,12 @@ export class ProgresoService {
     getHistorial(usuarioId: string, ejercicio: string): Observable<any[]> {
         return this.http.get<any[]>(`${this.apiUrl}/${usuarioId}/${encodeURIComponent(ejercicio)}`);
     }
+
+    actualizarRegistro(id: string, datos: { pesoKg?: number | null; repeticiones?: number | null }): Observable<any> {
+        return this.http.put(`${this.apiUrl}/${id}`, datos);
+    }
+
+    eliminarRegistro(id: string): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/${id}`);
+    }
 }

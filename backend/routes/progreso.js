@@ -2,7 +2,20 @@ const express = require('express');
 const router = express.Router();
 const Progreso = require('../models/progreso');
 const User = require('../models/user');
-const { verificarToken, resolverUsuarioId, esAdmin } = require('../middleware/auth');
+const { verificarToken, resolverUsuarioId, esAdmin, filtroPropiedad } = require('../middleware/auth');
+
+// Valida que peso y repeticiones, si vienen, sean números finitos dentro de rango.
+// Devuelve un mensaje de error si algo es inválido, o null si todo es correcto.
+function validarRegistro({ pesoKg, repeticiones }) {
+  for (const [campo, valor, max] of [['pesoKg', pesoKg, 1000], ['repeticiones', repeticiones, 1000]]) {
+    if (valor === undefined || valor === null || valor === '') continue;
+    const num = Number(valor);
+    if (!Number.isFinite(num) || num < 0 || num > max) {
+      return `Valor inválido para ${campo}`;
+    }
+  }
+  return null;
+}
 
 router.post('/', verificarToken, async (req, res) => {
   try {
@@ -44,6 +57,34 @@ router.get('/:usuarioId', verificarToken, async (req, res) => {
       usuarioId
     });
     res.json(ejercicios);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.put('/:id', verificarToken, async (req, res) => {
+  try {
+    const { pesoKg, repeticiones } = req.body;
+    const errorValidacion = validarRegistro({ pesoKg, repeticiones });
+    if (errorValidacion) return res.status(400).json({ mensaje: errorValidacion });
+    // El socio sólo edita sus propios registros; el admin, los de su gym.
+    const registro = await Progreso.findOneAndUpdate(
+      { _id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) },
+      { pesoKg, repeticiones },
+      { new: true }
+    );
+    if (!registro) return res.status(404).json({ mensaje: 'Registro no encontrado' });
+    res.json(registro);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.delete('/:id', verificarToken, async (req, res) => {
+  try {
+    const registro = await Progreso.findOneAndDelete({ _id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) });
+    if (!registro) return res.status(404).json({ mensaje: 'Registro no encontrado' });
+    res.json({ mensaje: 'Registro eliminado' });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

@@ -248,6 +248,50 @@
 .h-peso  { color: var(--color-secundario); }
 .h-reps  { color: #7c3aed; }
 
+/* Acciones por fila (editar / eliminar) */
+.h-acciones {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  min-width: 64px;
+}
+
+.btn-icono {
+  border: none;
+  background: #e8f0ff;
+  border-radius: 0.5rem;
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s;
+}
+.btn-icono:hover { background: #dbeafe; }
+.btn-icono:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-icono.btn-ok { background: #dcfce7; color: #15803d; font-weight: 900; }
+.btn-icono.btn-ok:hover { background: #bbf7d0; }
+.btn-icono.btn-borrar:hover { background: #fee2e2; }
+
+.fila-edicion { background: #fff; gap: 0.4rem; }
+
+.edit-input {
+  width: 62px;
+  border: 1.5px solid #c8dcff;
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  text-align: center;
+}
+.edit-input:focus { border-color: var(--color-secundario, #1d4ed8); }
+
 /* ===== PESO CORPORAL CARD ===== */
 .peso-card {
   background: #fff;

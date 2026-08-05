@@ -6,8 +6,9 @@ import { MedidasService } from '../../../services/medidas.service';
 import { UserStateService } from '../../../services/user-state.service';
 import { ToastService } from '../../../services/toast.service';
 import { GymService } from '../../../services/gym.service';
+import { ConfirmService } from '../../../services/confirm.service';
 
-interface Punto { fecha: string; peso: number | null; reps: number | null; }
+interface Punto { _id: string; fecha: string; peso: number | null; reps: number | null; }
 interface RegistroPeso { fecha: string; pesoKg: number; _id?: string; fechaISO: string; }
 
 @Component({
@@ -27,6 +28,12 @@ export class Progreso implements OnInit {
   historial: Punto[] = [];
   cargando = false;
   modo: 'peso' | 'reps' = 'peso';
+
+  // --- Edición inline del historial de ejercicio ---
+  editandoId: string | null = null;
+  editPeso: number | null = null;
+  editReps: number | null = null;
+  guardandoEdicion = false;
 
   pesoActual: number | null = null;
   altura: number | null = null;
@@ -56,6 +63,7 @@ export class Progreso implements OnInit {
     private userState: UserStateService,
     private toast: ToastService,
     private gymService: GymService,
+    private confirm: ConfirmService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -84,9 +92,11 @@ export class Progreso implements OnInit {
   seleccionarEjercicio(nombre: string) {
     this.ejercicioSeleccionado = nombre;
     this.cargando = true;
+    this.editandoId = null;
     this.progresoService.getHistorial(this.usuarioId, nombre).subscribe({
       next: (data) => {
         this.historial = data.map(r => ({
+          _id: r._id,
           fecha: this.formatFecha(r.fecha),
           peso: r.pesoKg,
           reps: r.repeticiones
@@ -99,6 +109,55 @@ export class Progreso implements OnInit {
         }, 50);
       },
       error: () => { this.cargando = false; }
+    });
+  }
+
+  iniciarEdicion(p: Punto) {
+    this.editandoId = p._id;
+    this.editPeso = p.peso;
+    this.editReps = p.reps;
+  }
+
+  cancelarEdicion() {
+    this.editandoId = null;
+  }
+
+  guardarEdicion() {
+    if (!this.editandoId || this.guardandoEdicion) return;
+    this.guardandoEdicion = true;
+    this.progresoService.actualizarRegistro(this.editandoId, {
+      pesoKg: this.editPeso,
+      repeticiones: this.editReps
+    }).subscribe({
+      next: () => {
+        this.guardandoEdicion = false;
+        this.editandoId = null;
+        this.toast.info('Registro actualizado');
+        this.seleccionarEjercicio(this.ejercicioSeleccionado);
+      },
+      error: () => {
+        this.guardandoEdicion = false;
+        this.toast.error('Error al actualizar el registro');
+      }
+    });
+  }
+
+  async eliminarRegistro(p: Punto) {
+    const ok = await this.confirm.confirm('¿Eliminar este registro?');
+    if (!ok) return;
+    this.progresoService.eliminarRegistro(p._id).subscribe({
+      next: () => {
+        this.toast.info('Registro eliminado');
+        if (this.historial.length === 1) {
+          // Era el último registro del ejercicio: el chip también desaparece
+          this.historial = [];
+          this.ejercicioSeleccionado = '';
+          this.cargarEjercicios();
+        } else {
+          this.seleccionarEjercicio(this.ejercicioSeleccionado);
+        }
+      },
+      error: () => this.toast.error('Error al eliminar el registro')
     });
   }
 
