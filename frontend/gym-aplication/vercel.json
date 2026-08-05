@@ -1,4 +1,6 @@
 {
+  "// buildCommand": "Sin esto Vercel autodetecta Angular y corre `ng build` a secas, saltandose scripts/flatten-layers.mjs. El CSS se despliega con los @layer de Tailwind v4 sin aplanar y los estilos se rompen. Como el aplanado reescribe el archivo DESPUES de que Angular calculara el hash del nombre, el sintoma es enganoso: styles-XXXX.css se llama igual en local y en produccion pero no tiene el mismo contenido.",
+  "buildCommand": "npm run build",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
