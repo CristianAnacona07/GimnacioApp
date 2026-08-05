@@ -36,6 +36,7 @@ export class Login implements OnInit, AfterViewInit {
   procesandoGoogle = false;
   gym: Gym | null = null;
   readonly esNativo = Capacitor.isNativePlatform();
+  private gsiCargando: Promise<void> | null = null;
 
   constructor(
     private router: Router,
@@ -62,7 +63,38 @@ export class Login implements OnInit, AfterViewInit {
       } catch (e) {
         console.warn('No se pudo inicializar Google nativo:', e);
       }
+      return;
     }
+    // En navegador se precarga GSI para que el botón responda al primer clic.
+    this.cargarGsi().catch(() => {});
+  }
+
+  // Google Identity Services solo existe en la web. En el APK el origen es
+  // `https://localhost`, que Google rechaza con 403, y además allí el login va
+  // por el plugin nativo — por eso el script se inyecta aquí y no en index.html.
+  private cargarGsi(): Promise<void> {
+    if (this.gsiCargando) return this.gsiCargando;
+
+    this.gsiCargando = new Promise<void>((resolve, reject) => {
+      if ((window as any).google?.accounts?.oauth2) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        // Permitir reintentar en el siguiente clic.
+        this.gsiCargando = null;
+        script.remove();
+        reject(new Error('No se pudo cargar Google Identity Services'));
+      };
+      document.head.appendChild(script);
+    });
+
+    return this.gsiCargando;
   }
 
   clickGoogleBtn() {
@@ -85,8 +117,10 @@ export class Login implements OnInit, AfterViewInit {
       });
       const idToken = res?.result?.idToken;
       if (!idToken) {
-        this.procesandoGoogle = false;
-        this.toast.error('No se pudo obtener el token de Google');
+        this.ngZone.run(() => {
+          this.procesandoGoogle = false;
+          this.toast.error('No se pudo obtener el token de Google');
+        });
         return;
       }
       const gymId = this.gym?._id || null;
@@ -96,14 +130,21 @@ export class Login implements OnInit, AfterViewInit {
       });
     } catch (e: any) {
       const msg = (e?.message || e?.code || '').toString().toLowerCase();
-      // Si el usuario canceló el selector, no hacer nada (ni error ni fallback).
+      // El puente nativo de Capacitor responde fuera de la zona de Angular: si el
+      // estado se toca sin `ngZone.run`, no se dispara la detección de cambios y la
+      // pantalla de "Iniciando sesión…" se queda congelada para siempre.
       if (msg.includes('cancel')) {
-        this.procesandoGoogle = false;
+        // Cancelar el selector no es un error, pero hay fallos de Credential Manager
+        // que llegan disfrazados de USER_CANCELLED (p. ej. "[16] Account reauth
+        // failed" cuando la SHA-1 de la firma no está registrada en Google Cloud),
+        // así que se deja rastro en consola para poder distinguirlos.
+        console.warn('Google nativo devolvió cancelación:', e);
+        this.ngZone.run(() => { this.procesandoGoogle = false; });
         return;
       }
       // Sin servicios de Google (Huawei) u otro fallo → login por navegador.
       console.warn('Google nativo no disponible, usando navegador:', e);
-      this.loginGoogleNavegador();
+      this.ngZone.run(() => this.loginGoogleNavegador());
     }
   }
 
@@ -131,8 +172,10 @@ export class Login implements OnInit, AfterViewInit {
         res?.access_token;
 
       if (!accessToken) {
-        this.procesandoGoogle = false;
-        this.toast.error('No se pudo obtener el acceso de Google');
+        this.ngZone.run(() => {
+          this.procesandoGoogle = false;
+          this.toast.error('No se pudo obtener el acceso de Google');
+        });
         return;
       }
 
@@ -142,15 +185,26 @@ export class Login implements OnInit, AfterViewInit {
         error: (err) => this.errorGoogle(err)
       });
     } catch (e: any) {
-      this.procesandoGoogle = false;
-      const msg = e?.message || e?.code || (typeof e === 'string' ? e : JSON.stringify(e));
-      this.toast.error('Google: ' + msg);
+      // Igual que en el login nativo: la respuesta del plugin llega fuera de la
+      // zona de Angular, así que sin `ngZone.run` el overlay no desaparecería.
       console.error('Google navegador error:', e);
+      const msg = e?.message || e?.code || (typeof e === 'string' ? e : JSON.stringify(e));
+      this.ngZone.run(() => {
+        this.procesandoGoogle = false;
+        this.toast.error('Google: ' + msg);
+      });
     }
   }
 
   // --- Navegador: Google Identity Services (token de acceso) ---
-  private loginGoogleWeb() {
+  private async loginGoogleWeb() {
+    try {
+      await this.cargarGsi();
+    } catch {
+      this.toast.error('Google no está disponible. Intenta de nuevo.');
+      return;
+    }
+
     const google = (window as any).google;
     if (!google?.accounts?.oauth2) {
       this.toast.error('Google no está disponible. Intenta de nuevo.');

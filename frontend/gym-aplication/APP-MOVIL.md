@@ -29,14 +29,36 @@ misma app Angular y añade funciones nativas (notificaciones locales, login de G
 | Package name | `com.kodiak.gym` |
 | Web Client ID | `976541861094-pcm89afbvhdi6fttf7si2cc7gbtuf2pn.apps.googleusercontent.com` |
 | Android Client ID | `976541861094-rb07727og04jbtkrb3o07og0pnbjfbtr.apps.googleusercontent.com` |
-| SHA-1 (keystore debug) | `2D:22:77:0D:64:87:D7:73:CB:36:15:BC:85:74:19:44:DB:71:AE:33` |
 | Redirect navegador (AppAuth) | `com.googleusercontent.apps.976541861094-rb07727og04jbtkrb3o07og0pnbjfbtr:/` |
 
-En **Google Cloud Console → Credenciales** debe existir un cliente OAuth de tipo
-**Android** con ese package y esa SHA-1 (para el login nativo y el de navegador).
+### Huellas SHA-1 registradas
 
-> Si en el futuro se firma un **APK release** con otra clave, hay que registrar también
-> la SHA-1 de esa clave, o el login de Google fallará (`DEVELOPER_ERROR`).
+Un cliente OAuth de Android en Google Cloud admite **una sola** SHA-1 (a diferencia de
+Firebase). Para soportar varias claves de firma hay que crear **un cliente Android por
+huella**, todos con el mismo package. Hoy existen dos:
+
+| Cliente (Google Cloud → Credenciales) | Keystore | SHA-1 |
+|---|---|---|
+| `google android` | debug original (APK distribuido) | `2D:22:77:0D:64:87:D7:73:CB:36:15:BC:85:74:19:44:DB:71:AE:33` |
+| `google android debug` | debug del equipo Windows | `A8:7B:A4:30:72:4C:2A:30:A9:36:D7:86:C8:F5:F2:B8:A2:D0:F7:11` |
+
+La app envía siempre el **Web Client ID**; Google solo necesita que exista *algún* cliente
+Android en el proyecto que coincida con el package y la firma del APK que llama.
+
+Para ver la huella de un keystore:
+
+```bash
+keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey
+```
+
+> Si se firma un **APK release** con otra clave, hay que crear otro cliente Android con su
+> SHA-1. Si falta, el login de Google falla — y el error puede llegar disfrazado: Credential
+> Manager devuelve `USER_CANCELLED` / `[16] Account reauth failed` en vez de
+> `DEVELOPER_ERROR`. Revisar con `adb logcat` filtrando por `Auth.Api.Credentials`.
+
+> Dos APK firmados con claves distintas **no se pueden instalar uno sobre otro**
+> (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`): hay que desinstalar primero, lo que borra los
+> datos locales de la app.
 
 ---
 
