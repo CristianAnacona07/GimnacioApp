@@ -21,6 +21,9 @@ export class ResetPassword implements OnInit {
   cargando = false;
   token = '';
   listo = false;
+  // Los enlaces de invitación a un administrador traen `bienvenida=1`: es el
+  // primer acceso, no un olvido de contraseña, y el texto debe reflejarlo.
+  bienvenida = false;
 
   constructor(
     private http: HttpClient,
@@ -32,6 +35,7 @@ export class ResetPassword implements OnInit {
 
   ngOnInit() {
     this.token = this.route.snapshot.queryParamMap.get('token') || '';
+    this.bienvenida = this.route.snapshot.queryParamMap.get('bienvenida') === '1';
     if (!this.token) this.router.navigate(['/login']);
   }
 

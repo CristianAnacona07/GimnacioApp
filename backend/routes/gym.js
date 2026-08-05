@@ -1,10 +1,79 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const router = express.Router();
 const Gym  = require('../models/gym');
 const User = require('../models/user');
 const { verificarToken, soloAdmin, soloSuperAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { generarToken, hashToken } = require('../helpers/tokens');
+const { enviarInvitacionAdmin } = require('../helpers/email');
+
+// ── ALTA DEL ADMINISTRADOR DE UN GIMNASIO ────────────────────────
+// La cuenta se crea sin contraseña utilizable: se guarda un hash de un valor
+// aleatorio que nadie conoce, y la única forma de entrar es el enlace que llega
+// por correo. Así no hay que inventar (ni transmitir) una contraseña temporal.
+
+const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const INVITACION_DIAS = 7;
+
+const normalizarEmail = (valor) => String(valor || '').toLowerCase().trim();
+
+// Lanza un Error con `.status` para que el handler decida el código de respuesta.
+function errorHttp(mensaje, status) {
+  const err = new Error(mensaje);
+  err.status = status;
+  return err;
+}
+
+/**
+ * Crea el administrador del gimnasio (o reenvía la invitación si ya existe) y
+ * le envía el enlace para definir su contraseña.
+ */
+async function invitarAdmin({ gym, email, nombre, req }) {
+  const emailNorm = normalizarEmail(email);
+  if (!EMAIL_RX.test(emailNorm)) throw errorHttp('El correo del administrador no es válido', 400);
+
+  // El índice único es {email, gymId}: la búsqueda va acotada a este gimnasio.
+  let usuario = await User.findOne({ email: emailNorm, gymId: gym._id });
+  const creado = !usuario;
+
+  if (usuario) {
+    if (usuario.role !== 'admin') {
+      throw errorHttp('Ese correo ya existe en el gimnasio con otro rol', 400);
+    }
+  } else {
+    const passwordInutilizable = await bcrypt.hash(generarToken(), await bcrypt.genSalt(10));
+    usuario = new User({
+      gymId: gym._id,
+      nombre: (nombre || '').trim() || emailNorm.split('@')[0],
+      email: emailNorm,
+      password: passwordInutilizable,
+      role: 'admin',
+    });
+  }
+
+  const token = generarToken();
+  usuario.resetToken = hashToken(token);
+  usuario.resetTokenExpiry = new Date(Date.now() + INVITACION_DIAS * 24 * 3600 * 1000);
+  await usuario.save();
+
+  const invitacionEnviada = await enviarInvitacionAdmin({
+    email: emailNorm,
+    nombre: usuario.nombre,
+    gymNombre: gym.nombre,
+    token,
+    dias: INVITACION_DIAS,
+  });
+
+  await registrarAuditoria(req, creado ? 'CREAR_ADMIN_GYM' : 'REINVITAR_ADMIN_GYM', {
+    recurso: 'User',
+    recursoId: usuario._id,
+    detalle: { gymId: gym._id, email: emailNorm, invitacionEnviada },
+  });
+
+  return { _id: usuario._id, email: emailNorm, nombre: usuario.nombre, creado, invitacionEnviada };
+}
 
 // ── PÚBLICAS ────────────────────────────────────────────────────
 
@@ -59,16 +128,67 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
 // Crear gym (solo superadmin)
 router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
   try {
-    const { nombre, slug, logo, slogan, colores, modulos, spotifyPlaylist } = req.body;
+    const { nombre, slug, logo, slogan, colores, modulos, spotifyPlaylist, adminEmail, adminNombre } = req.body;
     const existe = await Gym.findOne({ slug });
     if (existe) return res.status(400).json({ error: 'Ya existe un gimnasio con ese código' });
+
+    // El correo del admin se valida ANTES de crear el gimnasio: así un correo
+    // mal escrito no deja un gimnasio a medio configurar.
+    const quiereAdmin = !!normalizarEmail(adminEmail);
+    if (quiereAdmin && !EMAIL_RX.test(normalizarEmail(adminEmail))) {
+      return res.status(400).json({ error: 'El correo del administrador no es válido' });
+    }
 
     const gym = new Gym({ nombre, slug, logo, slogan, colores, modulos, spotifyPlaylist });
     await gym.save();
     await registrarAuditoria(req, 'CREAR_GYM', { recurso: 'Gym', recursoId: gym._id });
-    res.status(201).json(gym);
+
+    // El gimnasio ya está creado: si la invitación falla se informa, pero no se
+    // revierte nada (el superadmin puede reintentarla desde la ficha del gym).
+    let admin = null;
+    if (quiereAdmin) {
+      try {
+        admin = await invitarAdmin({ gym, email: adminEmail, nombre: adminNombre, req });
+      } catch (err) {
+        admin = { error: err.message };
+      }
+    }
+
+    res.status(201).json({ ...gym.toObject(), admin });
   } catch (error) {
     if (error.code === 11000) return res.status(400).json({ error: 'El código ya está en uso' });
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Administradores del gimnasio (para la ficha del superadmin)
+router.get('/:id/admins', verificarToken, soloSuperAdmin, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Identificador de gimnasio inválido' });
+    }
+    const admins = await User.find({ gymId: req.params.id, role: 'admin' })
+      .select('nombre email emailVerified createdAt').lean();
+    res.json(admins);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Invitar a un administrador (o reenviarle el enlace si ya existe)
+router.post('/:id/admin', verificarToken, soloSuperAdmin, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Identificador de gimnasio inválido' });
+    }
+    const gym = await Gym.findById(req.params.id);
+    if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
+
+    const admin = await invitarAdmin({ gym, email: req.body.email, nombre: req.body.nombre, req });
+    res.status(201).json(admin);
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === 11000) return res.status(400).json({ error: 'Ese correo ya está registrado en el gimnasio' });
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

@@ -170,6 +170,22 @@
         <p class="subdominio-hint">En Spotify: Compartir → Copiar enlace. Vacío = música por defecto.</p>
       </div>
 
+      <!-- Administrador del gimnasio (opcional) -->
+      <p class="form-titulo" style="margin-top:.75rem">Administrador del gimnasio</p>
+      <div class="field">
+        <label class="flabel">📧 Correo del administrador (opcional)</label>
+        <input [(ngModel)]="nuevo.adminEmail" type="email" inputmode="email"
+               placeholder="admin@sugimnasio.com" class="finput">
+        <p class="subdominio-hint">
+          Recibirá un correo para definir su propia contraseña. No se le asigna ninguna
+          contraseña temporal: hasta que abra el enlace, la cuenta no se puede usar.
+        </p>
+      </div>
+      <div class="field">
+        <label class="flabel">Nombre del administrador (opcional)</label>
+        <input [(ngModel)]="nuevo.adminNombre" placeholder="Ej: María Gómez" class="finput">
+      </div>
+
       <button class="btn-crear" (click)="crear()" [disabled]="!nuevo.nombre || !nuevo.slug || guardando">
         {{ guardando ? 'Creando...' : '🚀 Crear Gimnasio' }}
       </button>

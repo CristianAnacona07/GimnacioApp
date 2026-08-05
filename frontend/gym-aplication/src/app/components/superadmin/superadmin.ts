@@ -61,6 +61,9 @@ export class SuperAdmin implements OnInit, OnDestroy {
 
   nuevo = {
     nombre: '', slug: '', slogan: '', spotifyPlaylist: '',
+    // Administrador del gimnasio: opcional. Si se indica, el backend crea la
+    // cuenta y le envía el enlace para definir su propia contraseña.
+    adminEmail: '', adminNombre: '',
     logo: null as string | null,
     colores: { primario: '#0f172a', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#0f172a', dias: '#0f172a' } as Record<string, string>,
     modulos: { rutinas: true, progreso: true, medidas: true, pagos: true, noticias: true, cronometro: true } as Record<string, boolean>
@@ -212,10 +215,21 @@ export class SuperAdmin implements OnInit, OnDestroy {
     if (!this.nuevo.nombre || !this.nuevo.slug || this.guardando) return;
     this.guardando = true;
     this.http.post(`${environment.apiUrl}/api/gym/crear`, this.nuevo, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => {
-        this.toast.success('Gimnasio creado');
+      next: (res: any) => {
+        // El gimnasio se crea aunque la invitación falle: hay que distinguirlo,
+        // o el superadmin creería que el admin ya tiene acceso.
+        const admin = res?.admin;
+        if (!admin) {
+          this.toast.success('Gimnasio creado');
+        } else if (admin.error) {
+          this.toast.error(`Gimnasio creado, pero el administrador no: ${admin.error}`);
+        } else if (admin.invitacionEnviada) {
+          this.toast.success(`Gimnasio creado. Invitación enviada a ${admin.email}`);
+        } else {
+          this.toast.error(`Gimnasio y administrador creados, pero el correo no salió. Reenvía la invitación a ${admin.email}`);
+        }
         this.mostrarForm = false;
-        this.nuevo = { nombre: '', slug: '', slogan: '', spotifyPlaylist: '', logo: null,
+        this.nuevo = { nombre: '', slug: '', slogan: '', spotifyPlaylist: '', adminEmail: '', adminNombre: '', logo: null,
           colores: { primario: '#0f172a', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#0f172a', dias: '#0f172a' } as Record<string, string>,
           modulos: { rutinas: true, progreso: true, medidas: true, pagos: true, noticias: true, cronometro: true } as Record<string, boolean>
         };

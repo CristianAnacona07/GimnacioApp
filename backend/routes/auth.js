@@ -3,7 +3,6 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 const mongoose = require('mongoose');
 const User = require('../models/user');
@@ -12,16 +11,10 @@ const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middlewar
 const { registrarAuditoria } = require('../helpers/audit');
 
 const TOKEN_EXPIRY = '8h';
-const hashToken = (t) => crypto.createHash('sha256').update(t).digest('hex');
-
-// Configuración del transporter de email
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+// Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
+// de administradores) comparta exactamente la misma configuración.
+const { hashToken } = require('../helpers/tokens');
+const { transporter } = require('../helpers/email');
 
 // Template del email
 const emailTemplate = (nombre, resetUrl) => `
@@ -147,6 +140,9 @@ router.post('/reset-password', async (req, res) => {
         usuario.password = await bcrypt.hash(nuevaPassword, salt);
         usuario.resetToken = null;
         usuario.resetTokenExpiry = null;
+        // Completar el enlace demuestra el control del buzón: sirve como
+        // verificación del correo (es el único paso que da un admin invitado).
+        usuario.emailVerified = true;
         await usuario.save();
 
         res.json({ mensaje: 'Contraseña actualizada correctamente' });
