@@ -459,6 +459,45 @@ router.put('/limpiar-membresia/:id', verificarToken, soloAdmin, async (req, res)
 });
 
 // ✅ ACTUALIZAR PERFIL (propio usuario o admin)
+// ✅ CAMBIAR LA PROPIA CONTRASEÑA (con sesión iniciada)
+// Distinto de /reset-password, que va por correo: aquí el usuario ya está
+// dentro y debe demostrar que conoce la contraseña actual, para que una sesión
+// olvidada en un equipo ajeno no permita apropiarse de la cuenta.
+router.put('/cambiar-password', verificarToken, async (req, res) => {
+    try {
+        const { actual, nueva } = req.body;
+
+        if (typeof nueva !== 'string' || nueva.length < 8) {
+            return res.status(400).json({ mensaje: 'La nueva contraseña debe tener al menos 8 caracteres' });
+        }
+        if (typeof actual !== 'string' || !actual) {
+            return res.status(400).json({ mensaje: 'Debes escribir tu contraseña actual' });
+        }
+        if (actual === nueva) {
+            return res.status(400).json({ mensaje: 'La nueva contraseña debe ser distinta de la actual' });
+        }
+
+        const usuario = await User.findById(req.userId).select('+password');
+        if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+
+        // Las cuentas creadas por Google no tienen contraseña utilizable.
+        const esValida = usuario.password && await bcrypt.compare(actual, usuario.password);
+        if (!esValida) {
+            return res.status(401).json({ mensaje: 'La contraseña actual no es correcta' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        usuario.password = await bcrypt.hash(nueva, salt);
+        await usuario.save();
+
+        await registrarAuditoria(req, 'CAMBIAR_PASSWORD', { recurso: 'User', recursoId: usuario._id });
+
+        res.json({ mensaje: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al cambiar la contraseña' });
+    }
+});
+
 router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
     try {
         const { id } = req.params;

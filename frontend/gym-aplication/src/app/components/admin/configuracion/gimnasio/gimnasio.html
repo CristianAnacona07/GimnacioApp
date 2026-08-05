@@ -1,0 +1,87 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">🏢 Datos del gimnasio</h2>
+  <p class="page-sub">Así lo verán tus socios en la app.</p>
+
+  @if (!gym) {
+    <p class="vacio">No hay ningún gimnasio seleccionado.</p>
+  } @else {
+
+    <div class="card">
+      <p class="card-title">Identidad</p>
+
+      <label class="campo">
+        <span class="campo__label">Nombre del gimnasio *</span>
+        <input class="input" type="text" maxlength="60" [(ngModel)]="gym.nombre" name="nombre" />
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Slogan</span>
+        <input class="input" type="text" maxlength="80" [(ngModel)]="gym.slogan" name="slogan"
+               placeholder="Ej: Tu mejor versión empieza hoy" />
+      </label>
+
+      <span class="campo__label">Logo</span>
+      <div class="logo-zona">
+        <label for="logoInput">
+          @if (gym.logo) {
+            <img class="logo-preview" [src]="gym.logo" [alt]="gym.nombre" />
+          } @else {
+            <div class="logo-vacio" [style.background]="gym.colores.primario">{{ gym.nombre[0] }}</div>
+          }
+        </label>
+        <input type="file" id="logoInput" accept="image/*" (change)="onLogoChange($event)" hidden />
+        <p class="card-hint" style="margin:0">
+          Toca la imagen para cambiarla. Se reduce a 200&nbsp;px automáticamente.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Color</p>
+      <p class="card-hint">
+        Un solo color define la barra, los botones y los acentos de toda la app.
+      </p>
+      <div class="color-fila">
+        <input class="color-input" type="color" [(ngModel)]="gym.colores.navbar" name="colorNavbar" />
+        <span class="switch-texto">Color principal</span>
+      </div>
+      <div class="color-fila">
+        <input class="color-input" type="color" [(ngModel)]="gym.colores.fondo" name="colorFondo" />
+        <span class="switch-texto">Fondo</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Módulos</p>
+      <p class="card-hint">
+        Apaga lo que tu gimnasio no use: desaparece del menú de los socios.
+      </p>
+      @for (modulo of modulos; track modulo.clave) {
+        <div class="switch-fila">
+          <span class="switch-texto">{{ modulo.nombre }}</span>
+          <input type="checkbox" [(ngModel)]="gym.modulos[modulo.clave]" [name]="modulo.clave" />
+        </div>
+      }
+    </div>
+
+    <div class="card">
+      <p class="card-title">Música</p>
+      <p class="card-hint">
+        ID de una playlist pública de Spotify. Si lo dejas vacío suena la de por defecto.
+      </p>
+      <label class="campo">
+        <span class="campo__label">Playlist de Spotify</span>
+        <input class="input" type="text" [(ngModel)]="gym.spotifyPlaylist" name="spotify"
+               placeholder="37i9dQZF1DX76Wlfdnj7AP" />
+      </label>
+    </div>
+
+    <button class="btn btn--bloque" (click)="guardar()" [disabled]="guardando">
+      {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
+    </button>
+
+  }
+
+</div>

@@ -1,0 +1,43 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">🛡️ Auditoría</h2>
+  <p class="page-sub">
+    Registro de las acciones importantes hechas en tu gimnasio.
+    @if (total) { {{ total }} en total. }
+  </p>
+
+  <div class="card">
+    @if (cargando && !registros.length) {
+      <p class="vacio">Cargando…</p>
+    } @else if (!registros.length) {
+      <p class="vacio">Todavía no hay acciones registradas.</p>
+    } @else {
+      <ul class="lista">
+        @for (registro of registros; track registro._id) {
+          <li class="lista__item">
+            <div class="lista__info">
+              <span class="lista__nombre">{{ etiqueta(registro.accion) }}</span>
+              <span class="lista__meta">
+                {{ registro.createdAt | date: 'd MMM y, HH:mm' }}
+                @if (registro.actorRole) { · {{ registro.actorRole }} }
+              </span>
+              @if (resumen(registro)) {
+                <span class="lista__meta">{{ resumen(registro) }}</span>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  @if (pages > 1) {
+    <div class="paginacion">
+      <button class="btn btn--ghost" (click)="ir(-1)" [disabled]="page === 1 || cargando">←</button>
+      <span>Página {{ page }} de {{ pages }}</span>
+      <button class="btn btn--ghost" (click)="ir(1)" [disabled]="page === pages || cargando">→</button>
+    </div>
+  }
+
+</div>

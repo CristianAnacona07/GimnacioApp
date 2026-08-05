@@ -91,9 +91,32 @@ export const routes: Routes = [
         loadComponent: () => import('./components/admin/detalle-rutina/detalle-rutina').then(m => m.DetalleRutina) 
       },
       {
-        path: 'settings',
-        loadComponent: () => import('./components/admin/settings/settings').then(m => m.Settings)
+        path: 'configuracion',
+        loadComponent: () => import('./components/admin/configuracion/configuracion').then(m => m.Configuracion)
       },
+      {
+        path: 'configuracion/gimnasio',
+        loadComponent: () => import('./components/admin/configuracion/gimnasio/gimnasio').then(m => m.ConfiguracionGimnasio)
+      },
+      {
+        path: 'configuracion/acceso',
+        loadComponent: () => import('./components/admin/configuracion/acceso/acceso').then(m => m.ConfiguracionAcceso)
+      },
+      {
+        path: 'configuracion/datos',
+        loadComponent: () => import('./components/admin/configuracion/datos/datos').then(m => m.ConfiguracionDatos)
+      },
+      {
+        path: 'configuracion/auditoria',
+        loadComponent: () => import('./components/admin/configuracion/auditoria/auditoria').then(m => m.ConfiguracionAuditoria)
+      },
+      {
+        path: 'configuracion/cuenta',
+        loadComponent: () => import('./components/admin/configuracion/cuenta/cuenta').then(m => m.ConfiguracionCuenta)
+      },
+      // La antigua pantalla "Mi Cuenta" queda como alias: hay enlaces guardados
+      // y accesos directos que siguen apuntando aquí.
+      { path: 'settings', redirectTo: 'configuracion', pathMatch: 'full' },
       { path: '', redirectTo: 'noticias', pathMatch: 'full' }
     ]
   },

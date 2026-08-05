@@ -1,0 +1,100 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">👤 Mi cuenta</h2>
+  <p class="page-sub">Tus datos y la seguridad de tu acceso.</p>
+
+  <div class="card">
+    <p class="card-title">Perfil</p>
+    <label class="campo">
+      <span class="campo__label">Nombre</span>
+      <input class="input" type="text" maxlength="60" [(ngModel)]="nombre" name="nombrePerfil" />
+    </label>
+    <label class="campo">
+      <span class="campo__label">Correo</span>
+      <input class="input" type="text" [value]="admin?.email || ''" disabled />
+    </label>
+    <p class="card-hint">El correo identifica tu cuenta y no se puede cambiar desde aquí.</p>
+    <button class="btn" (click)="guardarPerfil()" [disabled]="guardandoPerfil">
+      {{ guardandoPerfil ? 'Guardando…' : 'Guardar perfil' }}
+    </button>
+  </div>
+
+  <div class="card">
+    <p class="card-title">Cambiar contraseña</p>
+    <label class="campo">
+      <span class="campo__label">Contraseña actual</span>
+      <input class="input" type="password" autocomplete="current-password"
+             [(ngModel)]="actual" name="actual" />
+    </label>
+    <label class="campo">
+      <span class="campo__label">Nueva contraseña</span>
+      <input class="input" type="password" autocomplete="new-password"
+             [(ngModel)]="nueva" name="nueva" />
+    </label>
+    <label class="campo">
+      <span class="campo__label">Repite la nueva</span>
+      <input class="input" type="password" autocomplete="new-password"
+             [(ngModel)]="repetir" name="repetir" />
+    </label>
+    <p class="card-hint">Mínimo 8 caracteres.</p>
+    <button class="btn" (click)="cambiarPassword()" [disabled]="cambiandoPass">
+      {{ cambiandoPass ? 'Cambiando…' : 'Cambiar contraseña' }}
+    </button>
+  </div>
+
+  <div class="card">
+    <p class="card-title">Verificación en dos pasos</p>
+    <p class="card-hint">
+      Añade un código temporal al iniciar sesión. Aunque alguien conozca tu
+      contraseña, no podrá entrar sin tu teléfono.
+    </p>
+
+    @if (backupCodes) {
+      <div class="instrucciones">
+        <strong>Guarda estos códigos de respaldo.</strong> Sirven para entrar si
+        pierdes el teléfono y <em>no se volverán a mostrar</em>.
+        <div class="codigos-respaldo">
+          @for (codigo of backupCodes; track codigo) {
+            <span>{{ codigo }}</span>
+          }
+        </div>
+      </div>
+    } @else if (secreto) {
+      <div class="instrucciones">
+        Abre Google Authenticator (o similar), elige <em>introducir clave
+        manualmente</em> y escribe esta clave:
+        <span class="codigo">{{ secreto }}</span>
+        Después escribe abajo el código de 6 dígitos que te muestre la app.
+      </div>
+      <label class="campo" style="margin-top:0.9rem">
+        <span class="campo__label">Código de 6 dígitos</span>
+        <input class="input" type="text" inputmode="numeric" maxlength="6"
+               [(ngModel)]="codigo2fa" name="codigo2fa" />
+      </label>
+      <button class="btn" (click)="activar2fa()" [disabled]="procesando2fa">
+        {{ procesando2fa ? 'Comprobando…' : 'Activar' }}
+      </button>
+    } @else {
+      <div class="acciones">
+        <button class="btn" (click)="iniciar2fa()" [disabled]="procesando2fa">
+          {{ procesando2fa ? 'Preparando…' : 'Activar verificación' }}
+        </button>
+      </div>
+      <div style="margin-top:1rem">
+        <p class="card-hint" style="margin-bottom:0.4rem">
+          ¿Ya la tenías activa y quieres quitarla? Escribe un código y desactívala.
+        </p>
+        <label class="campo">
+          <span class="campo__label">Código de 6 dígitos</span>
+          <input class="input" type="text" inputmode="numeric" maxlength="6"
+                 [(ngModel)]="codigo2fa" name="codigoOff" />
+        </label>
+        <button class="btn btn--peligro" (click)="desactivar2fa()" [disabled]="procesando2fa">
+          Desactivar
+        </button>
+      </div>
+    }
+  </div>
+
+</div>

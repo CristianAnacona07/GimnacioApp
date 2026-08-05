@@ -1,0 +1,38 @@
+<div class="page">
+
+  <h2 class="page-title">⚙️ Configuración</h2>
+  <p class="page-sub">Todo lo de tu gimnasio en un solo sitio.</p>
+
+  @if (admin) {
+    <div class="card">
+      <div class="lista__item">
+        <div class="logo-vacio" [style.background]="gym?.colores?.primario || '#4f46e5'">
+          {{ admin.nombre?.[0]?.toUpperCase() }}
+        </div>
+        <div class="lista__info">
+          <span class="lista__nombre">{{ admin.nombre }}</span>
+          <span class="lista__meta">{{ admin.email }}</span>
+          <span class="lista__meta">Administrador @if (gym) { · {{ gym.nombre }} }</span>
+        </div>
+      </div>
+    </div>
+  }
+
+  <nav class="menu">
+    @for (seccion of secciones; track seccion.ruta) {
+      <a class="menu-item" [routerLink]="seccion.ruta">
+        <span class="menu-icon">{{ seccion.icono }}</span>
+        <span class="menu-texto">
+          <span class="menu-nombre">{{ seccion.nombre }}</span>
+          <span class="menu-desc">{{ seccion.desc }}</span>
+        </span>
+        <span class="menu-arrow">→</span>
+      </a>
+    }
+  </nav>
+
+  <button class="btn btn--peligro btn--bloque" style="margin-top:1.25rem" (click)="cerrarSesion()">
+    🚪 Cerrar sesión
+  </button>
+
+</div>

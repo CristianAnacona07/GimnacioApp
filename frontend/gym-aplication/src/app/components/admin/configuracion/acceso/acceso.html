@@ -1,0 +1,92 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">🚪 Control de acceso</h2>
+  <p class="page-sub">Lectores de huella y torniquetes conectados a tu gimnasio.</p>
+
+  <div class="card">
+    <p class="card-title">Cómo funciona</p>
+    <p class="card-hint">
+      Registra aquí el número de serie de tu lector. Después, en el menú del
+      aparato, apunta el servidor a esta dirección y las entradas empezarán a
+      registrarse solas, sin pasar por recepción.
+    </p>
+    <span class="codigo">{{ urlServidor }}</span>
+    <p class="card-hint" style="margin-bottom:0">
+      Las huellas se quedan siempre dentro del aparato: la app solo recibe el
+      número de documento y la hora.
+    </p>
+  </div>
+
+  <div class="card">
+    <p class="card-title">Mis equipos</p>
+
+    @if (cargando && !equipos.length) {
+      <p class="vacio">Cargando…</p>
+    } @else if (!equipos.length) {
+      <p class="vacio">Todavía no has registrado ningún equipo.</p>
+    } @else {
+      <ul class="lista">
+        @for (equipo of equipos; track equipo._id) {
+          <li class="lista__item">
+            <div class="lista__info">
+              <span class="lista__nombre">{{ equipo.nombre }}</span>
+              <span class="lista__meta">{{ equipo.marca | uppercase }} · serie {{ equipo.serie }}</span>
+              <span class="lista__meta">
+                @if (equipo.ultimaConexion) {
+                  Última marcación: {{ equipo.ultimaConexion | date: 'd MMM, HH:mm' }}
+                }
+              </span>
+            </div>
+            <span class="estado" [ngClass]="estado(equipo).clase">{{ estado(equipo).texto }}</span>
+          </li>
+          <div class="acciones" style="padding-bottom:0.6rem">
+            <button class="btn btn--ghost" (click)="alternar(equipo)">
+              {{ equipo.activo ? 'Desactivar' : 'Activar' }}
+            </button>
+            <button class="btn btn--peligro" (click)="eliminar(equipo)">Dar de baja</button>
+          </div>
+        }
+      </ul>
+    }
+
+    @if (!mostrarForm) {
+      <button class="btn btn--bloque" style="margin-top:0.9rem" (click)="mostrarForm = true">
+        + Agregar equipo
+      </button>
+    } @else {
+      <div style="margin-top:1rem">
+        <label class="campo">
+          <span class="campo__label">Nombre *</span>
+          <input class="input" type="text" maxlength="60" [(ngModel)]="nombre" name="nombreEquipo"
+                 placeholder="Torniquete entrada" />
+        </label>
+        <label class="campo">
+          <span class="campo__label">Número de serie *</span>
+          <input class="input" type="text" [(ngModel)]="serie" name="serieEquipo"
+                 placeholder="AC123456789" />
+        </label>
+        <p class="card-hint">
+          Está en una etiqueta del aparato, o en su menú de información del dispositivo.
+        </p>
+        <label class="campo">
+          <span class="campo__label">Marca</span>
+          <select class="select" [(ngModel)]="marca" name="marcaEquipo">
+            @for (m of marcas; track m.valor) {
+              <option [value]="m.valor">{{ m.nombre }}</option>
+            }
+          </select>
+        </label>
+        <div class="acciones">
+          <button class="btn" (click)="agregar()" [disabled]="guardando">
+            {{ guardando ? 'Registrando…' : 'Registrar equipo' }}
+          </button>
+          <button class="btn btn--ghost" (click)="mostrarForm = false" [disabled]="guardando">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+</div>

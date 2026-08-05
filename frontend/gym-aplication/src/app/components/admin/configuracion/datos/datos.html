@@ -1,0 +1,60 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">📊 Datos y respaldo</h2>
+  <p class="page-sub">Saca copias de tu información o trae socios desde otro sistema.</p>
+
+  <div class="card">
+    <p class="card-title">Exportar</p>
+    <p class="card-hint">
+      Archivos CSV que se abren directamente en Excel. Útil para tu contabilidad
+      o para guardar una copia de seguridad.
+    </p>
+    <div class="acciones">
+      <button class="btn btn--ghost" (click)="exportarUsuarios()" [disabled]="exportando">
+        {{ exportando === 'usuarios' ? 'Generando…' : '👥 Socios' }}
+      </button>
+      <button class="btn btn--ghost" (click)="exportarTransacciones()" [disabled]="exportando">
+        {{ exportando === 'transacciones' ? 'Generando…' : '💰 Transacciones' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">Importar socios</p>
+    <p class="card-hint">
+      Sube un CSV con tus socios y se crean de una sola vez. Cada uno recibirá
+      una contraseña temporal.
+    </p>
+
+    <div class="instrucciones">
+      La primera línea debe ser la cabecera. Como mínimo <strong>nombre,email</strong>,
+      y opcionalmente <strong>fechaVencimiento</strong>:
+      <span class="codigo">nombre,email,fechaVencimiento
+Yudy Hernandez,yudy&#64;correo.com,2026-09-04
+Luisa Caldon,luisa&#64;correo.com,</span>
+      Los correos repetidos se omiten en lugar de duplicar el socio.
+    </div>
+
+    <label class="btn btn--bloque" style="display:block;text-align:center;margin-top:0.9rem"
+           [class.btn--ghost]="importando" for="csvInput">
+      {{ importando ? 'Importando…' : '📂 Elegir archivo CSV' }}
+    </label>
+    <input type="file" id="csvInput" accept=".csv,text/csv" (change)="onArchivo($event)" hidden />
+
+    @if (resultado) {
+      <div class="instrucciones" style="margin-top:0.9rem">
+        <strong>{{ resultado.creados }}</strong> socio(s) creado(s) ·
+        <strong>{{ resultado.omitidos }}</strong> omitido(s).
+        @if (resultado.errores?.length) {
+          <ul style="margin:0.5rem 0 0;padding-left:1.1rem">
+            @for (error of resultado.errores; track error) {
+              <li>{{ error }}</li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </div>
+
+</div>

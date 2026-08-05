@@ -65,6 +65,7 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '💰', name: 'pagos',         route: '/admin/pagos',         show: m('pagos') },
         { icon: '🏋️', name: 'entrenadores', route: '/admin/entrenadores',  show: true },
         { icon: '📋', name: 'rutinas',       route: '/admin/rutinas',       show: m('rutinas') },
+        { icon: '⚙️', name: 'Configuración', route: '/admin/configuracion', show: true },
         { icon: '🚪', name: 'Cerrar Sesión', route: 'logout', isAction: true, show: true }
       ].filter(l => l.show);
     } else if (this.role === 'socio') {
