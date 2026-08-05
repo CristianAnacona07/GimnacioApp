@@ -1,0 +1,51 @@
+<!-- La clase `campana-zona` marca el territorio propio: un click dentro no
+     cierra el panel, uno fuera sí. -->
+<div class="campana-zona">
+
+  <button type="button" (click)="alternar()" class="icono-navbar" [class.agitando]="agitando"
+    [attr.aria-label]="noLeidos > 0 ? noLeidos + ' avisos sin leer' : 'Avisos'"
+    [attr.aria-expanded]="abierto" title="Avisos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M13.7 21a2 2 0 01-3.4 0" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+
+    @if (noLeidos > 0) {
+      <span class="campana-globo" aria-hidden="true">{{ noLeidos > 9 ? '9+' : noLeidos }}</span>
+    }
+  </button>
+
+  @if (abierto) {
+  <div class="campana-panel" role="dialog" aria-label="Avisos">
+
+    <div class="campana-cabecera">
+      <span>Avisos</span>
+      <button type="button" (click)="cerrar()" aria-label="Cerrar avisos">✕</button>
+    </div>
+
+    <div class="campana-lista">
+      @if (vacio) {
+        <p class="campana-vacio">
+          <span class="campana-vacio-icono" aria-hidden="true">✅</span>
+          Todo en orden. No hay nada pendiente.
+        </p>
+      } @else {
+        @for (grupo of grupos; track grupo.nombre) {
+          <p class="campana-grupo">{{ grupo.nombre }}</p>
+
+          @for (aviso of grupo.avisos; track aviso.id) {
+            <button type="button" class="campana-item" [class]="'nivel-' + aviso.nivel" (click)="ir(aviso)">
+              <span class="campana-icono" aria-hidden="true">{{ aviso.icono }}</span>
+              <span class="campana-texto">
+                <span class="campana-titulo">{{ aviso.titulo }}</span>
+                <span class="campana-detalle">{{ aviso.detalle }}</span>
+              </span>
+              <span class="campana-flecha" aria-hidden="true">›</span>
+            </button>
+          }
+        }
+      }
+    </div>
+  </div>
+  }
+</div>

@@ -1,5 +1,17 @@
 <div class="page-wrapper">
 
+  <!-- ── BUSCADOR ───────────────────────────────────────────────
+       La lupa del navbar aterriza aquí con ?q=<nombre>; este campo muestra qué
+       se está filtrando y permite corregirlo sin volver atrás. -->
+  <div class="buscador-personas">
+    <span class="buscador-personas-icono" aria-hidden="true">🔍</span>
+    <input type="text" [(ngModel)]="filtro" placeholder="Filtrar por nombre, correo o cédula…"
+      aria-label="Filtrar personas" autocomplete="off" />
+    @if (filtro) {
+      <button type="button" (click)="limpiarFiltro()" aria-label="Quitar el filtro">✕</button>
+    }
+  </div>
+
   <!-- ── SOCIOS ─────────────────────────────────────────────── -->
   <section class="section-card">
 
@@ -23,72 +35,40 @@
           </tr>
         </thead>
         <tbody>
-          @for (u of socios; track u._id) {
-          <tr [class.row-active]="u.fechaVencimiento && !esVencido(u.fechaVencimiento)"
-              [class.row-expired]="u.fechaVencimiento && esVencido(u.fechaVencimiento)"
-              [class.row-none]="!u.fechaVencimiento">
+          <ng-container
+            *ngTemplateOutlet="filasPersonas; context: { $implicit: socios, vacio: 'No hay socios registrados' }" />
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-            <td>
-              <div class="user-info">
-                <div class="avatar">{{ u.nombre[0] | uppercase }}</div>
-                <span class="user-name">{{ u.nombre }}</span>
-              </div>
-            </td>
+  <!-- ── TRABAJADORES ───────────────────────────────────────────
+       Los entrenadores salían antes mezclados con los socios. Van aparte
+       porque son personal, no clientes, aunque las acciones sean las mismas. -->
+  <section class="section-card">
 
-            <td class="email-cell">{{ u.email }}</td>
+    <div class="section-header">
+      <div class="section-title">
+        <span class="section-icon" aria-hidden="true">🏋️</span>
+        <h2>Trabajadores</h2>
+        <span class="badge badge-blue">{{ trabajadores.length }}</span>
+      </div>
+    </div>
 
-            <td>
-              @if (u.fechaVencimiento) {
-                <span [class]="esVencido(u.fechaVencimiento) ? 'pill pill-red' : 'pill pill-green'">
-                  {{ u.fechaVencimiento | date:'dd/MM/yyyy' }}
-                </span>
-              } @else {
-                <span class="pill pill-gray">Sin membresía</span>
-              }
-            </td>
-
-            <td>
-              <div class="renew-group">
-                <button type="button" (click)="renovar(u._id, 7, u.nombre)"
-                        [disabled]="loadingId === u._id"
-                        aria-label="Renovar 7 días"
-                        class="btn-days btn-7">+7</button>
-                <button type="button" (click)="renovar(u._id, 15, u.nombre)"
-                        [disabled]="loadingId === u._id"
-                        aria-label="Renovar 15 días"
-                        class="btn-days btn-15">+15</button>
-                <button type="button" (click)="renovar(u._id, 30, u.nombre)"
-                        [disabled]="loadingId === u._id"
-                        aria-label="Renovar 30 días"
-                        class="btn-days btn-30">+30</button>
-              </div>
-            </td>
-
-            <td>
-              <div class="action-group">
-                @if (u.fechaVencimiento) {
-                  <button [routerLink]="['/admin/detalle-rutina', u._id]" class="btn-rutina" [attr.aria-label]="'Ver rutina de ' + u.nombre">
-                    <span aria-hidden="true">🏋️</span> Rutina
-                  </button>
-                  <button type="button" (click)="limpiarMembresia(u._id, u.nombre)"
-                          [disabled]="loadingId === u._id"
-                          class="btn-delete" title="Limpiar membresía" aria-label="Limpiar membresía">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                } @else {
-                  <span class="text-slate-300 text-xs italic">—</span>
-                }
-              </div>
-            </td>
-          </tr>
-          } @empty {
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
           <tr>
-            <td colspan="5" class="empty-row">No hay socios registrados</td>
+            <th>Entrenador</th>
+            <th>Email</th>
+            <th>Membresía</th>
+            <th class="text-center">Renovar días</th>
+            <th class="text-center">Acciones</th>
           </tr>
-          }
+        </thead>
+        <tbody>
+          <ng-container
+            *ngTemplateOutlet="filasPersonas; context: { $implicit: trabajadores, vacio: 'No hay entrenadores registrados' }" />
         </tbody>
       </table>
     </div>
@@ -139,3 +119,74 @@
   </section>
 
 </div>
+
+<!-- Filas de una tabla de personas. Socios y trabajadores comparten columnas y
+     acciones, así que comparten también la plantilla. -->
+<ng-template #filasPersonas let-lista let-vacio="vacio">
+  @for (u of lista; track u._id) {
+  <tr [class.row-active]="u.fechaVencimiento && !esVencido(u.fechaVencimiento)"
+      [class.row-expired]="u.fechaVencimiento && esVencido(u.fechaVencimiento)"
+      [class.row-none]="!u.fechaVencimiento">
+
+    <td>
+      <div class="user-info">
+        <div class="avatar">{{ u.nombre[0] | uppercase }}</div>
+        <span class="user-name">{{ u.nombre }}</span>
+      </div>
+    </td>
+
+    <td class="email-cell">{{ u.email }}</td>
+
+    <td>
+      @if (u.fechaVencimiento) {
+        <span [class]="esVencido(u.fechaVencimiento) ? 'pill pill-red' : 'pill pill-green'">
+          {{ u.fechaVencimiento | date:'dd/MM/yyyy' }}
+        </span>
+      } @else {
+        <span class="pill pill-gray">Sin membresía</span>
+      }
+    </td>
+
+    <td>
+      <div class="renew-group">
+        <button type="button" (click)="renovar(u._id, 7, u.nombre)"
+                [disabled]="loadingId === u._id"
+                aria-label="Renovar 7 días"
+                class="btn-days btn-7">+7</button>
+        <button type="button" (click)="renovar(u._id, 15, u.nombre)"
+                [disabled]="loadingId === u._id"
+                aria-label="Renovar 15 días"
+                class="btn-days btn-15">+15</button>
+        <button type="button" (click)="renovar(u._id, 30, u.nombre)"
+                [disabled]="loadingId === u._id"
+                aria-label="Renovar 30 días"
+                class="btn-days btn-30">+30</button>
+      </div>
+    </td>
+
+    <td>
+      <div class="action-group">
+        @if (u.fechaVencimiento) {
+          <button [routerLink]="['/admin/detalle-rutina', u._id]" class="btn-rutina" [attr.aria-label]="'Ver rutina de ' + u.nombre">
+            <span aria-hidden="true">🏋️</span> Rutina
+          </button>
+          <button type="button" (click)="limpiarMembresia(u._id, u.nombre)"
+                  [disabled]="loadingId === u._id"
+                  class="btn-delete" title="Limpiar membresía" aria-label="Limpiar membresía">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        } @else {
+          <span class="text-slate-300 text-xs italic">—</span>
+        }
+      </div>
+    </td>
+  </tr>
+  } @empty {
+  <tr>
+    <td colspan="5" class="empty-row">{{ vacio }}</td>
+  </tr>
+  }
+</ng-template>

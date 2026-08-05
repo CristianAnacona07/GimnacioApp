@@ -1,0 +1,85 @@
+<!-- Botón de la lupa en el navbar -->
+<button type="button" (click)="abrir()" class="icono-navbar" aria-label="Buscar" title="Buscar (Ctrl+K)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" stroke-linecap="round" />
+  </svg>
+</button>
+
+@if (abierto) {
+<!-- Capa oscura: un click fuera del panel cierra -->
+<div class="buscador-fondo" (click)="cerrar()" role="presentation">
+
+  <div class="buscador-panel" (click)="$event.stopPropagation()" role="dialog" aria-modal="true"
+    aria-label="Buscador global">
+
+    <!-- Campo -->
+    <div class="buscador-campo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="buscador-lupa"
+        aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-3.5-3.5" stroke-linecap="round" />
+      </svg>
+
+      <input #campo type="text" [(ngModel)]="texto" (ngModelChange)="alEscribir()" (keydown)="alTeclear($event)"
+        placeholder="Buscar sección, persona o plan…" aria-label="Qué buscas"
+        autocomplete="off" spellcheck="false" />
+
+      @if (buscando) {
+        <span class="buscador-cargando" aria-label="Buscando">⏳</span>
+      }
+      <button type="button" (click)="cerrar()" class="buscador-cerrar" aria-label="Cerrar buscador">✕</button>
+    </div>
+
+    <!-- Resultados -->
+    <div class="buscador-lista" role="listbox">
+      @for (item of items; track item.tipo + item.ruta + item.titulo; let i = $index) {
+
+        @if (esInicioDeGrupo(i)) {
+          <p class="buscador-grupo">{{ item.grupo }}</p>
+        }
+
+        <button type="button" role="option" [attr.aria-selected]="i === activo"
+          class="buscador-item" [class.activo]="i === activo"
+          (mouseenter)="activo = i" (click)="ir(item)">
+
+          @if (item.foto) {
+            <img [src]="item.foto" alt="" class="buscador-foto" aria-hidden="true" />
+          } @else {
+            <span class="buscador-icono" aria-hidden="true">{{ item.icono }}</span>
+          }
+
+          <span class="buscador-texto">
+            <span class="buscador-titulo">{{ item.titulo }}</span>
+            @if (item.detalle) {
+              <span class="buscador-detalle">{{ item.detalle }}</span>
+            }
+          </span>
+
+          @if (item.estado) {
+            <span class="buscador-estado" [class]="'nivel-' + item.estadoNivel">{{ item.estado }}</span>
+          }
+        </button>
+
+      } @empty {
+        <p class="buscador-vacio">
+          @if (texto.trim().length === 0) {
+            Escribe para buscar una sección, una persona o un plan.
+          } @else if (buscando) {
+            Buscando…
+          } @else {
+            No se encontró nada con «{{ texto }}».
+          }
+        </p>
+      }
+    </div>
+
+    <!-- Pie con los atajos -->
+    <div class="buscador-pie">
+      <span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
+      <span><kbd>Enter</kbd> abrir</span>
+      <span><kbd>Esc</kbd> cerrar</span>
+    </div>
+  </div>
+</div>
+}

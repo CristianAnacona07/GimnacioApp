@@ -1,0 +1,201 @@
+/* notificaciones.css — campana del navbar y su panel de avisos */
+
+.campana-zona {
+  position: relative;
+}
+
+/* Mismas medidas que la lupa para que el par quede alineado. */
+.icono-navbar {
+  position: relative;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.icono-navbar:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #22d3ee;
+}
+.icono-navbar svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+/* Sacudida al llegar un aviso nuevo: acompaña al sonido para que también se
+   note con el móvil en silencio. */
+.icono-navbar.agitando svg {
+  animation: campana-agita 0.9s ease-in-out;
+  transform-origin: top center;
+}
+@keyframes campana-agita {
+  0%, 100% { transform: rotate(0); }
+  10%, 30%, 50% { transform: rotate(12deg); }
+  20%, 40%, 60% { transform: rotate(-12deg); }
+  70% { transform: rotate(6deg); }
+  80% { transform: rotate(-6deg); }
+}
+
+.campana-globo {
+  position: absolute;
+  top: -0.1rem;
+  right: -0.1rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 0 2px #0f172a;
+}
+
+/* ── Panel ─────────────────────────────────────────────────────────────── */
+
+.campana-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 60;
+  width: 20rem;
+  max-height: 26rem;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  text-align: left;
+  animation: campana-aparece 0.15s ease-out;
+}
+
+@keyframes campana-aparece {
+  from { opacity: 0; transform: translateY(-0.35rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.campana-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid #1e293b;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.campana-cabecera button {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.3rem;
+}
+.campana-cabecera button:hover {
+  color: #f1f5f9;
+  background: #1e293b;
+}
+
+.campana-lista {
+  overflow-y: auto;
+  padding-bottom: 0.35rem;
+}
+
+.campana-grupo {
+  padding: 0.6rem 0.9rem 0.25rem;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.campana-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.9rem;
+  background: transparent;
+  border: none;
+  /* La franja de color a la izquierda es la que da la urgencia de un vistazo,
+     sin depender de leer el texto. */
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  color: #e2e8f0;
+  transition: background 0.15s;
+}
+.campana-item:hover {
+  background: #1e293b;
+}
+.campana-item.nivel-alta  { border-left-color: #ef4444; }
+.campana-item.nivel-media { border-left-color: #eab308; }
+.campana-item.nivel-info  { border-left-color: #38bdf8; }
+.campana-item.nivel-ok    { border-left-color: #22c55e; }
+
+.campana-icono {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.campana-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.campana-titulo {
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.campana-detalle {
+  font-size: 0.7rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.campana-flecha {
+  color: #475569;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.campana-vacio {
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.campana-vacio-icono {
+  display: block;
+  font-size: 1.6rem;
+  margin-bottom: 0.4rem;
+}
+
+/* En móvil el panel se ancla al borde de la pantalla en vez de a la campana,
+   que queda muy a la derecha y lo dejaría cortado. */
+@media (max-width: 420px) {
+  .campana-panel {
+    position: fixed;
+    top: 4.5rem;
+    left: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+  }
+}

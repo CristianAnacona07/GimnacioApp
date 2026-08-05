@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, HostListener, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { Subject } from 'rxjs';
@@ -7,10 +7,13 @@ import { takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth';
 import { UserStateService } from '../../../services/user-state.service';
 import { GymService } from '../../../services/gym.service';
+import { BuscadorGlobal } from '../buscador-global/buscador-global';
+import { Notificaciones } from '../notificaciones/notificaciones';
+import { NotificacionesService } from '../../../services/notificaciones.service';
 
 @Component({
   selector: 'app-navbar',
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, BuscadorGlobal, Notificaciones],
   standalone: true,
   templateUrl: './navbar.html',
   styleUrl: './navbar.css',
@@ -20,6 +23,8 @@ export class Navbar implements OnInit, OnDestroy {
   username = '';
   fotoUrl = 'https://ui-avatars.com/api/?name=Usuario&background=random';
   menuOpen = false;
+
+  private notificaciones = inject(NotificacionesService);
 
   private static perfilCache: any = null;
   private static lastLoadTime = 0;
@@ -163,6 +168,9 @@ export class Navbar implements OnInit, OnDestroy {
   logout() {
     Navbar.perfilCache = null;
     Navbar.lastLoadTime = 0;
+    // El servicio de avisos es singleton y seguiría sondeando tras el logout,
+    // con el token ya borrado: hay que pararlo a mano.
+    this.notificaciones.detener();
     this.authService.logout();
     this.router.navigate(['/login']);
   }

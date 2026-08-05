@@ -1,0 +1,228 @@
+/* buscador-global.css — lupa del navbar y su panel de resultados */
+
+/* Botón de la barra. Comparte medidas con la campana para que el par quede
+   alineado; si cambias uno, cambia el otro. */
+.icono-navbar {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.icono-navbar:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #22d3ee;
+}
+.icono-navbar svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+/* ── Panel ─────────────────────────────────────────────────────────────── */
+
+.buscador-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(2px);
+  display: flex;
+  justify-content: center;
+  /* Arriba y no centrado: el panel crece hacia abajo al aparecer resultados,
+     y centrarlo lo haría saltar con cada tecla. */
+  padding: 4.5rem 1rem 1rem;
+  animation: buscador-aparece 0.15s ease-out;
+}
+
+.buscador-panel {
+  width: 100%;
+  max-width: 40rem;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 0.9rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  text-align: left;
+}
+
+@keyframes buscador-aparece {
+  from { opacity: 0; transform: translateY(-0.5rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Campo de texto ────────────────────────────────────────────────────── */
+
+.buscador-campo {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #1e293b;
+}
+.buscador-lupa {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: #64748b;
+  flex-shrink: 0;
+}
+.buscador-campo input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f1f5f9;
+  font-size: 1rem;
+}
+.buscador-campo input::placeholder {
+  color: #64748b;
+}
+.buscador-cargando {
+  font-size: 0.9rem;
+}
+.buscador-cerrar {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.35rem;
+}
+.buscador-cerrar:hover {
+  color: #f1f5f9;
+  background: #1e293b;
+}
+
+/* ── Resultados ────────────────────────────────────────────────────────── */
+
+.buscador-lista {
+  overflow-y: auto;
+  padding: 0.4rem 0;
+}
+
+.buscador-grupo {
+  padding: 0.65rem 1rem 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.buscador-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 1rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: #e2e8f0;
+}
+/* El resaltado lo lleva siempre `activo`: el teclado y el ratón mueven el
+   mismo índice, así nunca se ven dos filas marcadas a la vez. */
+.buscador-item.activo {
+  background: #1e293b;
+}
+
+.buscador-icono {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.05rem;
+  background: #1e293b;
+  border-radius: 0.5rem;
+}
+.buscador-item.activo .buscador-icono {
+  background: #334155;
+}
+.buscador-foto {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.buscador-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.buscador-titulo {
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.buscador-detalle {
+  font-size: 0.72rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.buscador-estado {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+.buscador-estado.nivel-ok    { background: rgba(34, 197, 94, 0.15);  color: #4ade80; }
+.buscador-estado.nivel-aviso { background: rgba(234, 179, 8, 0.15);  color: #facc15; }
+.buscador-estado.nivel-malo  { background: rgba(239, 68, 68, 0.15);  color: #f87171; }
+
+.buscador-vacio {
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+/* ── Pie con atajos ────────────────────────────────────────────────────── */
+
+.buscador-pie {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid #1e293b;
+  font-size: 0.68rem;
+  color: #475569;
+}
+.buscador-pie kbd {
+  display: inline-block;
+  min-width: 1.2rem;
+  text-align: center;
+  padding: 0.05rem 0.3rem;
+  margin-right: 0.2rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.25rem;
+  font-family: inherit;
+  font-size: 0.65rem;
+}
+
+/* En pantallas pequeñas el pie de atajos sobra: no hay teclado físico. */
+@media (max-width: 640px) {
+  .buscador-fondo { padding-top: 1rem; }
+  .buscador-pie { display: none; }
+}

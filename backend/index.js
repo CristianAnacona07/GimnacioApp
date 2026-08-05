@@ -142,6 +142,8 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/2fa', require('./routes/twofa'));
 app.use('/api/asistencia', require('./routes/asistencia'));
 app.use('/api/dispositivos', require('./routes/dispositivos'));
+app.use('/api/buscador', require('./routes/buscador'));
+app.use('/api/notificaciones', require('./routes/notificaciones'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 
