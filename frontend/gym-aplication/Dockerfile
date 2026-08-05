@@ -17,22 +17,10 @@ RUN if [ -n "$API_URL" ]; then \
       echo "apiUrl fijado a $API_URL" && grep apiUrl src/environments/environment.prod.ts; \
     fi
 
-# `ng build` pelado, NO `npm run build`.
-#
-# La diferencia entre los dos es scripts/flatten-layers.mjs, y ese paso rompe
-# los estilos: aplana las capas de Tailwind v4 inflando la especificidad, con
-# lo que su preflight queda en button:not(#\#):not(#\#) — (0,2,1) — y le gana
-# por un elemento a cualquier estilo de componente Angular, que es
-# .btn-login[_ngcontent-x] — (0,2,0). Resultado: todos los botones e inputs
-# con estilo propio pierden su fondo y su borde redondeado.
-#
-# Vercel autodetecta Angular y corre `ng build`; android:sync tambien. Este
-# contenedor era el unico del proyecto que llamaba a `npm run build`, asi que
-# era el unico que se veia distinto. Con esto, lo que se ve en :8090 es lo
-# mismo que se vera en produccion, que es justamente para lo que sirve.
-#
-# Salida en dist/frontend/browser
-RUN npx ng build
+# Salida en dist/frontend/browser. `npm run build` es hoy `ng build` a secas,
+# igual que lo que corre Vercel, asi que lo que se ve en :8090 es lo mismo que
+# se vera en produccion — que es justamente para lo que sirve este contenedor.
+RUN npm run build
 
 # ---- Etapa 2: servir estáticos con Nginx ----
 FROM nginx:alpine

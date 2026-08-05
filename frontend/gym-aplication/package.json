@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build && node scripts/flatten-layers.mjs",
+    "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "e2e": "playwright test",
@@ -54,7 +54,6 @@
     "@angular/cli": "^21.0.4",
     "@angular/compiler-cli": "^21.0.0",
     "@capacitor/assets": "^3.0.5",
-    "@csstools/postcss-cascade-layers": "^6.0.0",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.1.12",
     "@types/qrcode": "^1.5.6",

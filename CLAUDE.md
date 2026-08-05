@@ -40,7 +40,7 @@ docker compose -f docker-compose.dev.yml up -d   # SMTP :1026, inbox http://loca
 cd frontend/gym-aplication
 npm install
 npm start                          # ng serve → http://localhost:4200
-npm run build                      # ng build + scripts/flatten-layers.mjs (required for Vercel)
+npm run build                      # ng build (producción) → dist/frontend/browser
 npm test                           # ng test (Angular 21 unit-test builder, Vitest + jsdom)
 npm test -- --include src/app/guards/auth.spec.ts   # single spec
 npm run e2e                        # Playwright (needs a dev server already running on :4200)
@@ -225,23 +225,21 @@ gym — check it before assuming a section is visible. `/health` returns `{statu
 - **Dev API port mismatch**: `environment.ts` points at `http://localhost:3000` while the
   backend defaults to `PORT=10000`. Set `PORT=3000` in `backend/.env` (or edit the
   environment file), otherwise every dev request hits the wrong port.
-- **`npm run build` and Vercel disagree on purpose — do not "fix" this.** `npm run build` is
-  `ng build` + `scripts/flatten-layers.mjs`; Vercel has no `buildCommand`, auto-detects
-  Angular and runs bare `ng build`. So **production ships unflattened CSS and that is the
-  version that renders correctly**. Pinning `buildCommand: npm run build` in `vercel.json`
-  was tried on 2026-08-05 and broke production, so it was reverted.
-  Why: flattening emulates layer order by inflating specificity, turning Tailwind's preflight
-  into `button:not(#\#):not(#\#)` — specificity (0,2,1). An Angular component style is
-  `.btn-login[_ngcontent-x]` — (0,2,0). Preflight wins by one element, so `background` and
-  `border-radius` of *every* component-styled button and input get overridden (visible on
-  `/login`: the submit button turns white, square and full-bleed).
-  **The symptom is deceptive**: flattening rewrites the file *after* Angular hashed its name,
-  so `styles-XXXX.css` has the same filename in Docker and on Vercel while holding different
-  bytes. Compare sizes or grep for `@layer`, never filenames.
-  Consequence: `docker-compose.local.yml` builds with `npm run build`, so **the local
-  container does not render like production** — the login looks broken there. Judge visual
-  changes on Vercel (or on `ng serve`), not on `localhost:8090`.
-  `vercel.json` is schema-validated and rejects unknown keys, so it cannot carry comments.
+- **Never flatten Tailwind v4's cascade layers.** Every build path — `ng serve`, `npm run
+  build`, Vercel, Docker, `android:sync`, CI — must ship the CSS with its `@layer` rules
+  intact. A `scripts/flatten-layers.mjs` step existed until 2026-08-05 and **broke the
+  styling**: flattening emulates layer order by inflating specificity, turning Tailwind's
+  preflight into `button:not(#\#):not(#\#)` — specificity (0,2,1) — while an Angular
+  component style is `.btn-login[_ngcontent-x]` — (0,2,0). Preflight won by one element and
+  overrode `background` and `border-radius` on *every* component-styled button and input
+  (on `/login` the submit button turned white, square and full-bleed). It was deleted along
+  with the `@csstools/postcss-cascade-layers` dependency and a dead `postcss.config.js`
+  (Angular reads `.postcssrc.json`, never `postcss.config.js`).
+  **The symptom was deceptive**: the step rewrote the file *after* Angular hashed its name,
+  so `styles-XXXX.css` had the same filename everywhere while holding different bytes. To
+  compare two environments' CSS, diff sizes or grep for `@layer` — never filenames.
+  `vercel.json` is schema-validated and rejects unknown keys, so it cannot carry comments;
+  document build quirks here instead.
 - `npx cap sync` copies `dist/frontend/browser`, so a stale build ships silently — always
   build first (the `android:*` scripts already do).
 - Role checks belong on **both** sides; a frontend guard without the matching backend
