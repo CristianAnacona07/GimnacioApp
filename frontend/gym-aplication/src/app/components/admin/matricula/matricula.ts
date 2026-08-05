@@ -21,6 +21,8 @@ interface Plan {
   _id: string;
   nombre: string;
   precio?: number;
+  /** Días de membresía del plan (los planes creados antes del campo no lo traen). */
+  dias?: number;
 }
 
 /** Método de pago configurado por el gym. */
@@ -194,12 +196,17 @@ export class Matricula implements OnInit {
     this.cdr.markForCheck();
   }
 
-  // ---- Plan → autocompleta monto y concepto ----
+  // ---- Plan → autocompleta monto, concepto y días ----
   onPlanChange(): void {
     const plan = this.planes.find((p) => p._id === this.planId);
     if (plan) {
       if (typeof plan.precio === 'number') {
         this.monto = plan.precio;
+      }
+      // Los días vienen del plan: si no se copiaran aquí, el campo se quedaría en
+      // su valor por defecto (30) y un plan quincenal cargaría un mes entero.
+      if (typeof plan.dias === 'number' && plan.dias > 0) {
+        this.dias = plan.dias;
       }
       this.concepto = plan.nombre;
     }

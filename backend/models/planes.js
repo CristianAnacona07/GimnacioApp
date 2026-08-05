@@ -15,6 +15,15 @@ const planSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  // Días de membresía que otorga el plan. Es lo que la matrícula precarga en el
+  // campo "días" al elegirlo; sin esto un plan "Quincenal" podía acabar sumando
+  // los 30 días que traía el formulario por defecto.
+  // El default de 30 mantiene coherentes los planes creados antes de este campo.
+  dias: {
+    type: Number,
+    default: 30,
+    min: 1
+  },
   descripcion: {
     type: String,
     required: true

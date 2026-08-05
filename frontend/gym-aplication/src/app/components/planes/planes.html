@@ -28,6 +28,12 @@
           </div>
 
           <div class="form-grupo">
+            <label>Duración (días):</label>
+            <input type="number" min="1" step="1" [(ngModel)]="formulario.dias" name="dias" required>
+            <small>Días que se cargarán en la matrícula al elegir este plan. Quincenal = 15, mensual = 30.</small>
+          </div>
+
+          <div class="form-grupo">
             <label>Descripción:</label>
             <textarea [(ngModel)]="formulario.descripcion" name="descripcion" rows="2"></textarea>
           </div>
@@ -58,6 +64,7 @@
 
           <div class="plan-precio">
             <span class="monto">${{ plan.precio | number }}</span>
+            <span class="duracion">{{ plan.dias ?? 30 }} días</span>
           </div>
 
           <p class="descripcion">{{ plan.descripcion }}</p>

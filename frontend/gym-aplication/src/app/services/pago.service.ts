@@ -38,6 +38,8 @@ export interface PlanLite {
   _id: string;
   nombre: string;
   precio: number;
+  /** Días de membresía que otorga el plan (opcional: los planes viejos no lo traen). */
+  dias?: number;
   [key: string]: any;
 }
 
