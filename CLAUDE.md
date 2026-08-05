@@ -225,14 +225,23 @@ gym — check it before assuming a section is visible. `/health` returns `{statu
 - **Dev API port mismatch**: `environment.ts` points at `http://localhost:3000` while the
   backend defaults to `PORT=10000`. Set `PORT=3000` in `backend/.env` (or edit the
   environment file), otherwise every dev request hits the wrong port.
-- Use `npm run build`, not bare `ng build`: `scripts/flatten-layers.mjs` flattens Tailwind v4
-  cascade layers, and without it the deployed CSS breaks. `frontend/gym-aplication/vercel.json`
-  pins `buildCommand` for exactly this reason — without it Vercel auto-detects Angular, runs
-  bare `ng build` and ships unflattened CSS. **The symptom is deceptive**: flattening rewrites
-  the file *after* Angular hashed its name, so `styles-XXXX.css` has the same filename in dev
-  and in production while holding different bytes. Compare sizes or grep for `@layer`, not
-  filenames. `vercel.json` is schema-validated and rejects unknown keys, so it cannot carry
-  comments — document things here instead.
+- **`npm run build` and Vercel disagree on purpose — do not "fix" this.** `npm run build` is
+  `ng build` + `scripts/flatten-layers.mjs`; Vercel has no `buildCommand`, auto-detects
+  Angular and runs bare `ng build`. So **production ships unflattened CSS and that is the
+  version that renders correctly**. Pinning `buildCommand: npm run build` in `vercel.json`
+  was tried on 2026-08-05 and broke production, so it was reverted.
+  Why: flattening emulates layer order by inflating specificity, turning Tailwind's preflight
+  into `button:not(#\#):not(#\#)` — specificity (0,2,1). An Angular component style is
+  `.btn-login[_ngcontent-x]` — (0,2,0). Preflight wins by one element, so `background` and
+  `border-radius` of *every* component-styled button and input get overridden (visible on
+  `/login`: the submit button turns white, square and full-bleed).
+  **The symptom is deceptive**: flattening rewrites the file *after* Angular hashed its name,
+  so `styles-XXXX.css` has the same filename in Docker and on Vercel while holding different
+  bytes. Compare sizes or grep for `@layer`, never filenames.
+  Consequence: `docker-compose.local.yml` builds with `npm run build`, so **the local
+  container does not render like production** — the login looks broken there. Judge visual
+  changes on Vercel (or on `ng serve`), not on `localhost:8090`.
+  `vercel.json` is schema-validated and rejects unknown keys, so it cannot carry comments.
 - `npx cap sync` copies `dist/frontend/browser`, so a stale build ships silently — always
   build first (the `android:*` scripts already do).
 - Role checks belong on **both** sides; a frontend guard without the matching backend
