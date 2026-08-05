@@ -23,7 +23,9 @@ name: gimnacio-app
 services:
   mailpit:
     image: axllent/mailpit:latest
-    container_name: kodiak-mailpit
+    # Sin container_name a proposito: Compose lo nombra <proyecto>-mailpit-1, que
+    # es unico en el equipo. Un nombre fijo "mailpit" chocaria con el contenedor
+    # del mismo nombre que ya tienen otros proyectos.
     # Puertos PROPIOS de este proyecto (1026/8026), no los estándar de Mailpit:
     # en este equipo conviven otros proyectos con su propio Mailpit en 1025/8025
     # y cada uno debe tener su bandeja. Dentro del contenedor siempre son 1025/8025.
