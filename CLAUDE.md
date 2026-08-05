@@ -226,7 +226,13 @@ gym — check it before assuming a section is visible. `/health` returns `{statu
   backend defaults to `PORT=10000`. Set `PORT=3000` in `backend/.env` (or edit the
   environment file), otherwise every dev request hits the wrong port.
 - Use `npm run build`, not bare `ng build`: `scripts/flatten-layers.mjs` flattens Tailwind v4
-  cascade layers, and without it the deployed CSS breaks.
+  cascade layers, and without it the deployed CSS breaks. `frontend/gym-aplication/vercel.json`
+  pins `buildCommand` for exactly this reason — without it Vercel auto-detects Angular, runs
+  bare `ng build` and ships unflattened CSS. **The symptom is deceptive**: flattening rewrites
+  the file *after* Angular hashed its name, so `styles-XXXX.css` has the same filename in dev
+  and in production while holding different bytes. Compare sizes or grep for `@layer`, not
+  filenames. `vercel.json` is schema-validated and rejects unknown keys, so it cannot carry
+  comments — document things here instead.
 - `npx cap sync` copies `dist/frontend/browser`, so a stale build ships silently — always
   build first (the `android:*` scripts already do).
 - Role checks belong on **both** sides; a frontend guard without the matching backend
