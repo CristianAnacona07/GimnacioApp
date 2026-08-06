@@ -2,8 +2,8 @@ import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angula
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { Subject, concat, of } from 'rxjs';
-import { takeUntil, map, catchError, toArray } from 'rxjs/operators';
+import { Subject, concat, of, merge, timer, fromEvent } from 'rxjs';
+import { takeUntil, map, catchError, toArray, filter, switchMap } from 'rxjs/operators';
 
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
@@ -17,6 +17,9 @@ interface SetForm { peso: number | null; reps: number | null; }
 const KEY_FORM_IDX = 'progreso_formIdx';
 const KEY_FORM_DATA = 'progreso_formData';
 const KEY_FORM_EJERCICIO = 'progreso_ejercicio';
+
+/** Cada cuánto se vuelve a pedir la rutina mientras la pantalla está abierta. */
+const INTERVALO_RECARGA_MS = 30 * 1000;
 
 @Component({
   selector: 'app-mi-rutina',
@@ -43,6 +46,8 @@ export class MiRutina implements OnInit, OnDestroy {
   setsForm: SetForm[] = [];
   guardando = false;
   cargando = true;
+  /** Distingue la primera respuesta (restaura formulario y hace scroll) de las recargas. */
+  private primeraCarga = true;
 
   scrollToActiveDay() {
     setTimeout(() => {
@@ -76,24 +81,39 @@ export class MiRutina implements OnInit, OnDestroy {
 
     this.resetarSiEsDiaDistinto(usuario._id);
 
-    this.authService.obtenerRutina(usuario._id)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (res: any) => {
-          this.rutinas = Array.isArray(res) ? res : [res];
-          this.cargando = false;
-          this.buscarRutinaDelDia(this.diaActivo);
-
-          // Restaurar formulario de progreso si existe
-          this.restaurarFormularioProgreso();
-
-          this.cdr.detectChanges();
-          this.scrollToActiveDay();
-        },
-        error: () => {
-          this.cargando = false;
-          this.cdr.detectChanges();
+    // La rutina se recarga sola: al entrar, cada 30 s y al volver la app al
+    // frente (cambio de pestaña o regreso del segundo plano). Así un cambio
+    // hecho por el admin aparece sin tener que salir y volver a entrar, y una
+    // primera carga fallida (p. ej. un 504 de arranque en frío del backend) se
+    // recupera en el siguiente intento en vez de quedarse en "día de descanso".
+    const alVolver$ = fromEvent(document, 'visibilitychange').pipe(
+      filter(() => document.visibilityState === 'visible')
+    );
+    merge(timer(0, INTERVALO_RECARGA_MS), alVolver$)
+      .pipe(
+        switchMap(() => this.authService.obtenerRutina(usuario._id).pipe(
+          // Si una recarga falla se conserva lo que ya había en pantalla.
+          catchError(() => of(null))
+        )),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((res: any) => {
+        this.cargando = false;
+        if (res !== null) {
+          const nuevas = Array.isArray(res) ? res : [res];
+          // Solo se repinta si algo cambió, para no molestar al usuario
+          // (formulario abierto, scroll) con recargas idénticas.
+          if (JSON.stringify(nuevas) !== JSON.stringify(this.rutinas)) {
+            this.rutinas = nuevas;
+            this.buscarRutinaDelDia(this.diaActivo);
+          }
+          if (this.primeraCarga) {
+            this.primeraCarga = false;
+            this.restaurarFormularioProgreso();
+            this.scrollToActiveDay();
+          }
         }
+        this.cdr.detectChanges();
       });
   }
 
