@@ -53,6 +53,12 @@ export class NotificacionesService {
   readonly noLeidos$: Observable<number> = this.noLeidosSubject.asObservable();
 
   private leidas = new Set<string>();
+  /**
+   * Firmas por las que ya sonó el aviso en esta sesión. Sin esto, un aviso que
+   * el usuario todavía no abrió volvería a sonar en cada sondeo (cada 5 min):
+   * "no leído" y "ya notificado" son estados distintos.
+   */
+  private notificadas = new Set<string>();
   private sondeo?: Subscription;
   /** Usuario para el que corre el sondeo actual. */
   private usuarioSondeo = '';
@@ -91,6 +97,7 @@ export class NotificacionesService {
     this.sondeo?.unsubscribe();
     this.sondeo = undefined;
     this.primeraCarga = true;
+    this.notificadas.clear();
     this.avisosSubject.next([]);
     this.noLeidosSubject.next(0);
   }
@@ -112,6 +119,11 @@ export class NotificacionesService {
     this.avisosSubject.next(avisos);
     this.noLeidosSubject.next(nuevos.length);
 
+    // Cada firma suena una sola vez por sesión, aunque siga sin leerse en los
+    // sondeos siguientes. El globito sí sigue mostrando el total no leído.
+    const porNotificar = nuevos.filter(a => !this.notificadas.has(a.firma));
+    nuevos.forEach(a => this.notificadas.add(a.firma));
+
     // Solo se avisa de lo que apareció DESPUÉS de que el usuario ya estaba
     // dentro; si no, cada arranque de la app sonaría como una alarma.
     if (this.primeraCarga) {
@@ -120,11 +132,11 @@ export class NotificacionesService {
       return;
     }
 
-    if (nuevos.length === 0) return;
+    if (porNotificar.length === 0) return;
 
-    const principal = nuevos[0];
-    const titulo = nuevos.length === 1 ? principal.titulo : `${nuevos.length} avisos nuevos`;
-    const cuerpo = nuevos.length === 1 ? principal.detalle : principal.titulo;
+    const principal = porNotificar[0];
+    const titulo = porNotificar.length === 1 ? principal.titulo : `${porNotificar.length} avisos nuevos`;
+    const cuerpo = porNotificar.length === 1 ? principal.detalle : principal.titulo;
     this.alerta.avisar(titulo, cuerpo);
   }
 
