@@ -1,10 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const Transaccion = require('../models/transaccion');
-const User = require('../models/user');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { enviarRecibo, linkWhatsApp } = require('../helpers/whatsapp');
+const { paginar } = require('../lib/pagination');
+
+const prisma = getPrismaClient();
+
+function conId(t) {
+    if (!t) return t;
+    const { id, ...rest } = t;
+    return { ...rest, _id: id };
+}
 
 function diasRestantes(fechaVencimiento) {
     if (!fechaVencimiento) return 0;
@@ -36,8 +44,8 @@ router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
         }
 
         // Verificar que el socio pertenece al gimnasio del admin.
-        const socio = await User.findOne({ _id: usuarioId, gymId: req.gymId });
-        if (!socio) {
+        const socioActual = await prisma.user.findFirst({ where: { id: usuarioId, gymId: req.gymId } });
+        if (!socioActual) {
             return res.status(404).json({ error: 'Usuario no encontrado en este gimnasio' });
         }
 
@@ -45,30 +53,38 @@ router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
         // renovar antes de tiempo no le quite al socio los días que ya pagó.
         // Con `reemplazar` la membresía se reescribe desde hoy, descartando lo que
         // le quedaba: es la salida para corregir una carga anterior equivocada.
+        let nuevaFechaVencimiento = socioActual.fechaVencimiento;
         if (diasAgregados > 0) {
             const ahora = new Date();
-            const base = !reemplazar && socio.fechaVencimiento && socio.fechaVencimiento > ahora
-                ? new Date(socio.fechaVencimiento)
+            const base = !reemplazar && socioActual.fechaVencimiento && socioActual.fechaVencimiento > ahora
+                ? new Date(socioActual.fechaVencimiento)
                 : new Date(ahora);
             base.setDate(base.getDate() + diasAgregados);
-            socio.fechaVencimiento = base;
-            await socio.save();
+            nuevaFechaVencimiento = base;
         }
 
-        const tx = new Transaccion({
-            gymId: req.gymId,
-            usuarioId,
-            monto,
-            metodoId: metodoId || undefined,
-            concepto: concepto || 'Membresía',
-            diasAgregados,
-            registradoPor: req.userId
-        });
-        await tx.save();
+        // Actualizar la membresía y registrar el pago de forma atómica: si el
+        // insert de la transacción falla, la fecha de vencimiento no debe quedar
+        // adelantada sin que exista el pago que la justifica (el código Mongoose
+        // original hacía estos dos pasos sin ninguna garantía de atomicidad).
+        const [socio, transaccion] = await prisma.$transaction([
+            prisma.user.update({ where: { id: socioActual.id }, data: { fechaVencimiento: nuevaFechaVencimiento } }),
+            prisma.transaccion.create({
+                data: {
+                    gymId: req.gymId,
+                    usuarioId,
+                    monto,
+                    metodoId: metodoId || undefined,
+                    concepto: concepto || 'Membresía',
+                    diasAgregados,
+                    registradoPor: req.userId
+                }
+            })
+        ]);
 
         await registrarAuditoria(req, 'REGISTRAR_PAGO', {
             recurso: 'Transaccion',
-            recursoId: tx._id,
+            recursoId: transaccion.id,
             // `reemplazar` descarta días que el socio ya había pagado, así que
             // conviene poder rastrear quién y cuándo lo hizo.
             detalle: { monto, dias: diasAgregados, reemplazar: !!reemplazar }
@@ -82,13 +98,13 @@ router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
             : '—';
         const texto = `Hola ${socio.nombre}, recibimos tu pago de ${montoTxt} (${concepto || 'Membresía'}). `
             + `Tu membresía queda activa hasta el ${fechaVenceTxt} (${diasRest} días). ¡Gracias! 💪`;
-        const wa = await enviarRecibo(socio.datosPersonales?.telefono, [socio.nombre, montoTxt, fechaVenceTxt]);
-        const link = linkWhatsApp(socio.datosPersonales?.telefono, texto);
+        const wa = await enviarRecibo(socio.telefono, [socio.nombre, montoTxt, fechaVenceTxt]);
+        const link = linkWhatsApp(socio.telefono, texto);
 
         res.status(201).json({
-            transaccion: tx,
+            transaccion: conId(transaccion),
             socio: {
-                _id: socio._id, nombre: socio.nombre,
+                _id: socio.id, nombre: socio.nombre,
                 fechaVencimiento: socio.fechaVencimiento, diasRestantes: diasRest,
             },
             whatsapp: { enviado: wa.enviado, motivo: wa.motivo || null, link },
@@ -101,20 +117,9 @@ router.post('/registrar', verificarToken, soloAdmin, async (req, res) => {
 // Listar transacciones del gimnasio, más recientes primero (con paginación opcional).
 router.get('/', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const filtro = { gymId: req.gymId };
-        const paginar = req.query.page !== undefined;
-        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-
-        let q = Transaccion.find(filtro).sort({ createdAt: -1 });
-        if (paginar) q = q.skip((page - 1) * limit).limit(limit);
-        const items = await q.lean();
-
-        if (paginar) {
-            const total = await Transaccion.countDocuments(filtro);
-            return res.json({ data: items, total, page, limit, pages: Math.ceil(total / limit) });
-        }
-        res.json(items);
+        const resultado = await paginar(req, prisma.transaccion, { where: { gymId: req.gymId }, orderBy: { createdAt: 'desc' } });
+        if (Array.isArray(resultado)) return res.json(resultado.map(conId));
+        res.json({ ...resultado, data: resultado.data.map(conId) });
     } catch (error) {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
@@ -123,17 +128,17 @@ router.get('/', verificarToken, soloAdmin, async (req, res) => {
 // Transacciones de un usuario concreto dentro del gimnasio.
 router.get('/usuario/:id', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const socio = await User.findOne({ _id: req.params.id, gymId: req.gymId }).lean();
+        const socio = await prisma.user.findFirst({ where: { id: req.params.id, gymId: req.gymId } });
         if (!socio) {
             return res.status(404).json({ error: 'Usuario no encontrado en este gimnasio' });
         }
 
-        const transacciones = await Transaccion
-            .find({ gymId: req.gymId, usuarioId: req.params.id })
-            .sort({ createdAt: -1 })
-            .lean();
+        const transacciones = await prisma.transaccion.findMany({
+            where: { gymId: req.gymId, usuarioId: req.params.id },
+            orderBy: { createdAt: 'desc' }
+        });
 
-        res.json(transacciones);
+        res.json(transacciones.map(conId));
     } catch (error) {
         res.status(500).json({ error: 'Error interno del servidor' });
     }

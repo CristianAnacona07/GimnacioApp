@@ -11,7 +11,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
     "bcryptjs": "^3.0.3",
+    "bson": "^7.3.2",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -20,13 +23,19 @@
     "google-auth-library": "^10.6.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.1.2",
     "nodemailer": "^8.0.6",
+    "pg": "^8.23.0",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "mongodb": "^7.5.0",
     "nodemon": "^3.1.11",
+    "prisma": "^7.9.1",
     "supertest": "^7.2.2",
     "vitest": "^4.1.9"
+  },
+  "allowScripts": {
+    "prisma@7.9.1": true,
+    "@prisma/engines@7.9.1": true
   }
 }

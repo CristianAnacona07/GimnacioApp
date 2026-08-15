@@ -1,4 +1,4 @@
-const AuditLog = require('../models/auditlog');
+const { getPrismaClient } = require('../prisma/client');
 
 /**
  * Registra una entrada de auditoría sin bloquear la respuesta al cliente.
@@ -11,15 +11,18 @@ const AuditLog = require('../models/auditlog');
  */
 async function registrarAuditoria(req, accion, extra = {}) {
   try {
-    await AuditLog.create({
-      gymId:     req.gymId || null,
-      actorId:   req.userId || null,
-      actorRole: req.userRole || null,
-      accion,
-      recurso:   extra.recurso || null,
-      recursoId: extra.recursoId || null,
-      detalle:   extra.detalle || null,
-      ip:        req.ip || req.headers?.['x-forwarded-for'] || null,
+    const prisma = getPrismaClient();
+    await prisma.auditLog.create({
+      data: {
+        gymId:     req.gymId || null,
+        actorId:   req.userId || null,
+        actorRole: req.userRole || null,
+        accion,
+        recurso:   extra.recurso || null,
+        recursoId: extra.recursoId || null,
+        detalle:   extra.detalle || null,
+        ip:        req.ip || req.headers?.['x-forwarded-for'] || null,
+      }
     });
   } catch (err) {
     console.error('No se pudo registrar auditoría:', err.message);

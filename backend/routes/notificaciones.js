@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/user');
-const Rutina = require('../models/rutina');
-const Noticia = require('../models/noticia');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken } = require('../middleware/auth');
+
+const prisma = getPrismaClient();
 
 /**
  * Avisos de la campanita del navbar.
  *
  * Todo se calcula al vuelo a partir de los datos que ya existen (vencimientos,
- * asignaciones, noticias): NO hay colección de notificaciones. Eso significa
+ * asignaciones, noticias): NO hay tabla de notificaciones. Eso significa
  * que un aviso desaparece solo en cuanto el problema se resuelve, sin que nadie
  * tenga que ir a marcarlo, que es justo lo que se quiere de "3 socios vencen
  * esta semana".
@@ -46,23 +46,25 @@ async function avisosAdmin(gymId) {
 
   const [vencidas, porVencer, sinMembresia, nuevos, entrenadores, sinEntrenador, conEntrenador] =
     await Promise.all([
-      User.countDocuments({ gymId, role: 'socio', fechaVencimiento: { $ne: null, $lt: hoy } }),
-      User.countDocuments({ gymId, role: 'socio', fechaVencimiento: { $gte: hoy, $lte: enUnaSemana } }),
-      User.countDocuments({ gymId, role: 'socio', fechaVencimiento: null }),
-      User.countDocuments({ gymId, role: 'socio', fechaRegistro: { $gte: haceUnaSemana } }),
-      User.find({ gymId, role: 'entrenador' }).select('_id').lean(),
-      User.countDocuments({ gymId, role: 'socio', entrenadorId: null }),
-      // `distinct` no pasa por el hook del borrado suave (solo lo hacen
-      // find/findOne/countDocuments), así que aquí hay que excluir a mano los
-      // registros borrados o un socio eliminado seguiría "ocupando" a su
-      // entrenador y este nunca aparecería como libre.
-      User.distinct('entrenadorId', {
-        gymId, role: 'socio', deletedAt: null, entrenadorId: { $ne: null }
+      prisma.user.count({ where: { gymId, role: 'socio', fechaVencimiento: { not: null, lt: hoy } } }),
+      prisma.user.count({ where: { gymId, role: 'socio', fechaVencimiento: { gte: hoy, lte: enUnaSemana } } }),
+      prisma.user.count({ where: { gymId, role: 'socio', fechaVencimiento: null } }),
+      prisma.user.count({ where: { gymId, role: 'socio', fechaRegistro: { gte: haceUnaSemana } } }),
+      prisma.user.findMany({ where: { gymId, role: 'entrenador' }, select: { id: true } }),
+      prisma.user.count({ where: { gymId, role: 'socio', entrenadorId: null } }),
+      // El gap de `.distinct()` que tenía el plugin de soft-delete de Mongoose
+      // (no hookeaba `distinct`, así que había que excluir el borrado suave a
+      // mano) ya no existe: la extensión de Prisma filtra `distinct` igual que
+      // cualquier `findMany`.
+      prisma.user.findMany({
+        where: { gymId, role: 'socio', entrenadorId: { not: null } },
+        distinct: ['entrenadorId'],
+        select: { entrenadorId: true }
       })
     ]);
 
-  const ocupados = new Set(conEntrenador.map(String));
-  const entrenadoresLibres = entrenadores.filter(e => !ocupados.has(String(e._id))).length;
+  const ocupados = new Set(conEntrenador.map((u) => u.entrenadorId));
+  const entrenadoresLibres = entrenadores.filter((e) => !ocupados.has(e.id)).length;
 
   return [
     vencidas > 0 && aviso({
@@ -114,20 +116,18 @@ async function avisosEntrenador(gymId, entrenadorId) {
   const mios = { gymId, role: 'socio', entrenadorId };
 
   const [vencidas, porVencer, misSocios] = await Promise.all([
-    User.countDocuments({ ...mios, fechaVencimiento: { $ne: null, $lt: hoy } }),
-    User.countDocuments({ ...mios, fechaVencimiento: { $gte: hoy, $lte: enUnaSemana } }),
-    User.find(mios).select('_id').lean()
+    prisma.user.count({ where: { ...mios, fechaVencimiento: { not: null, lt: hoy } } }),
+    prisma.user.count({ where: { ...mios, fechaVencimiento: { gte: hoy, lte: enUnaSemana } } }),
+    prisma.user.findMany({ where: mios, select: { id: true } })
   ]);
 
   // Socios propios que aún no tienen ninguna rutina cargada.
-  const ids = misSocios.map(s => s._id);
-  // Igual que arriba: `distinct` ignora el borrado suave, y una rutina borrada
-  // no debe contar como "este socio ya tiene rutina".
+  const ids = misSocios.map((s) => s.id);
   const conRutina = ids.length
-    ? await Rutina.distinct('usuarioId', { gymId, deletedAt: null, usuarioId: { $in: ids } })
+    ? await prisma.rutina.findMany({ where: { gymId, usuarioId: { in: ids } }, distinct: ['usuarioId'], select: { usuarioId: true } })
     : [];
-  const yaTienen = new Set(conRutina.map(String));
-  const sinRutina = ids.filter(id => !yaTienen.has(String(id))).length;
+  const yaTienen = new Set(conRutina.map((r) => r.usuarioId));
+  const sinRutina = ids.filter((id) => !yaTienen.has(id)).length;
 
   return [
     vencidas > 0 && aviso({
@@ -198,10 +198,12 @@ async function avisosSocio(gymId, usuarioId) {
   const haceUnaSemana = new Date(hoy.getTime() - 7 * DIA);
 
   const [usuario, noticias, ultimaRutina] = await Promise.all([
-    User.findById(usuarioId).select('fechaVencimiento').lean(),
-    Noticia.find({ gymId, estado: true, createdAt: { $gte: haceUnaSemana } })
-      .select('_id').sort({ createdAt: -1 }).lean(),
-    Rutina.findOne({ gymId, usuarioId }).select('updatedAt').sort({ updatedAt: -1 }).lean()
+    prisma.user.findUnique({ where: { id: usuarioId }, select: { fechaVencimiento: true } }),
+    prisma.noticia.findMany({
+      where: { gymId, estado: true, createdAt: { gte: haceUnaSemana } },
+      select: { id: true }, orderBy: { createdAt: 'desc' }
+    }),
+    prisma.rutina.findFirst({ where: { gymId, usuarioId }, select: { updatedAt: true }, orderBy: { updatedAt: 'desc' } })
   ]);
 
   const lista = [];
@@ -217,7 +219,7 @@ async function avisosSocio(gymId, usuarioId) {
       ruta: '/socio/noticias',
       // La firma cuelga de la noticia más reciente: si publican otra, el aviso
       // vuelve a marcarse como no leído aunque el total no cambie.
-      firma: `noticias-nuevas:${noticias[0]._id}`
+      firma: `noticias-nuevas:${noticias[0].id}`
     }));
   }
 

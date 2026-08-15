@@ -1,8 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const Medidas = require('../models/medidas');
-const User = require('../models/user');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, resolverUsuarioId, filtroPropiedad, esAdmin } = require('../middleware/auth');
+
+const prisma = getPrismaClient();
+
+function conId(m) {
+  if (!m) return m;
+  const { id, ...rest } = m;
+  return { ...rest, _id: id };
+}
 
 // Límites razonables (en cm/kg) para las medidas corporales.
 const LIMITES_MEDIDAS = {
@@ -36,12 +43,11 @@ router.post('/', verificarToken, async (req, res) => {
     const usuarioId = resolverUsuarioId(req, req.body.usuarioId);
     // Si el admin indica otro usuario, verificar que pertenezca a su gym.
     if (esAdmin(req) && String(usuarioId) !== String(req.userId)) {
-      const socio = await User.findOne({ _id: usuarioId, gymId: req.gymId }).select('_id').lean();
+      const socio = await prisma.user.findFirst({ where: { id: usuarioId, gymId: req.gymId }, select: { id: true } });
       if (!socio) return res.status(404).json({ error: 'Usuario no encontrado en este gimnasio' });
     }
-    const medida = new Medidas({ gymId: req.gymId, usuarioId, peso, cintura, cadera, pecho, brazo, muslo });
-    await medida.save();
-    res.status(201).json(medida);
+    const medida = await prisma.medidas.create({ data: { gymId: req.gymId, usuarioId, peso, cintura, cadera, pecho, brazo, muslo } });
+    res.status(201).json(conId(medida));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -50,9 +56,8 @@ router.post('/', verificarToken, async (req, res) => {
 router.get('/:usuarioId', verificarToken, async (req, res) => {
   try {
     const usuarioId = resolverUsuarioId(req, req.params.usuarioId);
-    const medidas = await Medidas.find({ gymId: req.gymId, usuarioId })
-      .sort({ fecha: 1 }).lean();
-    res.json(medidas);
+    const medidas = await prisma.medidas.findMany({ where: { gymId: req.gymId, usuarioId }, orderBy: { fecha: 'asc' } });
+    res.json(medidas.map(conId));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -64,13 +69,13 @@ router.put('/:id', verificarToken, async (req, res) => {
     const errorValidacion = validarMedidas({ peso, cintura, cadera, pecho, brazo, muslo });
     if (errorValidacion) return res.status(400).json({ mensaje: errorValidacion });
     // El socio sólo edita sus propias medidas; el admin, las del gym.
-    const medida = await Medidas.findOneAndUpdate(
-      { _id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) },
-      { peso, cintura, cadera, pecho, brazo, muslo },
-      { new: true }
-    );
-    if (!medida) return res.status(404).json({ mensaje: 'Medida no encontrada' });
-    res.json(medida);
+    const actual = await prisma.medidas.findFirst({
+      where: { id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) },
+      select: { id: true }
+    });
+    if (!actual) return res.status(404).json({ mensaje: 'Medida no encontrada' });
+    const medida = await prisma.medidas.update({ where: { id: actual.id }, data: { peso, cintura, cadera, pecho, brazo, muslo } });
+    res.json(conId(medida));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -78,8 +83,12 @@ router.put('/:id', verificarToken, async (req, res) => {
 
 router.delete('/:id', verificarToken, async (req, res) => {
   try {
-    const medida = await Medidas.findOneAndDelete({ _id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) });
-    if (!medida) return res.status(404).json({ mensaje: 'Medida no encontrada' });
+    const actual = await prisma.medidas.findFirst({
+      where: { id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) },
+      select: { id: true }
+    });
+    if (!actual) return res.status(404).json({ mensaje: 'Medida no encontrada' });
+    await prisma.medidas.delete({ where: { id: actual.id } });
     res.json({ mensaje: 'Medida eliminada' });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });

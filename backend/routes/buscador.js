@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/user');
-const Plan = require('../models/planes');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken } = require('../middleware/auth');
+const { ilikeContains } = require('../lib/searchFilters');
+
+const prisma = getPrismaClient();
 
 /**
  * Buscador global de la lupa del navbar.
@@ -17,12 +19,6 @@ const { verificarToken } = require('../middleware/auth');
  *   entrenador  → únicamente los socios que tiene asignados
  *   socio       → solo planes (no puede listar a los demás miembros)
  */
-
-// Escapa lo que el usuario teclee para que un "(" o un "*" no rompan la regex
-// ni permitan construir un patrón caro a propósito.
-function aRegex(texto) {
-  return new RegExp(texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-}
 
 // Días que le quedan de membresía. Negativo = ya venció (y cuántos hace),
 // null = nunca tuvo. Se cuenta de medianoche a medianoche para que la etiqueta
@@ -40,39 +36,41 @@ function diasRestantes(fechaVencimiento) {
 
 function aPersona(u) {
   return {
-    _id: u._id,
+    _id: u.id,
     nombre: u.nombre,
     email: u.email,
     role: u.role,
     fotoUrl: u.fotoUrl || '',
     codigoAcceso: u.codigoAcceso || '',
-    identificacion: (u.datosPersonales && u.datosPersonales.identificacion) || '',
+    identificacion: u.identificacion || '',
     diasRestantes: diasRestantes(u.fechaVencimiento)
   };
 }
 
-const CAMPOS_PERSONA = 'nombre email role fotoUrl codigoAcceso fechaVencimiento datosPersonales.identificacion';
+const SELECT_PERSONA = {
+  id: true, nombre: true, email: true, role: true, fotoUrl: true,
+  codigoAcceso: true, fechaVencimiento: true, identificacion: true
+};
 
 /**
  * Filtro de personas que le corresponde a quien pregunta.
  *
  * Devuelve null cuando el rol no puede buscar personas en absoluto. Está
  * separado de la ruta (y colgado del router más abajo) para poder probarlo sin
- * levantar Mongo: es la frontera entre "buscar a un socio" y "listar el
- * gimnasio entero desde otra cuenta", y conviene tenerla cubierta.
+ * levantar la base de datos: es la frontera entre "buscar a un socio" y
+ * "listar el gimnasio entero desde otra cuenta", y conviene tenerla cubierta.
  */
 function filtroPersonas(req, q) {
   const esAdmin = req.userRole === 'admin' || req.userRole === 'superadmin';
   const esEntrenador = req.userRole === 'entrenador';
   if (!esAdmin && !esEntrenador) return null;
 
-  const rx = aRegex(q);
   const filtro = {
     gymId: req.gymId,
-    $or: [
-      { nombre: rx },
-      { email: rx },
-      { 'datosPersonales.identificacion': rx },
+    OR: [
+      ilikeContains('nombre', q),
+      ilikeContains('email', q),
+      ilikeContains('identificacion', q),
       { codigoAcceso: q }
     ]
   };
@@ -83,7 +81,7 @@ function filtroPersonas(req, q) {
     filtro.role = 'socio';
     filtro.entrenadorId = req.userId;
   } else {
-    filtro.role = { $in: ['socio', 'entrenador', 'admin'] };
+    filtro.role = { in: ['socio', 'entrenador', 'admin'] };
   }
 
   return filtro;
@@ -101,24 +99,23 @@ router.get('/', verificarToken, async (req, res) => {
     // Con menos de dos letras cualquier búsqueda devolvería medio gimnasio.
     if (q.length < 2) return res.json({ personas: [], planes: [] });
 
-    const rx = aRegex(q);
-
     // ── Personas ──────────────────────────────────────────────────────────
     let personas = [];
     const filtro = filtroPersonas(req, q);
     if (filtro) {
-      const encontrados = await User.find(filtro).select(CAMPOS_PERSONA).limit(12).lean();
+      const encontrados = await prisma.user.findMany({ where: filtro, select: SELECT_PERSONA, take: 12 });
       personas = ordenarPorRol(encontrados).map(aPersona);
     }
 
     // ── Planes ────────────────────────────────────────────────────────────
     // Visibles para todos los roles: el socio los consulta para renovar.
-    const planes = await Plan.find({ gymId: req.gymId, $or: [{ nombre: rx }, { descripcion: rx }] })
-      .select('nombre precio dias')
-      .limit(6)
-      .lean();
+    const planes = await prisma.plan.findMany({
+      where: { gymId: req.gymId, OR: [ilikeContains('nombre', q), ilikeContains('descripcion', q)] },
+      select: { id: true, nombre: true, precio: true, dias: true },
+      take: 6
+    });
 
-    res.json({ personas, planes });
+    res.json({ personas, planes: planes.map(({ id, ...p }) => ({ ...p, _id: id })) });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -129,6 +126,5 @@ router.get('/', verificarToken, async (req, res) => {
 router.filtroPersonas = filtroPersonas;
 router.ordenarPorRol = ordenarPorRol;
 router.aPersona = aPersona;
-router.aRegex = aRegex;
 
 module.exports = router;

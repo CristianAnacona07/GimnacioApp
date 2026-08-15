@@ -14,9 +14,15 @@ and runs its own dependencies.
 
 | Path                       | Contents                                                            |
 | -------------------------- | ------------------------------------------------------------------- |
-| `backend/`                 | Express 5 + Mongoose (MongoDB), JWT auth. Deployed to Vercel *and* GHCR/Docker |
+| `backend/`                 | Express 5 + Prisma (PostgreSQL), JWT auth. Deployed to Vercel *and* GHCR/Docker |
 | `frontend/gym-aplication/` | Angular 21 standalone + Tailwind v4, PWA, Capacitor (Android/iOS)    |
 | `docs/`                    | Project context, user stories, subdomain and deployment guides       |
+
+**Migrated from MongoDB/Mongoose to PostgreSQL/Prisma** (2026-08-15). Every primary key is
+still the original 24-hex-char Mongo `ObjectId` string, stored as `CHAR(24)` — this was a
+deliberate choice so the one-time data migration was a straight 1:1 copy with zero FK
+remapping, and so 8h JWTs issued before the cutover kept working. New rows generate the same
+24-hex format via a Prisma extension (`bson.ObjectId().toHexString()`), not native UUIDs.
 
 ## Commands
 
@@ -29,10 +35,16 @@ npm test                           # Vitest (node env, tests/**/*.test.js)
 npx vitest run tests/auth.test.js  # single file
 npx vitest run -t "verificarToken" # single test by name
 node scripts/crear-superadmin.js   # bootstrap a superadmin user
-node scripts/migrar-gym.js         # backfill gymId on legacy data
+npx prisma migrate dev             # create+apply a new migration from schema.prisma changes
+npx prisma studio                  # browse the DB in a local GUI
+
+# One-time Mongo → Postgres data migration (see "Data layer conventions" below); dry-run by
+# default, prints counts and touches nothing until CONFIRMAR_MIGRACION=si:
+node scripts/etl-mongo-to-postgres.js
+CONFIRMAR_MIGRACION=si node scripts/etl-mongo-to-postgres.js   # writes for real
 
 # Email in dev: Mailpit captures every message instead of delivering it
-docker compose -f docker-compose.dev.yml up -d   # SMTP :1026, inbox http://localhost:8026
+docker compose -f docker-compose.local.yml up -d mailpit   # SMTP :1026, inbox http://localhost:8026
 # then set SMTP_HOST=127.0.0.1 / SMTP_PORT=1026 in backend/.env
 # Non-standard ports on purpose: other projects on this machine own 1025/8025.
 
@@ -53,7 +65,10 @@ npm run android:open               # …+ open Android Studio
 There is **no linter configured** (no ESLint). Formatting is Prettier, configured inline in
 `frontend/gym-aplication/package.json` (100 cols, single quotes, `angular` parser for HTML).
 
-**Backend env vars** (`backend/.env.example`): `MONGO_URI`, `JWT_SECRET` (both are
+**Backend env vars** (`backend/.env.example`): `DATABASE_URL` (Postgres connection string,
+consumed by [prisma/client.js](backend/prisma/client.js) via `@prisma/adapter-pg` — Prisma 7
+no longer accepts a `url` in `schema.prisma` itself, only `prisma.config.ts` for the CLI and
+this env var for the runtime client), `JWT_SECRET` (both are
 *hard* requirements — `index.js` throws at boot if missing), `GOOGLE_CLIENT_ID`,
 `GOOGLE_ANDROID_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `EMAIL_USER`, `EMAIL_PASS`,
 `FRONTEND_URL`, `NODE_ENV`, `PORT`, `TENANT_ROOT_DOMAIN`, and optionally
@@ -69,11 +84,19 @@ at all" — use it instead of testing `EMAIL_USER` directly, or the dev setup br
 `backend-docker.yml` / `frontend-docker.yml` publish images to GHCR,
 `android-build.yml` produces a debug APK artifact, `ios-build.yml` builds unsigned iOS.
 
+**Two unrelated docker-compose files, don't confuse them**: root
+[docker-compose.local.yml](docker-compose.local.yml) builds everything from source
+(postgres + Mailpit + backend + frontend) for local dev or self-hosting without Vercel —
+configure via a root `.env` copied from `.env.docker.example`. [backend/docker-compose.yml](backend/docker-compose.yml)
+instead *pulls* the prebuilt GHCR images for a real deployment and is configured via
+`backend/.env.example`-style vars (`DATABASE_URL` pointing at wherever Postgres ends up
+living near the deploy target — no bundled DB container there).
+
 ## Architecture
 
 ### Multi-gym isolation (the central invariant)
 
-Every domain document carries `gymId`. The JWT payload carries `gymId`, the auth
+Every domain table carries `gymId`. The JWT payload carries `gymId`, the auth
 middleware puts it on `req.gymId`, and **every query must filter by it** — that is the
 only thing keeping gym A's data out of gym B.
 
@@ -138,34 +161,92 @@ middleware → rate limits → routes → 404 handler → global error handler.
   300 req/15min on the rest of `/api`. `app.set('trust proxy', 1)` makes per-IP limiting
   work behind Vercel.
 - **Serverless connection reuse**: `cachedDb` plus a `connectingPromise` lock so parallel
-  requests during a cold start share one `mongoose.connect` instead of racing; the lock is
-  cleared on failure so the next request can retry.
+  requests during a cold start share one connection attempt instead of racing; the lock is
+  cleared on failure so the next request can retry. This shape predates the Postgres
+  migration and was deliberately left untouched — only what's *inside* `connectDB()` changed
+  (it now builds/warms the Prisma client via `getPrismaClient()` instead of calling
+  `mongoose.connect`). It's a vestige of the original Vercel-serverless design; once the
+  project finishes moving to a persistent VPS process this lock stops being necessary
+  (Prisma's own connection pool handles concurrency fine on its own) but nobody's cleaned
+  it up yet.
 - **Two entry points**: `index.js` exports the app and only calls `listen()` when
   `NODE_ENV !== 'production'` (Vercel imports it). `server.js` exists for the Docker image,
   which runs with `NODE_ENV=production` and *must* listen. Don't merge them.
 
 ### Data layer conventions
 
-- **Soft delete** ([models/plugins/softDelete.js](backend/models/plugins/softDelete.js)) is
-  applied to User, Gym, Rutina, Noticia, Plan, MetodoPago, Transaccion. It adds `deletedAt`
-  and **silently filters `deletedAt: null` into every read/update query**. To see deleted
-  docs you must opt in: `Model.find(f).setOptions({ withDeleted: true })`. Delete with
-  `Model.softDelete(filtro)`, undo with `Model.restore(filtro)`. This is the most surprising
-  behavior in the backend — a "missing" document is usually soft-deleted.
+The Prisma client is a singleton built once by
+[prisma/client.js](backend/prisma/client.js) (`getPrismaClient()`) and composed from two
+[Client Extensions](backend/prisma/extensions/) — always get it from there, never
+`new PrismaClient()` directly in a route:
+
+- **Soft delete** ([prisma/extensions/softDelete.js](backend/prisma/extensions/softDelete.js))
+  replaces the old Mongoose plugin. Applied to the same 7 models as before — Gym, User,
+  Rutina, Noticia, Plan, MetodoPago, Transaccion — via `SOFT_DELETE_MODELS`. It intercepts
+  `findMany/findFirst/findUnique/count/update/updateMany` and **silently injects
+  `deletedAt: null` into `where`**. To see deleted rows, opt in per-query with
+  `{ ..., withDeleted: true }` (a sentinel the extension strips before the real query runs —
+  it is *not* a real Prisma option). Delete with `model.softDelete(where)`, undo with
+  `model.restore(where)` (statics the extension adds to every soft-deletable model). This is
+  still the most surprising behavior in the backend — a "missing" row is usually
+  soft-deleted. The extension's pure logic (`applyFilter`, `argsSoftDelete`, `argsRestore`,
+  `interceptar`) is exported separately so it's unit-testable without a live DB — see
+  [tests/softdelete.test.js](backend/tests/softdelete.test.js).
+- **ObjectId-style ids** ([prisma/extensions/objectId.js](backend/prisma/extensions/objectId.js))
+  auto-generates a 24-hex `id` on `create`/`createMany` when one isn't supplied. **It only
+  intercepts top-level operations** (`prisma.rutina.create(...)`) — a nested relation write
+  (`{ ejercicios: { create: [...] } }`) does *not* go through this hook, so nested creates
+  must generate their own id by hand (see `ejerciciosParaCrear` in
+  [lib/rutinaMapper.js](backend/lib/rutinaMapper.js)). Forgetting this on a new nested-create
+  call site fails loudly (`Argument \`id\` is missing`), not silently.
 - **Audit trail**: `registrarAuditoria(req, 'ACCION', { recurso, recursoId, detalle })`
-  ([helpers/audit.js](backend/helpers/audit.js)) writes an `AuditLog` and never throws, so a
+  ([helpers/audit.js](backend/helpers/audit.js)) writes an `AuditLog` row and never throws, so a
   failed log can't take down a successful operation. Call it on sensitive admin/superadmin ops.
-- **Email is unique per gym**, not globally:
-  `UserSchema.index({ email: 1, gymId: 1 }, { unique: true })` — the same person can belong
-  to two gyms.
-- `password` and the 2FA/verification token fields are `select: false`; you must
-  `.select('+password')` explicitly.
-- **Pagination is backward-compatible**: without `?page` a route returns a plain array;
-  with `?page` it returns `{ data, total, page, limit, pages }`. Preserve that shape when
-  touching list endpoints.
-- User stats are nested under `stats` (`stats.racha`, `stats.asistenciasMes`). Membership
-  dates are `fechaRegistro` / `fechaVencimiento`; `codigoAcceso` is the 6-digit check-in
-  code encoded in the member's QR.
+- **Email is unique per gym**, not globally: `@@unique([email, gymId])` on `User` — the same
+  person can belong to two gyms. Postgres treats every `NULL` in a composite unique as
+  distinct, which would let two superadmins (`gymId = null`) share an email; a *hand-written*
+  partial unique index in the init migration (`users_superadmin_email_key ... WHERE gym_id IS
+  NULL`) closes that gap. Prisma's schema language can't express partial indexes, so this
+  lives directly in `prisma/migrations/20260815000000_init/migration.sql`, not in
+  `schema.prisma` — don't expect `prisma migrate diff` to regenerate it if the migration is
+  ever reset.
+- **`password` and the 2FA/token fields are hidden by default via Prisma's `omit` API**
+  (configured once in `prisma/client.js`), the relational equivalent of Mongoose's
+  `select: false`. To read one, pass `{ omit: { password: false } }` on that specific query
+  (see `auth.js` login/cambiar-password, `twofa.js`) — there is no per-schema-field
+  declarative flag for this in Postgres/Prisma.
+- **Pagination is backward-compatible**: without `?page` a route returns a plain array; with
+  `?page` it returns `{ data, total, page, limit, pages }`. This used to be six separate
+  copies of the same math; it's now one shared helper,
+  [lib/pagination.js](backend/lib/pagination.js) (`paginar(req, prisma.model, { where,
+  orderBy, defaultLimit })`) — use it for any new paginated list endpoint instead of
+  reimplementing the skip/take arithmetic.
+- **Search is ILIKE, not regex**: [lib/searchFilters.js](backend/lib/searchFilters.js)
+  (`ilikeContains(field, term)`, `personaSearchWhere(gymId, q)`) replaces the three
+  independent regex-based search implementations that used to live in `buscador.js`,
+  `admin.js` and `asistencia.js`.
+- **Nested JSON shapes are flattened into columns, and reconstructed at the API boundary.**
+  Mongoose's `datosPersonales`, `stats`, `twoFactor` (on `User`) and `colores`, `modulos` (on
+  `Gym`) are now plain flat columns (`identificacion`, `telefono`, `racha`,
+  `asistenciasMes`, `twoFactorEnabled`, `colorPrimario`, `moduloRutinas`, …) — there is no
+  nested JSON column. **The frontend was not touched and still expects the old nested
+  shape**, so every route that returns a full `User` or `Gym` re-nests it with
+  [lib/userMapper.js](backend/lib/userMapper.js) (`toApiUser`, `fromApiDatosPersonales`) or
+  [lib/gymMapper.js](backend/lib/gymMapper.js) (`toApiGym`, `fromApiGymConfig`) — and
+  `_id`/`id` too: Prisma rows carry `.id`, the API still answers with `_id`, so `id` gets
+  stripped and remapped, never left duplicated alongside `_id` in a JSON response.
+  `Rutina.ejercicios` similarly went from an embedded array to a child table
+  (`rutina_ejercicios`, with an explicit `orden` column standing in for array position) —
+  reshaped by [lib/rutinaMapper.js](backend/lib/rutinaMapper.js) (`conRutina`,
+  `ejerciciosParaCrear`). If you add a field to any of these nested groups, update the model
+  *and* its mapper, or it'll silently vanish between Postgres and the JSON response.
+- Membership dates are `fechaRegistro` / `fechaVencimiento`; `codigoAcceso` is the 6-digit
+  check-in code encoded in the member's QR. `Plan.precio` and `Transaccion.monto` are
+  `Decimal`, not float — compare/format with `Prisma.Decimal`, not `===`/`+`.
+- `transacciones.js`'s payment-registration endpoint wraps the `User.fechaVencimiento` update
+  and the `Transaccion` insert in a real `prisma.$transaction([...])` — the original Mongoose
+  code had zero atomicity there (two independent `.save()` calls); this is a genuine
+  correctness improvement made during the migration, not just parity.
 
 ### Domain modules (API ↔ UI)
 
@@ -212,9 +293,17 @@ gym — check it before assuming a section is visible. `/health` returns `{statu
 ### Testing
 
 - Backend: Vitest with `globals: false` (import `describe`/`it`/`expect` explicitly).
-  [tests/setup.js](backend/tests/setup.js) sets `JWT_SECRET`/`MONGO_URI` *before* app modules
-  load, because they read env at import time. Tests use stubbed `req`/`res`/`next` and
-  `supertest`; there is no live MongoDB — don't write tests that need one.
+  [tests/setup.js](backend/tests/setup.js) sets `JWT_SECRET`/`DATABASE_URL` *before* app
+  modules load, because they read env at import time — the `DATABASE_URL` fallback is a
+  bogus connection string (`postgresql://noop:noop@localhost:5432/test-noop`), never a real
+  DB: constructing the Prisma client via `@prisma/adapter-pg` doesn't connect eagerly, so
+  requiring a route module in a test is safe as long as the test never actually issues a
+  query. Tests use stubbed `req`/`res`/`next` and pure helpers exported off routers
+  (`router.miHelper = miHelper`); there is no live Postgres in the suite — don't write tests
+  that need one. `tests/softdelete.test.js` is the template for testing Prisma-extension
+  logic this way: it calls the extension's exported pure functions
+  (`applyFilter`/`interceptar`/`argsSoftDelete`/`argsRestore`) directly with a `vi.fn()` spy
+  standing in for the downstream `query`, instead of hitting a real database.
 - Frontend: `@angular/build:unit-test` (Vitest + jsdom + `fake-indexeddb`), specs colocated
   as `*.spec.ts`, HTTP tested with `provideHttpClientTesting` + `HttpTestingController`.
 - E2E: Playwright specs in `e2e/` using semantic selectors; `webServer` is intentionally
@@ -245,6 +334,20 @@ gym — check it before assuming a section is visible. `/health` returns `{statu
 - Role checks belong on **both** sides; a frontend guard without the matching backend
   middleware adds no security.
 - Never commit `.env` files.
+- **Prisma 7 changed how the client connects** — don't "fix" this back to older-Prisma
+  patterns. `schema.prisma`'s `datasource` block cannot carry a `url` anymore (`prisma
+  validate` rejects it); the connection string lives in `prisma.config.ts` (CLI/migrations
+  only) and is passed to the *runtime* client explicitly via `@prisma/adapter-pg`'s
+  `PrismaPg({ connectionString })`, wired in `prisma/client.js`. The generator is pinned to
+  `provider = "prisma-client-js"` (the classic CJS output to `node_modules/@prisma/client`)
+  rather than the newer `"prisma-client"` provider, which by default emits TypeScript-only
+  source with no compiled JS — incompatible with this plain-CommonJS backend (`require()`
+  everywhere, no build step). If `prisma generate` ever stops working with a `require`
+  error, check that `provider` hasn't drifted back to `"prisma-client"`.
+- A one-time Mongo→Postgres cutover plan (ETL run order, verification queries, maintenance
+  window steps, rollback window) lives in this session's plan file
+  (`C:\Users\Diego-A\.claude\plans\glowing-gliding-pinwheel.md` at the time of migration) —
+  worth re-reading before ever running `scripts/etl-mongo-to-postgres.js` against real data.
 
 ## Further reading
 

@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const User = require('../models/user');
-const AuditLog = require('../models/auditlog');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { paginar } = require('../lib/pagination');
+
+const prisma = getPrismaClient();
 
 // Escapa un campo para CSV: si contiene coma, comilla doble o salto de línea,
 // se envuelve en comillas dobles y se duplican las comillas internas.
@@ -37,9 +39,10 @@ function fechaISO(valor) {
 // GET /export/usuarios — exporta los usuarios del gimnasio como CSV.
 router.get('/export/usuarios', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const usuarios = await User.find({ gymId: req.gymId })
-            .select('nombre email role fechaRegistro fechaVencimiento')
-            .lean();
+        const usuarios = await prisma.user.findMany({
+            where: { gymId: req.gymId },
+            select: { nombre: true, email: true, role: true, fechaRegistro: true, fechaVencimiento: true }
+        });
 
         const cabecera = ['nombre', 'email', 'role', 'fechaRegistro', 'fechaVencimiento'];
         const filas = usuarios.map((u) => [
@@ -66,26 +69,16 @@ router.get('/export/usuarios', verificarToken, soloAdmin, async (req, res) => {
 });
 
 // GET /export/transacciones — exporta las transacciones del gimnasio como CSV.
-// Si el modelo de transacciones no existe, responde 404.
 router.get('/export/transacciones', verificarToken, soloAdmin, async (req, res) => {
-    let Transaccion;
     try {
-        Transaccion = require('../models/transaccion');
-    } catch {
-        return res.status(404).json({ error: 'Transacciones no disponibles' });
-    }
-
-    try {
-        const transacciones = await Transaccion.find({ gymId: req.gymId })
-            .select('usuarioId monto concepto fecha')
-            .populate('usuarioId', 'nombre email')
-            .lean();
+        const transacciones = await prisma.transaccion.findMany({
+            where: { gymId: req.gymId },
+            select: { monto: true, concepto: true, fecha: true, usuario: { select: { nombre: true, email: true } } }
+        });
 
         const cabecera = ['usuario', 'monto', 'concepto', 'fecha'];
         const filas = transacciones.map((t) => {
-            const usuario = t.usuarioId
-                ? (t.usuarioId.nombre || t.usuarioId.email || String(t.usuarioId))
-                : '';
+            const usuario = t.usuario ? (t.usuario.nombre || t.usuario.email || '') : '';
             return [usuario, t.monto, t.concepto, fechaISO(t.fecha)];
         });
 
@@ -153,7 +146,7 @@ router.post('/import/usuarios', verificarToken, soloAdmin, async (req, res) => {
 
             try {
                 // Omitir si el email ya existe en este gimnasio.
-                const existe = await User.findOne({ email, gymId: req.gymId }).lean();
+                const existe = await prisma.user.findFirst({ where: { email, gymId: req.gymId }, select: { id: true } });
                 if (existe) {
                     omitidos++;
                     continue;
@@ -180,7 +173,7 @@ router.post('/import/usuarios', verificarToken, soloAdmin, async (req, res) => {
                     }
                 }
 
-                await User.create(datos);
+                await prisma.user.create({ data: datos });
                 creados++;
             } catch (err) {
                 errores.push({ fila: numeroFila, error: err.message });
@@ -201,20 +194,11 @@ router.post('/import/usuarios', verificarToken, soloAdmin, async (req, res) => {
 // GET /audit — lista la auditoría del gimnasio, más reciente primero (paginación opcional).
 router.get('/audit', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const filtro = { gymId: req.gymId };
-        const paginar = req.query.page !== undefined;
-        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-
-        let q = AuditLog.find(filtro).sort({ createdAt: -1 });
-        if (paginar) q = q.skip((page - 1) * limit).limit(limit);
-        const items = await q.lean();
-
-        if (paginar) {
-            const total = await AuditLog.countDocuments(filtro);
-            return res.json({ data: items, total, page, limit, pages: Math.ceil(total / limit) });
-        }
-        res.json(items);
+        const resultado = await paginar(req, prisma.auditLog, {
+            where: { gymId: req.gymId },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(resultado);
     } catch (error) {
         res.status(500).json({ error: 'Error interno del servidor' });
     }

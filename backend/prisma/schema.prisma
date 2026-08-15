@@ -1,0 +1,411 @@
+// Prisma schema — migrado desde backend/models/*.js (Mongoose).
+// Los ids preservan el ObjectId hex original de Mongo (ver docs/ para el porqué).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ────────────────────────────────────────────────────────────
+enum Role {
+  superadmin
+  admin
+  entrenador
+  empleado
+  socio
+}
+
+enum Cargo {
+  recepcionista
+  limpieza
+  nutricionista
+}
+
+enum MetodoAsistencia {
+  codigo
+  qr
+  huella
+  manual
+}
+
+enum MarcaDispositivo {
+  zkteco
+  hikvision
+  suprema
+  anviz
+  otro
+}
+
+enum TipoMetodoPago {
+  digital
+  efectivo
+}
+
+enum DiaSemana {
+  Lunes
+  Martes
+  Miercoles
+  Jueves
+  Viernes
+  Sabado
+  Domingo
+}
+
+// ── Tenant root ──────────────────────────────────────────────────────
+model Gym {
+  id     String  @id @db.Char(24)
+  nombre String
+  slug   String  @unique
+  logo   String?
+  slogan String  @default("")
+
+  colorPrimario   String @default("#f97316") @map("color_primario")
+  colorSecundario String @default("#1d4ed8") @map("color_secundario")
+  colorFondo      String @default("#eef3ff") @map("color_fondo")
+  colorNavbar     String @default("#0f172a") @map("color_navbar")
+  colorMenu       String @default("#1e293b") @map("color_menu")
+  colorDias       String @default("#1d4ed8") @map("color_dias")
+
+  moduloRutinas    Boolean @default(true) @map("modulo_rutinas")
+  moduloProgreso   Boolean @default(true) @map("modulo_progreso")
+  moduloMedidas    Boolean @default(true) @map("modulo_medidas")
+  moduloPagos      Boolean @default(true) @map("modulo_pagos")
+  moduloNoticias   Boolean @default(true) @map("modulo_noticias")
+  moduloCronometro Boolean @default(true) @map("modulo_cronometro")
+
+  activo          Boolean @default(true)
+  spotifyPlaylist String  @default("") @map("spotify_playlist")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users         User[]
+  asistencias   Asistencia[]
+  auditLogs     AuditLog[]
+  dispositivos  Dispositivo[]
+  feedbacks     Feedback[]
+  medidas       Medidas[]
+  noticias      Noticia[]
+  metodosPago   MetodoPago[]
+  planes        Plan[]
+  progresos     Progreso[]
+  rutinas       Rutina[]
+  transacciones Transaccion[]
+
+  @@index([deletedAt])
+  @@map("gyms")
+}
+
+// ── Identidad ────────────────────────────────────────────────────────
+model User {
+  id    String  @id @db.Char(24)
+  gymId String? @db.Char(24) @map("gym_id")
+  gym   Gym?    @relation(fields: [gymId], references: [id], onDelete: Restrict)
+
+  nombre   String
+  email    String
+  password String
+  role     Role   @default(socio)
+  cargo    Cargo?
+
+  entrenadorId String? @db.Char(24) @map("entrenador_id")
+  entrenador   User?   @relation("EntrenadorSocios", fields: [entrenadorId], references: [id], onDelete: SetNull)
+  socios       User[]  @relation("EntrenadorSocios")
+
+  codigoAcceso     String  @default("") @map("codigo_acceso")
+  fotoUrl          String  @default("") @map("foto_url")
+  mensajeMotivador String  @default("HAZ QUE SUCEDA") @map("mensaje_motivador")
+
+  // datosPersonales{} aplanado
+  identificacion  String @default("")
+  fechaNacimiento String @default("") @map("fecha_nacimiento")
+  sexo            String @default("")
+  pesoActual      Float  @default(0) @map("peso_actual")
+  altura          Float  @default(0)
+  telefono        String @default("")
+
+  // stats{} aplanado
+  racha           Int @default(0)
+  asistenciasMes  Int @default(0) @map("asistencias_mes")
+
+  fechaRegistro    DateTime  @default(now()) @map("fecha_registro")
+  fechaVencimiento DateTime? @map("fecha_vencimiento")
+
+  resetToken       String?   @map("reset_token")
+  resetTokenExpiry DateTime? @map("reset_token_expiry")
+
+  emailVerified     Boolean   @default(false) @map("email_verified")
+  verifyToken       String?   @map("verify_token")
+  verifyTokenExpiry DateTime? @map("verify_token_expiry")
+
+  // twoFactor{} aplanado
+  twoFactorEnabled     Boolean  @default(false) @map("two_factor_enabled")
+  twoFactorSecret      String?  @map("two_factor_secret")
+  twoFactorBackupCodes String[] @map("two_factor_backup_codes")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  asistenciasComo         Asistencia[]  @relation("AsistenciaUsuario")
+  asistenciasRegistradas  Asistencia[]  @relation("AsistenciaRegistradoPor")
+  auditLogs                AuditLog[]
+  feedbacks                Feedback[]
+  medidas                  Medidas[]
+  progresos                Progreso[]
+  rutinas                  Rutina[]
+  transaccionesComo        Transaccion[] @relation("TransaccionUsuario")
+  transaccionesRegistradas Transaccion[] @relation("TransaccionRegistradoPor")
+
+  @@unique([email, gymId])
+  @@index([gymId])
+  @@index([entrenadorId])
+  @@index([codigoAcceso])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ── Registros append-only ───────────────────────────────────────────
+model Asistencia {
+  id            String           @id @db.Char(24)
+  gymId         String           @db.Char(24) @map("gym_id")
+  gym           Gym              @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  usuarioId     String           @db.Char(24) @map("usuario_id")
+  usuario       User             @relation("AsistenciaUsuario", fields: [usuarioId], references: [id], onDelete: Restrict)
+  fecha         DateTime         @default(now())
+  metodo        MetodoAsistencia @default(codigo)
+  registradoPor String?          @db.Char(24) @map("registrado_por")
+  registrador   User?            @relation("AsistenciaRegistradoPor", fields: [registradoPor], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([gymId, fecha(sort: Desc)])
+  @@index([gymId, usuarioId, fecha(sort: Desc)])
+  @@map("asistencias")
+}
+
+model AuditLog {
+  id        String   @id @db.Char(24)
+  gymId     String?  @db.Char(24) @map("gym_id")
+  gym       Gym?     @relation(fields: [gymId], references: [id], onDelete: SetNull)
+  actorId   String?  @db.Char(24) @map("actor_id")
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole String?  @map("actor_role")
+  accion    String
+  recurso   String?
+  recursoId String?  @db.Char(24) @map("recurso_id") // polimórfico — sin FK real, el tipo lo da `recurso`
+  detalle   Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([gymId, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+// ── Sin soft-delete (adrede) ─────────────────────────────────────────
+model Dispositivo {
+  id             String            @id @db.Char(24)
+  gymId          String            @db.Char(24) @map("gym_id")
+  gym            Gym               @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  nombre         String
+  serie          String            @unique // único global, uppercase forzado en la app
+  marca          MarcaDispositivo  @default(zkteco)
+  activo         Boolean           @default(true)
+  ultimaConexion DateTime?         @map("ultima_conexion")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([gymId, createdAt(sort: Desc)])
+  @@map("dispositivos")
+}
+
+model Feedback {
+  id            String   @id @db.Char(24)
+  usuarioId     String   @db.Char(24) @map("usuario_id")
+  usuario       User     @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  nombreUsuario String?  @map("nombre_usuario")
+  gymId         String   @db.Char(24) @map("gym_id")
+  gym           Gym      @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  gymNombre     String?  @map("gym_nombre")
+  mensaje       String
+  leido         Boolean  @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([usuarioId])
+  @@index([gymId, createdAt(sort: Desc)])
+  @@map("feedbacks")
+}
+
+model Medidas {
+  id        String   @id @db.Char(24)
+  gymId     String   @db.Char(24) @map("gym_id")
+  gym       Gym      @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  usuarioId String   @db.Char(24) @map("usuario_id")
+  usuario   User     @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  fecha     DateTime @default(now())
+  peso      Float?
+  cintura   Float?
+  cadera    Float?
+  pecho     Float?
+  brazo     Float?
+  muslo     Float?
+
+  @@index([gymId, usuarioId, fecha])
+  @@map("medidas")
+}
+
+model Progreso {
+  id              String   @id @db.Char(24)
+  gymId           String?  @db.Char(24) @map("gym_id")
+  gym             Gym?     @relation(fields: [gymId], references: [id], onDelete: SetNull)
+  usuarioId       String   @db.Char(24) @map("usuario_id")
+  usuario         User     @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  ejercicioNombre String   @map("ejercicio_nombre")
+  pesoKg          Float?   @map("peso_kg")
+  repeticiones    Int?
+  fecha           DateTime @default(now())
+
+  @@index([gymId, usuarioId, ejercicioNombre])
+  @@index([gymId, usuarioId, fecha])
+  @@map("progresos")
+}
+
+// ── Modelos de contenido con soft-delete ────────────────────────────
+model Noticia {
+  id          String    @id @db.Char(24)
+  gymId       String?   @db.Char(24) @map("gym_id")
+  gym         Gym?      @relation(fields: [gymId], references: [id], onDelete: SetNull)
+  titulo      String
+  descripcion String
+  dia         DiaSemana?
+  horaInicio  String?   @map("hora_inicio") // string libre no validado, heredado de Mongo
+  horaFin     String?   @map("hora_fin")
+  imageUrl    String    @default("") @map("image_url")
+  whatsappUrl String    @default("") @map("whatsapp_url")
+  estado      Boolean   @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([gymId])
+  @@index([deletedAt])
+  @@map("noticias")
+}
+
+model MetodoPago {
+  id          String         @id @db.Char(24)
+  gymId       String         @db.Char(24) @map("gym_id")
+  gym         Gym            @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  titulo      String
+  tipo        TipoMetodoPago @default(digital)
+  imagenUrl   String?        @map("imagen_url")
+  descripcion String?
+  datosClave  String?        @map("datos_clave")
+  activo      Boolean        @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  transacciones Transaccion[]
+
+  @@index([gymId, createdAt(sort: Desc)])
+  @@index([deletedAt])
+  @@map("metodos_pago")
+}
+
+model Plan {
+  id              String    @id @db.Char(24)
+  gymId           String?   @db.Char(24) @map("gym_id")
+  gym             Gym?      @relation(fields: [gymId], references: [id], onDelete: SetNull)
+  nombre          String
+  precio          Decimal   @db.Decimal(10, 2)
+  dias            Int       @default(30)
+  descripcion     String
+  caracteristicas String[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([gymId])
+  @@index([deletedAt])
+  @@map("planes")
+}
+
+// ── Rutina + tabla hija ──────────────────────────────────────────────
+model Rutina {
+  id            String    @id @db.Char(24)
+  gymId         String    @db.Char(24) @map("gym_id")
+  gym           Gym       @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  usuarioId     String    @db.Char(24) @map("usuario_id")
+  usuario       User      @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  nombre        String?
+  dia           DiaSemana
+  enfoque       String
+  fechaCreacion DateTime  @default(now()) @map("fecha_creacion")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  ejercicios RutinaEjercicio[]
+
+  // El único parcial real (gym_id,usuario_id,dia) WHERE deleted_at IS NULL
+  // se crea a mano en la migración SQL — Prisma no expresa uniques parciales.
+  @@index([gymId, usuarioId, dia])
+  @@index([deletedAt])
+  @@map("rutinas")
+}
+
+model RutinaEjercicio {
+  id            String  @id @db.Char(24)
+  rutinaId      String  @db.Char(24) @map("rutina_id")
+  rutina        Rutina  @relation(fields: [rutinaId], references: [id], onDelete: Cascade)
+  nombre        String
+  series        Int     @default(0)
+  repeticiones  String  @default("0") // texto libre, ej. "8-12"
+  instrucciones String?
+  imagenUrl     String? @map("imagen_url")
+  completado    Boolean @default(false)
+  orden         Int // reemplaza la posición del array de Mongo
+
+  @@unique([rutinaId, orden])
+  @@map("rutina_ejercicios")
+}
+
+// ── Transacciones ────────────────────────────────────────────────────
+model Transaccion {
+  id            String      @id @db.Char(24)
+  gymId         String      @db.Char(24) @map("gym_id")
+  gym           Gym         @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  usuarioId     String      @db.Char(24) @map("usuario_id")
+  usuario       User        @relation("TransaccionUsuario", fields: [usuarioId], references: [id], onDelete: Restrict)
+  monto         Decimal     @db.Decimal(10, 2)
+  metodoId      String?     @db.Char(24) @map("metodo_id")
+  metodo        MetodoPago? @relation(fields: [metodoId], references: [id], onDelete: SetNull)
+  concepto      String      @default("Membresía")
+  diasAgregados Int         @default(0) @map("dias_agregados")
+  fecha         DateTime    @default(now())
+  registradoPor String?     @db.Char(24) @map("registrado_por")
+  registrador   User?       @relation("TransaccionRegistradoPor", fields: [registradoPor], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([gymId, createdAt(sort: Desc)])
+  @@index([gymId])
+  @@index([usuarioId])
+  @@index([deletedAt])
+  @@map("transacciones")
+}

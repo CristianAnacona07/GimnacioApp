@@ -1,9 +1,9 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { getPrismaClient } = require('./prisma/client');
 
 require('dotenv').config();
 
@@ -11,8 +11,8 @@ if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET no está definido. Configura las variables de entorno antes de arrancar.');
 }
 
-if (!process.env.MONGO_URI) {
-  throw new Error('MONGO_URI no está definido. Configura las variables de entorno antes de arrancar.');
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL no está definido. Configura las variables de entorno antes de arrancar.');
 }
 
 const app = express();
@@ -57,29 +57,25 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// --- CONEXIÓN A MONGO OPTIMIZADA PARA VERCEL SERVERLESS ---
+// --- CONEXIÓN A POSTGRES OPTIMIZADA PARA VERCEL SERVERLESS (antes MongoDB) ---
 let cachedDb = null;
 let connectingPromise = null;
 
 const connectDB = async () => {
-  if (cachedDb && mongoose.connection.readyState === 1) return cachedDb;
+  if (cachedDb) return cachedDb;
 
   // Lock por promesa: si dos requests llegan durante un cold start, comparten
   // el mismo intento de conexión en vez de abrir varias conexiones en paralelo.
   if (connectingPromise) return connectingPromise;
 
-  connectingPromise = mongoose.connect(process.env.MONGO_URI, {
-    maxPoolSize: 5,
-    minPoolSize: 1,
-    serverSelectionTimeoutMS: 10000,  // 10s para cold start
-    socketTimeoutMS: 45000,
-    connectTimeoutMS: 10000,
-    heartbeatFrequencyMS: 10000,
-    family: 4
-  })
-    .then((conn) => {
-      cachedDb = conn;
-      console.log('✅ Conectado a MongoDB');
+  connectingPromise = (async () => {
+    const prisma = getPrismaClient();
+    await prisma.$queryRaw`SELECT 1`; // fuerza la conexión real, no solo la construcción del cliente
+    return prisma;
+  })()
+    .then((prisma) => {
+      cachedDb = prisma;
+      console.log('✅ Conectado a Postgres');
       return cachedDb;
     })
     .catch((err) => {

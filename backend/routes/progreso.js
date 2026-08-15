@@ -1,8 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const Progreso = require('../models/progreso');
-const User = require('../models/user');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, resolverUsuarioId, esAdmin, filtroPropiedad } = require('../middleware/auth');
+
+const prisma = getPrismaClient();
+
+function conId(p) {
+  if (!p) return p;
+  const { id, ...rest } = p;
+  return { ...rest, _id: id };
+}
 
 // Valida que peso y repeticiones, si vienen, sean números finitos dentro de rango.
 // Devuelve un mensaje de error si algo es inválido, o null si todo es correcto.
@@ -24,12 +31,11 @@ router.post('/', verificarToken, async (req, res) => {
     const usuarioId = resolverUsuarioId(req, req.body.usuarioId);
     // Si el admin indica otro usuario, verificar que pertenezca a su gym.
     if (esAdmin(req) && String(usuarioId) !== String(req.userId)) {
-      const socio = await User.findOne({ _id: usuarioId, gymId: req.gymId }).select('_id').lean();
+      const socio = await prisma.user.findFirst({ where: { id: usuarioId, gymId: req.gymId }, select: { id: true } });
       if (!socio) return res.status(404).json({ error: 'Usuario no encontrado en este gimnasio' });
     }
-    const registro = new Progreso({ gymId: req.gymId, usuarioId, ejercicioNombre, pesoKg, repeticiones });
-    await registro.save();
-    res.status(201).json(registro);
+    const registro = await prisma.progreso.create({ data: { gymId: req.gymId, usuarioId, ejercicioNombre, pesoKg, repeticiones } });
+    res.status(201).json(conId(registro));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -38,14 +44,13 @@ router.post('/', verificarToken, async (req, res) => {
 router.get('/:usuarioId/:ejercicio', verificarToken, async (req, res) => {
   try {
     const usuarioId = resolverUsuarioId(req, req.params.usuarioId);
-    const registros = await Progreso.find({
-      gymId: req.gymId,
-      usuarioId,
-      ejercicioNombre: decodeURIComponent(req.params.ejercicio)
-      // El _id desempata registros con la misma fecha (series guardadas en tanda)
+    const registros = await prisma.progreso.findMany({
+      where: { gymId: req.gymId, usuarioId, ejercicioNombre: decodeURIComponent(req.params.ejercicio) },
+      // El id desempata registros con la misma fecha (series guardadas en tanda)
       // para que el orden sea siempre el de inserción.
-    }).sort({ fecha: 1, _id: 1 }).lean();
-    res.json(registros);
+      orderBy: [{ fecha: 'asc' }, { id: 'asc' }]
+    });
+    res.json(registros.map(conId));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -54,11 +59,12 @@ router.get('/:usuarioId/:ejercicio', verificarToken, async (req, res) => {
 router.get('/:usuarioId', verificarToken, async (req, res) => {
   try {
     const usuarioId = resolverUsuarioId(req, req.params.usuarioId);
-    const ejercicios = await Progreso.distinct('ejercicioNombre', {
-      gymId: req.gymId,
-      usuarioId
+    const filas = await prisma.progreso.findMany({
+      where: { gymId: req.gymId, usuarioId },
+      distinct: ['ejercicioNombre'],
+      select: { ejercicioNombre: true }
     });
-    res.json(ejercicios);
+    res.json(filas.map((f) => f.ejercicioNombre));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -70,13 +76,13 @@ router.put('/:id', verificarToken, async (req, res) => {
     const errorValidacion = validarRegistro({ pesoKg, repeticiones });
     if (errorValidacion) return res.status(400).json({ mensaje: errorValidacion });
     // El socio sólo edita sus propios registros; el admin, los de su gym.
-    const registro = await Progreso.findOneAndUpdate(
-      { _id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) },
-      { pesoKg, repeticiones },
-      { new: true }
-    );
-    if (!registro) return res.status(404).json({ mensaje: 'Registro no encontrado' });
-    res.json(registro);
+    const actual = await prisma.progreso.findFirst({
+      where: { id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) },
+      select: { id: true }
+    });
+    if (!actual) return res.status(404).json({ mensaje: 'Registro no encontrado' });
+    const registro = await prisma.progreso.update({ where: { id: actual.id }, data: { pesoKg, repeticiones } });
+    res.json(conId(registro));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -84,8 +90,12 @@ router.put('/:id', verificarToken, async (req, res) => {
 
 router.delete('/:id', verificarToken, async (req, res) => {
   try {
-    const registro = await Progreso.findOneAndDelete({ _id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) });
-    if (!registro) return res.status(404).json({ mensaje: 'Registro no encontrado' });
+    const actual = await prisma.progreso.findFirst({
+      where: { id: req.params.id, gymId: req.gymId, ...filtroPropiedad(req) },
+      select: { id: true }
+    });
+    if (!actual) return res.status(404).json({ mensaje: 'Registro no encontrado' });
+    await prisma.progreso.delete({ where: { id: actual.id } });
     res.json({ mensaje: 'Registro eliminado' });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });

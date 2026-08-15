@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/user');
-const Rutina = require('../models/rutina');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { toApiUser } = require('../lib/userMapper');
+const { conRutina, ejerciciosParaCrear } = require('../lib/rutinaMapper');
+
+const prisma = getPrismaClient();
 
 // Guard inline: sólo el rol 'entrenador' puede acceder a estas rutas.
 const soloEntrenador = (req, res, next) =>
@@ -12,12 +15,10 @@ const soloEntrenador = (req, res, next) =>
 // Lista los socios asignados a este entrenador dentro de su gym.
 router.get('/mis-socios', verificarToken, soloEntrenador, async (req, res) => {
     try {
-        const socios = await User.find({
-            gymId: req.gymId,
-            role: 'socio',
-            entrenadorId: req.userId
-        }).select('-password').lean();
-        res.json(socios);
+        const socios = await prisma.user.findMany({
+            where: { gymId: req.gymId, role: 'socio', entrenadorId: req.userId }
+        });
+        res.json(socios.map(toApiUser));
     } catch (error) {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
@@ -26,16 +27,13 @@ router.get('/mis-socios', verificarToken, soloEntrenador, async (req, res) => {
 // Perfil de un socio asignado a este entrenador, junto con sus rutinas.
 router.get('/socio/:id', verificarToken, soloEntrenador, async (req, res) => {
     try {
-        const socio = await User.findOne({
-            _id: req.params.id,
-            gymId: req.gymId,
-            role: 'socio',
-            entrenadorId: req.userId
-        }).select('-password').lean();
+        const socio = await prisma.user.findFirst({
+            where: { id: req.params.id, gymId: req.gymId, role: 'socio', entrenadorId: req.userId }
+        });
         if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
-        const rutinas = await Rutina.find({ gymId: req.gymId, usuarioId: socio._id }).lean();
-        res.json({ socio, rutinas });
+        const rutinas = await prisma.rutina.findMany({ where: { gymId: req.gymId, usuarioId: socio.id }, include: { ejercicios: true } });
+        res.json({ socio: toApiUser(socio), rutinas: rutinas.map(conRutina) });
     } catch (error) {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
@@ -47,42 +45,35 @@ router.post('/socio/:id/rutina', verificarToken, soloEntrenador, async (req, res
         const { nombre, dia, ejercicios, enfoque } = req.body;
 
         // El socio debe estar asignado a este entrenador dentro de su gym.
-        const socio = await User.findOne({
-            _id: req.params.id,
-            gymId: req.gymId,
-            role: 'socio',
-            entrenadorId: req.userId
-        }).select('_id').lean();
+        const socio = await prisma.user.findFirst({
+            where: { id: req.params.id, gymId: req.gymId, role: 'socio', entrenadorId: req.userId },
+            select: { id: true }
+        });
         if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
         // Una sola rutina por (gymId, usuarioId, dia): evita duplicados.
-        const rutinaExistente = await Rutina.findOne({ gymId: req.gymId, usuarioId: socio._id, dia });
+        const rutinaExistente = await prisma.rutina.findFirst({ where: { gymId: req.gymId, usuarioId: socio.id, dia }, select: { id: true } });
         if (rutinaExistente) {
             return res.status(400).json({
                 mensaje: `El socio ya tiene una rutina para el día ${dia}. Editá la existente o elegí otro día.`
             });
         }
 
-        const nuevaRutina = new Rutina({
-            gymId: req.gymId,
-            usuarioId: socio._id,
-            nombre,
-            ejercicios,
-            dia,
-            enfoque
+        const nuevaRutina = await prisma.rutina.create({
+            data: { gymId: req.gymId, usuarioId: socio.id, nombre, dia, enfoque, ejercicios: { create: ejerciciosParaCrear(ejercicios) } },
+            include: { ejercicios: true }
         });
-        await nuevaRutina.save();
 
         await registrarAuditoria(req, 'ENTRENADOR_ASIGNA_RUTINA', {
             recurso: 'Rutina',
-            recursoId: nuevaRutina._id,
-            detalle: { socioId: socio._id, dia }
+            recursoId: nuevaRutina.id,
+            detalle: { socioId: socio.id, dia }
         });
 
-        res.status(201).json({ mensaje: 'Rutina asignada con éxito', rutina: nuevaRutina });
+        res.status(201).json({ mensaje: 'Rutina asignada con éxito', rutina: conRutina(nuevaRutina) });
     } catch (error) {
-        // Duplicado por el índice único {gymId,usuarioId,dia} (carrera con el findOne previo)
-        if (error.code === 11000) {
+        // Duplicado por el índice único {gymId,usuarioId,dia} (carrera con el findFirst previo)
+        if (error.code === 'P2002') {
             return res.status(400).json({
                 mensaje: `El socio ya tiene una rutina para el día ${req.body.dia}. Editá la existente o elegí otro día.`
             });
@@ -103,31 +94,28 @@ router.patch('/rutina/:rutinaId/ejercicio/:idx', verificarToken, soloEntrenador,
             return res.status(400).json({ mensaje: 'Índice de ejercicio inválido' });
         }
 
-        const rutinaExistente = await Rutina.findOne({ _id: rutinaId, gymId: req.gymId });
+        const rutinaExistente = await prisma.rutina.findFirst({ where: { id: rutinaId, gymId: req.gymId }, include: { ejercicios: true } });
         if (!rutinaExistente) return res.status(404).json({ mensaje: 'No existe esa rutina' });
 
         // El socio dueño de la rutina debe estar asignado a este entrenador.
-        const socio = await User.findOne({
-            _id: rutinaExistente.usuarioId,
-            gymId: req.gymId,
-            role: 'socio',
-            entrenadorId: req.userId
-        }).select('_id').lean();
+        const socio = await prisma.user.findFirst({
+            where: { id: rutinaExistente.usuarioId, gymId: req.gymId, role: 'socio', entrenadorId: req.userId },
+            select: { id: true }
+        });
         if (!socio) return res.status(404).json({ mensaje: 'No existe esa rutina' });
 
-        // Validar el rango: evita crear índices sparse en el array de ejercicios.
+        // Validar el rango: evita apuntar a un `orden` que no existe.
         if (idx >= rutinaExistente.ejercicios.length) {
             return res.status(400).json({ mensaje: 'Índice fuera de rango' });
         }
 
-        const rutina = await Rutina.findOneAndUpdate(
-            { _id: rutinaId, gymId: req.gymId },
-            { $set: { [`ejercicios.${idx}.completado`]: !!completado } },
-            { new: true }
-        ).lean();
+        await prisma.rutinaEjercicio.updateMany({
+            where: { rutinaId: rutinaExistente.id, orden: idx },
+            data: { completado: !!completado }
+        });
 
-        if (!rutina) return res.status(404).json({ mensaje: 'No existe esa rutina' });
-        res.json(rutina);
+        const rutina = await prisma.rutina.findUnique({ where: { id: rutinaExistente.id }, include: { ejercicios: true } });
+        res.json(conRutina(rutina));
     } catch (error) {
         res.status(500).json({ error: 'Error interno del servidor' });
     }

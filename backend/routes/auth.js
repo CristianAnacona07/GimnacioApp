@@ -4,11 +4,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
-const mongoose = require('mongoose');
-const User = require('../models/user');
-const Gym = require('../models/gym');
+const { getPrismaClient } = require('../prisma/client');
+const { esIdValido } = require('../lib/ids');
+const { toApiUser, fromApiDatosPersonales } = require('../lib/userMapper');
 const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+
+const prisma = getPrismaClient();
 
 const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
@@ -60,9 +62,9 @@ const verifyEmailTemplate = (nombre, verifyUrl) => `
 async function enviarVerificacion(usuario) {
     if (!emailConfigurado()) return;
     const token = crypto.randomBytes(32).toString('hex');
-    usuario.verifyToken = hashToken(token);
-    usuario.verifyTokenExpiry = new Date(Date.now() + 24 * 3600000); // 24 horas
-    await usuario.save();
+    const verifyToken = hashToken(token);
+    const verifyTokenExpiry = new Date(Date.now() + 24 * 3600000); // 24 horas
+    await prisma.user.update({ where: { id: usuario.id }, data: { verifyToken, verifyTokenExpiry } });
     const verifyUrl = `${process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app'}/verify-email?token=${token}`;
     try {
         await transporter.sendMail({
@@ -90,15 +92,15 @@ router.post('/forgot-password', async (req, res) => {
         // Respuesta genérica siempre (evita enumeración de usuarios).
         const respuestaGenerica = { mensaje: 'Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña.' };
 
-        const usuario = await User.findOne({ email: email.toLowerCase().trim() });
+        const usuario = await prisma.user.findFirst({ where: { email: email.toLowerCase().trim() } });
         if (!usuario) {
             return res.json(respuestaGenerica);
         }
 
         const token = crypto.randomBytes(32).toString('hex');
-        usuario.resetToken = hashToken(token); // se guarda hasheado
-        usuario.resetTokenExpiry = new Date(Date.now() + 1800000); // 30 minutos
-        await usuario.save();
+        const resetToken = hashToken(token); // se guarda hasheado
+        const resetTokenExpiry = new Date(Date.now() + 1800000); // 30 minutos
+        await prisma.user.update({ where: { id: usuario.id }, data: { resetToken, resetTokenExpiry } });
 
         const resetUrl = `${process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app'}/reset-password?token=${token}`;
 
@@ -127,9 +129,8 @@ router.post('/reset-password', async (req, res) => {
             return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
         }
 
-        const usuario = await User.findOne({
-            resetToken: hashToken(token),
-            resetTokenExpiry: { $gt: Date.now() }
+        const usuario = await prisma.user.findFirst({
+            where: { resetToken: hashToken(token), resetTokenExpiry: { gt: new Date() } }
         });
 
         if (!usuario) {
@@ -137,13 +138,13 @@ router.post('/reset-password', async (req, res) => {
         }
 
         const salt = await bcrypt.genSalt(10);
-        usuario.password = await bcrypt.hash(nuevaPassword, salt);
-        usuario.resetToken = null;
-        usuario.resetTokenExpiry = null;
-        // Completar el enlace demuestra el control del buzón: sirve como
-        // verificación del correo (es el único paso que da un admin invitado).
-        usuario.emailVerified = true;
-        await usuario.save();
+        const password = await bcrypt.hash(nuevaPassword, salt);
+        await prisma.user.update({
+            where: { id: usuario.id },
+            // Completar el enlace demuestra el control del buzón: sirve como
+            // verificación del correo (es el único paso que da un admin invitado).
+            data: { password, resetToken: null, resetTokenExpiry: null, emailVerified: true }
+        });
 
         res.json({ mensaje: 'Contraseña actualizada correctamente' });
     } catch (error) {
@@ -207,52 +208,51 @@ router.post('/google', async (req, res) => {
         const emailNorm = email.toLowerCase().trim();
 
         // El superadmin no pertenece a ningún gimnasio (mismo criterio que /login).
-        let usuario = await User.findOne({ email: emailNorm, role: 'superadmin' });
+        let usuario = await prisma.user.findFirst({ where: { email: emailNorm, role: 'superadmin' } });
 
         if (!usuario) {
             // Multi-gym: la cuenta vive DENTRO del gimnasio elegido en el selector.
             // Sin gymId el usuario quedaría huérfano y su JWT saldría con gymId null,
             // dejando vacía toda consulta con alcance de gimnasio.
-            if (!gymId || !mongoose.Types.ObjectId.isValid(gymId)) {
+            if (!gymId || !esIdValido(gymId)) {
                 return res.status(400).json({ mensaje: 'Debes seleccionar un gimnasio válido' });
             }
-            const gymValido = await Gym.findOne({ _id: gymId, activo: true }).select('_id').lean();
+            const gymValido = await prisma.gym.findFirst({ where: { id: gymId, activo: true }, select: { id: true } });
             if (!gymValido) {
                 return res.status(400).json({ mensaje: 'El gimnasio no existe o no está activo' });
             }
 
             // El índice único es {email, gymId}: el mismo correo puede ser socio de
             // varios gimnasios, así que la búsqueda va acotada al gym elegido.
-            usuario = await User.findOne({ email: emailNorm, gymId });
+            usuario = await prisma.user.findFirst({ where: { email: emailNorm, gymId } });
 
             // Cuentas heredadas que Google creó sin gimnasio: se adoptan en el gym
             // elegido en vez de duplicarlas (el índice compuesto lo permitiría).
             if (!usuario) {
-                const huerfano = await User.findOne({ email: emailNorm, gymId: null });
+                const huerfano = await prisma.user.findFirst({ where: { email: emailNorm, gymId: null } });
                 if (huerfano) {
-                    huerfano.gymId = gymId;
-                    await huerfano.save();
-                    usuario = huerfano;
+                    usuario = await prisma.user.update({ where: { id: huerfano.id }, data: { gymId } });
                 }
             }
 
             if (!usuario) {
                 const salt = await bcrypt.genSalt(10);
-                usuario = new User({
-                    gymId,
-                    nombre: name,
-                    email: emailNorm,
-                    password: await bcrypt.hash(sub + Date.now(), salt),
-                    role: 'socio',
-                    fotoUrl: picture || '',
-                    emailVerified: true   // el correo ya viene verificado por Google
+                usuario = await prisma.user.create({
+                    data: {
+                        gymId,
+                        nombre: name,
+                        email: emailNorm,
+                        password: await bcrypt.hash(sub + Date.now(), salt),
+                        role: 'socio',
+                        fotoUrl: picture || '',
+                        emailVerified: true   // el correo ya viene verificado por Google
+                    }
                 });
-                await usuario.save();
             }
         }
 
         const token = jwt.sign(
-            { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
+            { id: usuario.id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRY }
         );
@@ -260,7 +260,7 @@ router.post('/google', async (req, res) => {
         res.json({
             mensaje: 'Login con Google exitoso',
             token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
+            usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
         });
     } catch (error) {
         console.error('Error Google auth:', error.message);
@@ -273,19 +273,22 @@ router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
     try {
         // Paginación retro-compatible: sin ?page se devuelve el array completo
         // (como siempre); con ?page se devuelve { data, total, page, limit, pages }.
-        const filtroBase = { gymId: req.gymId };
+        const where = { gymId: req.gymId };
         if (req.query.buscar) {
-            const rx = new RegExp(String(req.query.buscar).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-            filtroBase.$or = [{ nombre: rx }, { email: rx }];
+            const termino = String(req.query.buscar).trim();
+            where.OR = [
+                { nombre: { contains: termino, mode: 'insensitive' } },
+                { email: { contains: termino, mode: 'insensitive' } }
+            ];
         }
 
         const paginar = req.query.page !== undefined;
         const page = Math.max(1, parseInt(req.query.page, 10) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
 
-        let consulta = User.find(filtroBase).select('-password').sort({ createdAt: -1 });
-        if (paginar) consulta = consulta.skip((page - 1) * limit).limit(limit);
-        const usuarios = await consulta.lean();
+        const args = { where, orderBy: { createdAt: 'desc' } };
+        if (paginar) { args.skip = (page - 1) * limit; args.take = limit; }
+        const usuarios = await prisma.user.findMany(args);
 
         const usuariosConDatos = usuarios.map(usuario => {
             let diasRestantes = 0;
@@ -296,14 +299,14 @@ router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
                 if (diasRestantes < 0) diasRestantes = 0;
             }
             return {
-                ...usuario,
+                ...toApiUser(usuario),
                 diasRestantes,
                 estadoMembresia: diasRestantes > 0 ? 'activo' : 'vencido'
             };
         });
 
         if (paginar) {
-            const total = await User.countDocuments(filtroBase);
+            const total = await prisma.user.count({ where });
             return res.json({ data: usuariosConDatos, total, page, limit, pages: Math.ceil(total / limit) });
         }
         res.json(usuariosConDatos);
@@ -323,7 +326,7 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
             ? email.toLowerCase().trim()
             : `socio_${Date.now()}${Math.floor(Math.random() * 1000)}@sin-correo.local`;
 
-        const existe = await User.findOne({ email: emailNorm, gymId: req.gymId }).lean();
+        const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
         if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
         // Contraseña: la dada (mín 8) o una temporal aleatoria si no la ponen.
@@ -332,21 +335,22 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
             : crypto.randomBytes(6).toString('hex');
         const salt = await bcrypt.genSalt(10);
 
-        const socio = new User({
-            gymId: req.gymId,
-            nombre,
-            email: emailNorm,
-            password: await bcrypt.hash(passPlano, salt),
-            role: 'socio',
-            emailVerified: true,
-            datosPersonales: { telefono: telefono || '' }
+        const socio = await prisma.user.create({
+            data: {
+                gymId: req.gymId,
+                nombre,
+                email: emailNorm,
+                password: await bcrypt.hash(passPlano, salt),
+                role: 'socio',
+                emailVerified: true,
+                telefono: telefono || ''
+            }
         });
-        await socio.save();
-        await registrarAuditoria(req, 'CREAR_SOCIO', { recurso: 'User', recursoId: socio._id });
+        await registrarAuditoria(req, 'CREAR_SOCIO', { recurso: 'User', recursoId: socio.id });
 
         res.status(201).json({
             mensaje: 'Socio creado',
-            socio: { _id: socio._id, nombre: socio.nombre, email: socio.email },
+            socio: { _id: socio.id, nombre: socio.nombre, email: socio.email },
             passwordTemporal: (typeof password === 'string' && password.length >= 8) ? null : passPlano
         });
     } catch (error) {
@@ -365,22 +369,23 @@ router.post('/crear-entrenador', verificarToken, soloAdmin, async (req, res) => 
             return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
         }
         const emailNorm = email.toLowerCase().trim();
-        const existe = await User.findOne({ email: emailNorm, gymId: req.gymId }).lean();
+        const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
         if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
         const salt = await bcrypt.genSalt(10);
-        const entrenador = new User({
-            gymId: req.gymId,
-            nombre,
-            email: emailNorm,
-            password: await bcrypt.hash(password, salt),
-            role: 'entrenador',
-            emailVerified: true
+        const entrenador = await prisma.user.create({
+            data: {
+                gymId: req.gymId,
+                nombre,
+                email: emailNorm,
+                password: await bcrypt.hash(password, salt),
+                role: 'entrenador',
+                emailVerified: true
+            }
         });
-        await entrenador.save();
-        await registrarAuditoria(req, 'CREAR_ENTRENADOR', { recurso: 'User', recursoId: entrenador._id });
+        await registrarAuditoria(req, 'CREAR_ENTRENADOR', { recurso: 'User', recursoId: entrenador.id });
 
-        res.status(201).json({ mensaje: 'Entrenador creado', entrenador: { _id: entrenador._id, nombre: entrenador.nombre, email: entrenador.email } });
+        res.status(201).json({ mensaje: 'Entrenador creado', entrenador: { _id: entrenador.id, nombre: entrenador.nombre, email: entrenador.email } });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al crear entrenador' });
     }
@@ -405,25 +410,26 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
             return res.status(400).json({ mensaje: 'Cargo inválido' });
         }
         const emailNorm = email.toLowerCase().trim();
-        const existe = await User.findOne({ email: emailNorm, gymId: req.gymId }).lean();
+        const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
         if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
         const salt = await bcrypt.genSalt(10);
-        const empleado = new User({
-            gymId: req.gymId,
-            nombre,
-            email: emailNorm,
-            password: await bcrypt.hash(password, salt),
-            role: cargo === 'entrenador' ? 'entrenador' : 'empleado',
-            cargo: cargo === 'entrenador' ? null : cargo,
-            emailVerified: true
+        const empleado = await prisma.user.create({
+            data: {
+                gymId: req.gymId,
+                nombre,
+                email: emailNorm,
+                password: await bcrypt.hash(password, salt),
+                role: cargo === 'entrenador' ? 'entrenador' : 'empleado',
+                cargo: cargo === 'entrenador' ? null : cargo,
+                emailVerified: true
+            }
         });
-        await empleado.save();
-        await registrarAuditoria(req, 'CREAR_EMPLEADO', { recurso: 'User', recursoId: empleado._id, detalle: { cargo } });
+        await registrarAuditoria(req, 'CREAR_EMPLEADO', { recurso: 'User', recursoId: empleado.id, detalle: { cargo } });
 
         res.status(201).json({
             mensaje: 'Empleado creado',
-            empleado: { _id: empleado._id, nombre: empleado.nombre, email: empleado.email, role: empleado.role, cargo: empleado.cargo }
+            empleado: { _id: empleado.id, nombre: empleado.nombre, email: empleado.email, role: empleado.role, cargo: empleado.cargo }
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al crear empleado' });
@@ -433,11 +439,12 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
 // ✅ LISTAR EMPLEADOS (SOLO ADMINS) — entrenadores y empleados del gym
 router.get('/empleados', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const empleados = await User.find({ gymId: req.gymId, role: { $in: ['entrenador', 'empleado'] } })
-            .select('nombre email role cargo fotoUrl createdAt')
-            .sort({ createdAt: -1 })
-            .lean();
-        res.json(empleados);
+        const empleados = await prisma.user.findMany({
+            where: { gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
+            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, createdAt: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(empleados.map(({ id, ...e }) => ({ ...e, _id: id })));
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al obtener empleados' });
     }
@@ -447,11 +454,11 @@ router.get('/empleados', verificarToken, soloAdmin, async (req, res) => {
 router.delete('/empleados/:id', verificarToken, soloAdmin, async (req, res) => {
     try {
         // El filtro por rol evita que por esta ruta se borre a un socio o a otro admin.
-        const filtro = { _id: req.params.id, gymId: req.gymId, role: { $in: ['entrenador', 'empleado'] } };
-        const empleado = await User.findOne(filtro).select('_id').lean();
+        const filtro = { id: req.params.id, gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } };
+        const empleado = await prisma.user.findFirst({ where: filtro, select: { id: true } });
         if (!empleado) return res.status(404).json({ mensaje: 'Empleado no encontrado' });
 
-        await User.softDelete(filtro);
+        await prisma.user.softDelete(filtro);
         await registrarAuditoria(req, 'ELIMINAR_EMPLEADO', { recurso: 'User', recursoId: req.params.id });
         res.json({ mensaje: 'Empleado eliminado' });
     } catch (error) {
@@ -464,18 +471,16 @@ router.put('/asignar-entrenador/:socioId', verificarToken, soloAdmin, async (req
     try {
         const { entrenadorId } = req.body; // null para desasignar
         if (entrenadorId) {
-            const entrenador = await User.findOne({ _id: entrenadorId, gymId: req.gymId, role: 'entrenador' }).select('_id').lean();
+            const entrenador = await prisma.user.findFirst({ where: { id: entrenadorId, gymId: req.gymId, role: 'entrenador' }, select: { id: true } });
             if (!entrenador) return res.status(404).json({ mensaje: 'Entrenador no encontrado en este gimnasio' });
         }
-        const socio = await User.findOneAndUpdate(
-            { _id: req.params.socioId, gymId: req.gymId, role: 'socio' },
-            { entrenadorId: entrenadorId || null },
-            { new: true }
-        ).select('-password');
-        if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
-        await registrarAuditoria(req, 'ASIGNAR_ENTRENADOR', { recurso: 'User', recursoId: socio._id, detalle: { entrenadorId: entrenadorId || null } });
+        const socioActual = await prisma.user.findFirst({ where: { id: req.params.socioId, gymId: req.gymId, role: 'socio' }, select: { id: true } });
+        if (!socioActual) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
-        res.json({ mensaje: 'Entrenador asignado', socio });
+        const socio = await prisma.user.update({ where: { id: socioActual.id }, data: { entrenadorId: entrenadorId || null } });
+        await registrarAuditoria(req, 'ASIGNAR_ENTRENADOR', { recurso: 'User', recursoId: socio.id, detalle: { entrenadorId: entrenadorId || null } });
+
+        res.json({ mensaje: 'Entrenador asignado', socio: toApiUser(socio) });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al asignar entrenador' });
     }
@@ -488,23 +493,22 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
         if (!Number.isInteger(dias) || dias <= 0) {
             return res.status(400).json({ mensaje: 'dias debe ser un entero positivo' });
         }
-        const usuario = await User.findOne({ _id: req.params.id, gymId: req.gymId });
-        if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        const usuarioActual = await prisma.user.findFirst({ where: { id: req.params.id, gymId: req.gymId } });
+        if (!usuarioActual) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
         const hoy = new Date();
-        const fechaBase = usuario.fechaVencimiento && new Date(usuario.fechaVencimiento) > hoy
-            ? new Date(usuario.fechaVencimiento)
+        const fechaBase = usuarioActual.fechaVencimiento && new Date(usuarioActual.fechaVencimiento) > hoy
+            ? new Date(usuarioActual.fechaVencimiento)
             : hoy;
-
         fechaBase.setDate(fechaBase.getDate() + dias);
-        usuario.fechaVencimiento = fechaBase;
-        await usuario.save();
-        await registrarAuditoria(req, 'RENOVAR_MEMBRESIA', { recurso: 'User', recursoId: usuario._id, detalle: { dias } });
+
+        const usuario = await prisma.user.update({ where: { id: usuarioActual.id }, data: { fechaVencimiento: fechaBase } });
+        await registrarAuditoria(req, 'RENOVAR_MEMBRESIA', { recurso: 'User', recursoId: usuario.id, detalle: { dias } });
 
         res.json({
             mensaje: 'Membresía renovada exitosamente',
             usuario: {
-                _id: usuario._id,
+                _id: usuario.id,
                 nombre: usuario.nombre,
                 email: usuario.email,
                 role: usuario.role,
@@ -519,11 +523,10 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
 // ✅ LIMPIAR MEMBRESÍA (SOLO ADMINS)
 router.put('/limpiar-membresia/:id', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const usuario = await User.findOne({ _id: req.params.id, gymId: req.gymId });
-        if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        const usuarioActual = await prisma.user.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
+        if (!usuarioActual) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
-        usuario.fechaVencimiento = undefined;
-        await usuario.save();
+        await prisma.user.update({ where: { id: usuarioActual.id }, data: { fechaVencimiento: null } });
 
         res.json({ mensaje: 'Membresía limpiada exitosamente' });
     } catch (error) {
@@ -550,7 +553,7 @@ router.put('/cambiar-password', verificarToken, async (req, res) => {
             return res.status(400).json({ mensaje: 'La nueva contraseña debe ser distinta de la actual' });
         }
 
-        const usuario = await User.findById(req.userId).select('+password');
+        const usuario = await prisma.user.findUnique({ where: { id: req.userId }, omit: { password: false } });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
         // Las cuentas creadas por Google no tienen contraseña utilizable.
@@ -560,10 +563,10 @@ router.put('/cambiar-password', verificarToken, async (req, res) => {
         }
 
         const salt = await bcrypt.genSalt(10);
-        usuario.password = await bcrypt.hash(nueva, salt);
-        await usuario.save();
+        const nuevoHash = await bcrypt.hash(nueva, salt);
+        await prisma.user.update({ where: { id: usuario.id }, data: { password: nuevoHash } });
 
-        await registrarAuditoria(req, 'CAMBIAR_PASSWORD', { recurso: 'User', recursoId: usuario._id });
+        await registrarAuditoria(req, 'CAMBIAR_PASSWORD', { recurso: 'User', recursoId: usuario.id });
 
         res.json({ mensaje: 'Contraseña actualizada correctamente' });
     } catch (error) {
@@ -581,23 +584,20 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
 
         // Lista BLANCA: solo estos campos pueden actualizarse por esta vía
         // (evita tocar password, email, role, gymId, resetToken, stats, etc.).
-        const permitidos = ['nombre', 'fotoUrl', 'mensajeMotivador', 'datosPersonales'];
         const datosActualizados = {};
-        for (const campo of permitidos) {
-            if (req.body[campo] !== undefined) datosActualizados[campo] = req.body[campo];
-        }
+        if (req.body.nombre !== undefined) datosActualizados.nombre = req.body.nombre;
+        if (req.body.fotoUrl !== undefined) datosActualizados.fotoUrl = req.body.fotoUrl;
+        if (req.body.mensajeMotivador !== undefined) datosActualizados.mensajeMotivador = req.body.mensajeMotivador;
+        Object.assign(datosActualizados, fromApiDatosPersonales(req.body.datosPersonales));
 
         // El admin sólo puede tocar usuarios de su propio gym; el socio, sólo el suyo.
-        const filtro = esAdmin(req) ? { _id: id, gymId: req.gymId } : { _id: id };
-        const usuario = await User.findOneAndUpdate(
-            filtro,
-            datosActualizados,
-            { new: true, runValidators: true }
-        ).select('-password');
+        const filtro = esAdmin(req) ? { id, gymId: req.gymId } : { id };
+        const usuarioActual = await prisma.user.findFirst({ where: filtro, select: { id: true } });
+        if (!usuarioActual) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
-        if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        const usuario = await prisma.user.update({ where: { id: usuarioActual.id }, data: datosActualizados });
 
-        res.json({ mensaje: 'Perfil actualizado exitosamente', usuario });
+        res.json({ mensaje: 'Perfil actualizado exitosamente', usuario: toApiUser(usuario) });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al actualizar perfil' });
     }
@@ -614,15 +614,15 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
         }
         // El registro público exige un gimnasio válido y activo (evita socios huérfanos).
-        if (!gymId || !mongoose.Types.ObjectId.isValid(gymId)) {
+        if (!gymId || !esIdValido(gymId)) {
             return res.status(400).json({ mensaje: 'Debes seleccionar un gimnasio válido' });
         }
-        const gymValido = await Gym.findOne({ _id: gymId, activo: true }).select('_id').lean();
+        const gymValido = await prisma.gym.findFirst({ where: { id: gymId, activo: true }, select: { id: true } });
         if (!gymValido) {
             return res.status(400).json({ mensaje: 'El gimnasio no existe o no está activo' });
         }
         const emailNorm = email.toLowerCase().trim();
-        const usuarioExiste = await User.findOne({ email: emailNorm, gymId: gymId || null }).lean();
+        const usuarioExiste = await prisma.user.findFirst({ where: { email: emailNorm, gymId: gymId || null }, select: { id: true } });
         if (usuarioExiste) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
         const salt = await bcrypt.genSalt(10);
@@ -630,15 +630,10 @@ router.post('/register', async (req, res) => {
 
         // El registro público SIEMPRE crea socios. Crear admins/entrenadores
         // debe hacerse por una ruta protegida (soloAdmin), nunca desde el body.
-        const nuevoUsuario = new User({
-            gymId: gymId || null,
-            nombre,
-            email: emailNorm,
-            password: passwordHasheada,
-            role: 'socio'
+        const nuevoUsuario = await prisma.user.create({
+            data: { gymId: gymId || null, nombre, email: emailNorm, password: passwordHasheada, role: 'socio' }
         });
 
-        await nuevoUsuario.save();
         // Enviar correo de verificación (no bloquea el registro si falla el email).
         await enviarVerificacion(nuevoUsuario);
         res.status(201).json({ mensaje: 'Usuario creado con éxito. Revisa tu correo para verificar la cuenta.' });
@@ -653,17 +648,17 @@ router.post('/verify-email', async (req, res) => {
         const { token } = req.body;
         if (!token) return res.status(400).json({ mensaje: 'Token requerido' });
 
-        const usuario = await User.findOne({
-            verifyToken: hashToken(token),
-            verifyTokenExpiry: { $gt: Date.now() }
-        }).select('+verifyToken +verifyTokenExpiry');
+        const usuario = await prisma.user.findFirst({
+            where: { verifyToken: hashToken(token), verifyTokenExpiry: { gt: new Date() } },
+            omit: { password: false }
+        });
 
         if (!usuario) return res.status(400).json({ mensaje: 'El enlace es inválido o ya expiró' });
 
-        usuario.emailVerified = true;
-        usuario.verifyToken = null;
-        usuario.verifyTokenExpiry = null;
-        await usuario.save();
+        await prisma.user.update({
+            where: { id: usuario.id },
+            data: { emailVerified: true, verifyToken: null, verifyTokenExpiry: null }
+        });
 
         res.json({ mensaje: 'Correo verificado correctamente' });
     } catch (error) {
@@ -674,7 +669,7 @@ router.post('/verify-email', async (req, res) => {
 // ✅ REENVIAR VERIFICACIÓN (usuario autenticado)
 router.post('/resend-verification', verificarToken, async (req, res) => {
     try {
-        const usuario = await User.findById(req.userId);
+        const usuario = await prisma.user.findUnique({ where: { id: req.userId } });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
         if (usuario.emailVerified) return res.json({ mensaje: 'La cuenta ya está verificada' });
 
@@ -691,9 +686,9 @@ router.post('/login', async (req, res) => {
         const { email, password, gymId } = req.body;
         // Superadmin no pertenece a ningún gym
         const emailNorm = (email || '').toLowerCase().trim();
-        const esSuperAdmin = await User.findOne({ email: emailNorm, role: 'superadmin' }).lean();
-        const query = esSuperAdmin ? { email: emailNorm } : { email: emailNorm, gymId: gymId || null };
-        const usuario = await User.findOne(query).select('+password').lean();
+        const esSuperAdmin = await prisma.user.findFirst({ where: { email: emailNorm, role: 'superadmin' }, select: { id: true } });
+        const where = esSuperAdmin ? { email: emailNorm } : { email: emailNorm, gymId: gymId || null };
+        const usuario = await prisma.user.findFirst({ where, omit: { password: false } });
         // Mensaje genérico idéntico para "usuario inexistente" y "contraseña incorrecta"
         // (evita enumeración de correos registrados por gimnasio).
         if (!usuario) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
@@ -702,7 +697,7 @@ router.post('/login', async (req, res) => {
         if (!esValida) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
 
         const token = jwt.sign(
-            { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
+            { id: usuario.id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRY }
         );
@@ -710,7 +705,7 @@ router.post('/login', async (req, res) => {
         res.json({
             mensaje: 'Login exitoso',
             token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
+            usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error en el login' });
@@ -724,20 +719,11 @@ router.get('/perfil/:id', verificarToken, async (req, res) => {
         if (!esAdmin(req) && req.userId !== req.params.id) {
             return res.status(403).json({ mensaje: 'No autorizado para ver este perfil' });
         }
-        const filtro = esAdmin(req)
-            ? { _id: req.params.id, gymId: req.gymId }
-            : { _id: req.params.id };
-        const usuario = await User.findOne(filtro).lean();
+        const where = esAdmin(req)
+            ? { id: req.params.id, gymId: req.gymId }
+            : { id: req.params.id };
+        const usuario = await prisma.user.findFirst({ where });
         if (!usuario) return res.status(404).json({ mensaje: 'Socio no encontrado' });
-
-        const datosPersonales = usuario.datosPersonales || {
-            identificacion: '',
-            fechaNacimiento: '',
-            sexo: '',
-            pesoActual: 0,
-            altura: 0,
-            telefono: ''
-        };
 
         let diasRestantes = 0;
         if (usuario.fechaVencimiento) {
@@ -748,15 +734,22 @@ router.get('/perfil/:id', verificarToken, async (req, res) => {
         }
 
         res.json({
-            _id: usuario._id,
+            _id: usuario.id,
             nombre: usuario.nombre,
             fotoUrl: usuario.fotoUrl || '',
             email: usuario.email,
             mensajeMotivador: usuario.mensajeMotivador || 'HAZ QUE SUCEDA',
-            datosPersonales,
+            datosPersonales: {
+                identificacion: usuario.identificacion,
+                fechaNacimiento: usuario.fechaNacimiento,
+                sexo: usuario.sexo,
+                pesoActual: usuario.pesoActual,
+                altura: usuario.altura,
+                telefono: usuario.telefono
+            },
             cards: {
                 vencimiento: diasRestantes,
-                asistencias: usuario.stats?.asistenciasMes || 0
+                asistencias: usuario.asistenciasMes || 0
             },
             rol: usuario.role
         });
@@ -768,14 +761,14 @@ router.get('/perfil/:id', verificarToken, async (req, res) => {
 // ✅ RENOVAR TOKEN (REFRESH)
 router.post('/refresh-token', verificarToken, async (req, res) => {
     try {
-        const usuario = await User.findById(req.userId).lean();
+        const usuario = await prisma.user.findUnique({ where: { id: req.userId } });
         if (!usuario) {
             return res.status(404).json({ mensaje: 'Usuario no encontrado' });
         }
 
         // Generar nuevo token (misma expiración que el login: 8 horas)
         const nuevoToken = jwt.sign(
-            { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
+            { id: usuario.id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRY }
         );
@@ -784,7 +777,7 @@ router.post('/refresh-token', verificarToken, async (req, res) => {
             mensaje: 'Token renovado exitosamente',
             token: nuevoToken,
             usuario: {
-                _id: usuario._id,
+                _id: usuario.id,
                 nombre: usuario.nombre,
                 email: usuario.email,
                 role: usuario.role,

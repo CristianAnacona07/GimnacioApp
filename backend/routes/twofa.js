@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const User = require('../models/user');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+
+const prisma = getPrismaClient();
 
 /*
  * Doble factor de autenticación (2FA) mediante TOTP.
@@ -110,15 +112,15 @@ function hashBackup(codePlano) {
 // Genera y guarda un secreto (enabled sigue en false hasta confirmar).
 router.post('/setup', verificarToken, async (req, res) => {
     try {
-        const usuario = await User.findById(req.userId).select('email').lean();
+        const usuario = await prisma.user.findUnique({ where: { id: req.userId }, select: { email: true } });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
         const secret = base32Encode(crypto.randomBytes(20));
 
-        await User.updateOne(
-            { _id: req.userId },
-            { $set: { 'twoFactor.secret': secret, 'twoFactor.enabled': false } }
-        );
+        await prisma.user.update({
+            where: { id: req.userId },
+            data: { twoFactorSecret: secret, twoFactorEnabled: false }
+        });
 
         const email = usuario.email || '';
         const otpauth =
@@ -136,13 +138,13 @@ router.post('/enable', verificarToken, async (req, res) => {
     try {
         const { code } = req.body;
 
-        const usuario = await User.findById(req.userId).select('+twoFactor.secret');
+        const usuario = await prisma.user.findUnique({ where: { id: req.userId }, omit: { twoFactorSecret: false } });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-        if (!usuario.twoFactor || !usuario.twoFactor.secret) {
+        if (!usuario.twoFactorSecret) {
             return res.status(400).json({ mensaje: 'Debes iniciar la configuración primero' });
         }
 
-        const secretBuf = base32Decode(usuario.twoFactor.secret);
+        const secretBuf = base32Decode(usuario.twoFactorSecret);
         if (!verify(secretBuf, code)) {
             return res.status(401).json({ mensaje: 'Código inválido' });
         }
@@ -156,9 +158,10 @@ router.post('/enable', verificarToken, async (req, res) => {
             backupHashes.push(hashBackup(plano));
         }
 
-        usuario.twoFactor.enabled = true;
-        usuario.twoFactor.backupCodes = backupHashes;
-        await usuario.save();
+        await prisma.user.update({
+            where: { id: req.userId },
+            data: { twoFactorEnabled: true, twoFactorBackupCodes: backupHashes }
+        });
 
         await registrarAuditoria(req, 'ACTIVAR_2FA', {
             recurso: 'User',
@@ -177,21 +180,21 @@ router.post('/disable', verificarToken, async (req, res) => {
     try {
         const { code } = req.body;
 
-        const usuario = await User.findById(req.userId).select('+twoFactor.secret');
+        const usuario = await prisma.user.findUnique({ where: { id: req.userId }, omit: { twoFactorSecret: false } });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-        if (!usuario.twoFactor || !usuario.twoFactor.enabled || !usuario.twoFactor.secret) {
+        if (!usuario.twoFactorEnabled || !usuario.twoFactorSecret) {
             return res.status(400).json({ mensaje: 'El 2FA no está activo' });
         }
 
-        const secretBuf = base32Decode(usuario.twoFactor.secret);
+        const secretBuf = base32Decode(usuario.twoFactorSecret);
         if (!verify(secretBuf, code)) {
             return res.status(401).json({ mensaje: 'Código inválido' });
         }
 
-        usuario.twoFactor.enabled = false;
-        usuario.twoFactor.secret = null;
-        usuario.twoFactor.backupCodes = [];
-        await usuario.save();
+        await prisma.user.update({
+            where: { id: req.userId },
+            data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorBackupCodes: [] }
+        });
 
         await registrarAuditoria(req, 'DESACTIVAR_2FA', {
             recurso: 'User',
@@ -215,26 +218,28 @@ router.post('/verify', async (req, res) => {
             return res.status(400).json({ mensaje: 'Faltan datos' });
         }
 
-        const usuario = await User.findById(userId).select('+twoFactor.secret +twoFactor.backupCodes');
+        const usuario = await prisma.user.findUnique({
+            where: { id: userId },
+            omit: { twoFactorSecret: false, twoFactorBackupCodes: false }
+        });
         if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-        if (!usuario.twoFactor || !usuario.twoFactor.enabled) {
+        if (!usuario.twoFactorEnabled) {
             return res.status(400).json({ mensaje: 'El 2FA no está activo para este usuario' });
         }
 
         // 1) Intento como código TOTP.
-        const secretBuf = base32Decode(usuario.twoFactor.secret || '');
+        const secretBuf = base32Decode(usuario.twoFactorSecret || '');
         if (verify(secretBuf, code)) {
             return res.json({ ok: true });
         }
 
         // 2) Intento como código de respaldo (de un solo uso).
         const hash = hashBackup(String(code || '').trim());
-        const codigos = usuario.twoFactor.backupCodes || [];
+        const codigos = usuario.twoFactorBackupCodes || [];
         const idx = codigos.indexOf(hash);
         if (idx !== -1) {
             codigos.splice(idx, 1); // consumido: no se puede reutilizar
-            usuario.twoFactor.backupCodes = codigos;
-            await usuario.save();
+            await prisma.user.update({ where: { id: usuario.id }, data: { twoFactorBackupCodes: codigos } });
             return res.json({ ok: true });
         }
 

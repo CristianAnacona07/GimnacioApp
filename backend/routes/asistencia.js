@@ -1,11 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/user');
-const Asistencia = require('../models/asistencia');
+const { getPrismaClient } = require('../prisma/client');
 // Las rutas operativas de recepción usan soloRecepcion: además del admin, las
 // puede usar un empleado con cargo de recepcionista (es su trabajo diario).
 const { verificarToken, soloRecepcion } = require('../middleware/auth');
 const { enviarRecibo, linkWhatsApp } = require('../helpers/whatsapp');
+const { ilikeContains } = require('../lib/searchFilters');
+const { paginar } = require('../lib/pagination');
+
+const prisma = getPrismaClient();
+
+function conId(a) {
+  if (!a) return a;
+  const { id, ...rest } = a;
+  return { ...rest, _id: id };
+}
 
 // Días restantes de membresía (0 si ya venció o no tiene fecha).
 function diasRestantes(fechaVencimiento) {
@@ -18,7 +27,7 @@ function diasRestantes(fechaVencimiento) {
 async function generarCodigoUnico(gymId) {
   for (let i = 0; i < 12; i++) {
     const codigo = String(Math.floor(100000 + Math.random() * 900000));
-    const existe = await User.findOne({ gymId, codigoAcceso: codigo }).select('_id').lean();
+    const existe = await prisma.user.findFirst({ where: { gymId, codigoAcceso: codigo }, select: { id: true } });
     if (!existe) return codigo;
   }
   return 'A' + Date.now().toString().slice(-7);
@@ -27,13 +36,14 @@ async function generarCodigoUnico(gymId) {
 // Devuelve (creándolo si hace falta) el código de acceso de un socio.
 router.post('/codigo/:usuarioId', verificarToken, soloRecepcion, async (req, res) => {
   try {
-    const socio = await User.findOne({ _id: req.params.usuarioId, gymId: req.gymId });
+    const socio = await prisma.user.findFirst({ where: { id: req.params.usuarioId, gymId: req.gymId } });
     if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
-    if (!socio.codigoAcceso) {
-      socio.codigoAcceso = await generarCodigoUnico(req.gymId);
-      await socio.save();
+    let { codigoAcceso } = socio;
+    if (!codigoAcceso) {
+      codigoAcceso = await generarCodigoUnico(req.gymId);
+      await prisma.user.update({ where: { id: socio.id }, data: { codigoAcceso } });
     }
-    res.json({ codigoAcceso: socio.codigoAcceso });
+    res.json({ codigoAcceso });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al generar el código' });
   }
@@ -42,13 +52,14 @@ router.post('/codigo/:usuarioId', verificarToken, soloRecepcion, async (req, res
 // El propio socio obtiene (o genera) su código de acceso, para ver su QR.
 router.get('/mi-codigo', verificarToken, async (req, res) => {
   try {
-    const usuario = await User.findById(req.userId);
+    const usuario = await prisma.user.findUnique({ where: { id: req.userId } });
     if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-    if (!usuario.codigoAcceso) {
-      usuario.codigoAcceso = await generarCodigoUnico(usuario.gymId);
-      await usuario.save();
+    let { codigoAcceso } = usuario;
+    if (!codigoAcceso) {
+      codigoAcceso = await generarCodigoUnico(usuario.gymId);
+      await prisma.user.update({ where: { id: usuario.id }, data: { codigoAcceso } });
     }
-    res.json({ codigoAcceso: usuario.codigoAcceso });
+    res.json({ codigoAcceso });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al obtener el código' });
   }
@@ -59,25 +70,27 @@ router.get('/buscar', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     if (!q) return res.json([]);
-    const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    const socios = await User.find({
-      gymId: req.gymId,
-      role: { $in: ['socio', 'entrenador'] },
-      // La cédula se busca con la misma regex que el nombre para permitir
-      // coincidencias parciales (teclear los últimos dígitos ya filtra).
-      $or: [
-        { nombre: rx },
-        { email: rx },
-        { 'datosPersonales.identificacion': rx },
-        { codigoAcceso: q },
-      ],
-    }).select('nombre email fotoUrl codigoAcceso fechaVencimiento datosPersonales.identificacion')
-      .limit(15).lean();
+    const socios = await prisma.user.findMany({
+      where: {
+        gymId: req.gymId,
+        role: { in: ['socio', 'entrenador'] },
+        // La cédula se busca con el mismo ILIKE que el nombre para permitir
+        // coincidencias parciales (teclear los últimos dígitos ya filtra).
+        OR: [
+          ilikeContains('nombre', q),
+          ilikeContains('email', q),
+          ilikeContains('identificacion', q),
+          { codigoAcceso: q },
+        ],
+      },
+      select: { id: true, nombre: true, email: true, fotoUrl: true, codigoAcceso: true, fechaVencimiento: true, identificacion: true },
+      take: 15
+    });
 
     res.json(socios.map(s => ({
-      _id: s._id, nombre: s.nombre, email: s.email, fotoUrl: s.fotoUrl || '',
+      _id: s.id, nombre: s.nombre, email: s.email, fotoUrl: s.fotoUrl || '',
       codigoAcceso: s.codigoAcceso || '',
-      identificacion: (s.datosPersonales && s.datosPersonales.identificacion) || '',
+      identificacion: s.identificacion || '',
       diasRestantes: diasRestantes(s.fechaVencimiento),
     })));
   } catch (error) {
@@ -90,13 +103,13 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const { codigo, usuarioId, metodo } = req.body;
     const filtro = usuarioId
-      ? { _id: usuarioId, gymId: req.gymId }
+      ? { id: usuarioId, gymId: req.gymId }
       : { codigoAcceso: String(codigo || '').trim(), gymId: req.gymId };
     if (!usuarioId && !filtro.codigoAcceso) {
       return res.status(400).json({ mensaje: 'Código requerido' });
     }
 
-    const socio = await User.findOne({ ...filtro, role: { $in: ['socio', 'entrenador'] } });
+    const socio = await prisma.user.findFirst({ where: { ...filtro, role: { in: ['socio', 'entrenador'] } } });
     if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
     const dias = diasRestantes(socio.fechaVencimiento);
@@ -108,8 +121,8 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
         acceso: 'denegado',
         mensaje: 'Membresía vencida. Renueva para poder ingresar.',
         socio: {
-          _id: socio._id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '',
-          diasRestantes: 0, estado, asistenciasMes: socio.stats?.asistenciasMes || 0,
+          _id: socio.id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '',
+          diasRestantes: 0, estado, asistenciasMes: socio.asistenciasMes || 0,
         },
         yaRegistradoHoy: false,
         whatsapp: null,
@@ -118,19 +131,22 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
 
     // ¿Ya registró hoy? Evita contar dos veces la misma asistencia del día.
     const inicioDia = new Date(); inicioDia.setHours(0, 0, 0, 0);
-    const yaHoy = await Asistencia.findOne({
-      gymId: req.gymId, usuarioId: socio._id, fecha: { $gte: inicioDia },
-    }).select('_id').lean();
+    const yaHoy = await prisma.asistencia.findFirst({
+      where: { gymId: req.gymId, usuarioId: socio.id, fecha: { gte: inicioDia } },
+      select: { id: true },
+    });
 
+    let asistenciasMes = socio.asistenciasMes || 0;
     if (!yaHoy) {
-      await Asistencia.create({
-        gymId: req.gymId, usuarioId: socio._id,
-        metodo: ['codigo', 'qr', 'huella', 'manual'].includes(metodo) ? metodo : 'codigo',
-        registradoPor: req.userId,
+      await prisma.asistencia.create({
+        data: {
+          gymId: req.gymId, usuarioId: socio.id,
+          metodo: ['codigo', 'qr', 'huella', 'manual'].includes(metodo) ? metodo : 'codigo',
+          registradoPor: req.userId,
+        }
       });
-      socio.stats = socio.stats || {};
-      socio.stats.asistenciasMes = (socio.stats.asistenciasMes || 0) + 1;
-      await socio.save();
+      asistenciasMes += 1;
+      await prisma.user.update({ where: { id: socio.id }, data: { asistenciasMes } });
     }
 
     const fechaTxt = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -140,15 +156,15 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
     const texto = `Hola ${socio.nombre}, tu asistencia del ${fechaTxt} quedó registrada en el gimnasio. `
       + `Te quedan ${dias} días de membresía. ¡A entrenar! 💪`;
 
-    const wa = await enviarRecibo(socio.datosPersonales?.telefono, [socio.nombre, fechaTxt, String(dias)]);
-    const link = linkWhatsApp(socio.datosPersonales?.telefono, texto);
+    const wa = await enviarRecibo(socio.telefono, [socio.nombre, fechaTxt, String(dias)]);
+    const link = linkWhatsApp(socio.telefono, texto);
 
     res.json({
       acceso: 'permitido',
       socio: {
-        _id: socio._id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '',
+        _id: socio.id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '',
         diasRestantes: dias, estado,
-        asistenciasMes: socio.stats?.asistenciasMes || 0,
+        asistenciasMes,
       },
       yaRegistradoHoy: !!yaHoy,
       whatsapp: { enviado: wa.enviado, motivo: wa.motivo || null, link },
@@ -162,13 +178,14 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
 router.get('/hoy', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const inicioDia = new Date(); inicioDia.setHours(0, 0, 0, 0);
-    const asistencias = await Asistencia.find({ gymId: req.gymId, fecha: { $gte: inicioDia } })
-      .sort({ fecha: -1 })
-      .populate('usuarioId', 'nombre fotoUrl')
-      .lean();
+    const asistencias = await prisma.asistencia.findMany({
+      where: { gymId: req.gymId, fecha: { gte: inicioDia } },
+      orderBy: { fecha: 'desc' },
+      include: { usuario: { select: { id: true, nombre: true, fotoUrl: true } } }
+    });
     res.json(asistencias.map(a => ({
-      _id: a._id, fecha: a.fecha, metodo: a.metodo,
-      socio: a.usuarioId ? { _id: a.usuarioId._id, nombre: a.usuarioId.nombre, fotoUrl: a.usuarioId.fotoUrl || '' } : null,
+      _id: a.id, fecha: a.fecha, metodo: a.metodo,
+      socio: a.usuario ? { _id: a.usuario.id, nombre: a.usuario.nombre, fotoUrl: a.usuario.fotoUrl || '' } : null,
     })));
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al cargar asistencias' });
@@ -178,18 +195,13 @@ router.get('/hoy', verificarToken, soloRecepcion, async (req, res) => {
 // Historial de asistencia de un socio (paginado retro-compatible).
 router.get('/historial/:usuarioId', verificarToken, soloRecepcion, async (req, res) => {
   try {
-    const filtro = { gymId: req.gymId, usuarioId: req.params.usuarioId };
-    const paginar = req.query.page !== undefined;
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
-    let q = Asistencia.find(filtro).sort({ fecha: -1 });
-    if (paginar) q = q.skip((page - 1) * limit).limit(limit);
-    const items = await q.lean();
-    if (paginar) {
-      const total = await Asistencia.countDocuments(filtro);
-      return res.json({ data: items, total, page, limit, pages: Math.ceil(total / limit) });
-    }
-    res.json(items);
+    const resultado = await paginar(req, prisma.asistencia, {
+      where: { gymId: req.gymId, usuarioId: req.params.usuarioId },
+      orderBy: { fecha: 'desc' },
+      defaultLimit: 30
+    });
+    if (Array.isArray(resultado)) return res.json(resultado.map(conId));
+    res.json({ ...resultado, data: resultado.data.map(conId) });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al cargar el historial' });
   }

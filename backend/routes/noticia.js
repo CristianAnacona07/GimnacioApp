@@ -1,23 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const Noticia = require('../models/noticia');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { paginar } = require('../lib/pagination');
+
+const prisma = getPrismaClient();
+
+function conId(n) {
+  if (!n) return n;
+  const { id, ...rest } = n;
+  return { ...rest, _id: id };
+}
 
 router.get('/', verificarToken, async (req, res) => {
   try {
-    const filtro = { gymId: req.gymId || null };
-    const paginar = req.query.page !== undefined;
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-    let q = Noticia.find(filtro).sort({ createdAt: -1 });
-    if (paginar) q = q.skip((page - 1) * limit).limit(limit);
-    const noticias = await q;
-    if (paginar) {
-      const total = await Noticia.countDocuments(filtro);
-      return res.json({ data: noticias, total, page, limit, pages: Math.ceil(total / limit) });
-    }
-    res.json(noticias);
+    const resultado = await paginar(req, prisma.noticia, { where: { gymId: req.gymId || null }, orderBy: { createdAt: 'desc' } });
+    if (Array.isArray(resultado)) return res.json(resultado.map(conId));
+    res.json({ ...resultado, data: resultado.data.map(conId) });
   } catch (error) {
     console.error('Error Noticias:', error);
     res.status(500).json({ error: 'Error al obtener noticias' });
@@ -26,9 +26,9 @@ router.get('/', verificarToken, async (req, res) => {
 
 router.get('/:id', verificarToken, async (req, res) => {
   try {
-    const noticia = await Noticia.findOne({ _id: req.params.id, gymId: req.gymId });
+    const noticia = await prisma.noticia.findFirst({ where: { id: req.params.id, gymId: req.gymId } });
     if (!noticia) return res.status(404).json({ error: 'Noticia no encontrada' });
-    res.json(noticia);
+    res.json(conId(noticia));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -47,9 +47,9 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
     if (req.body.imageUrl !== undefined) datosNoticia.imageUrl = req.body.imageUrl;
     if (req.body.whatsappUrl !== undefined) datosNoticia.whatsappUrl = req.body.whatsappUrl;
 
-    const noticiaGuardada = await new Noticia(datosNoticia).save();
-    await registrarAuditoria(req, 'CREAR_NOTICIA', { recurso: 'Noticia', recursoId: noticiaGuardada._id, detalle: { titulo: noticiaGuardada.titulo } });
-    res.status(201).json(noticiaGuardada);
+    const noticiaGuardada = await prisma.noticia.create({ data: datosNoticia });
+    await registrarAuditoria(req, 'CREAR_NOTICIA', { recurso: 'Noticia', recursoId: noticiaGuardada.id, detalle: { titulo: noticiaGuardada.titulo } });
+    res.status(201).json(conId(noticiaGuardada));
   } catch (error) {
     res.status(400).json({ error: 'Error interno del servidor' });
   }
@@ -66,14 +66,12 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
     if (imageUrl !== undefined) datos.imageUrl = imageUrl;
     if (whatsappUrl !== undefined) datos.whatsappUrl = whatsappUrl;
 
-    const noticia = await Noticia.findOneAndUpdate(
-      { _id: req.params.id, gymId: req.gymId },
-      datos,
-      { new: true, runValidators: true }
-    );
-    if (!noticia) return res.status(404).json({ error: 'Noticia no encontrada' });
-    await registrarAuditoria(req, 'EDITAR_NOTICIA', { recurso: 'Noticia', recursoId: noticia._id, detalle: { titulo: noticia.titulo } });
-    res.json(noticia);
+    const actual = await prisma.noticia.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
+    if (!actual) return res.status(404).json({ error: 'Noticia no encontrada' });
+
+    const noticia = await prisma.noticia.update({ where: { id: actual.id }, data: datos });
+    await registrarAuditoria(req, 'EDITAR_NOTICIA', { recurso: 'Noticia', recursoId: noticia.id, detalle: { titulo: noticia.titulo } });
+    res.json(conId(noticia));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -81,8 +79,8 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
 
 router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const resultado = await Noticia.softDelete({ _id: req.params.id, gymId: req.gymId });
-    if (resultado.modifiedCount === 0) return res.status(404).json({ error: 'Noticia no encontrada' });
+    const resultado = await prisma.noticia.softDelete({ id: req.params.id, gymId: req.gymId });
+    if (resultado.count === 0) return res.status(404).json({ error: 'Noticia no encontrada' });
     await registrarAuditoria(req, 'ELIMINAR_NOTICIA', { recurso: 'Noticia', recursoId: req.params.id });
     res.json({ mensaje: 'Noticia eliminada correctamente' });
   } catch (error) {

@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const Dispositivo = require('../models/dispositivo');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+
+const prisma = getPrismaClient();
 
 /**
  * Alta y gestión de lectores de huella / torniquetes por gimnasio.
@@ -13,13 +15,19 @@ const { registrarAuditoria } = require('../helpers/audit');
  * por número de serie contra los registros que se dan de alta aquí.
  */
 
+const MARCAS_VALIDAS = ['zkteco', 'hikvision', 'suprema', 'anviz', 'otro'];
+
+function conId(d) {
+  if (!d) return d;
+  const { id, ...rest } = d;
+  return { ...rest, _id: id };
+}
+
 // Listar los equipos del gimnasio, el más reciente primero.
 router.get('/', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const equipos = await Dispositivo.find({ gymId: req.gymId })
-      .sort({ createdAt: -1 })
-      .lean();
-    res.json(equipos);
+    const equipos = await prisma.dispositivo.findMany({ where: { gymId: req.gymId }, orderBy: { createdAt: 'desc' } });
+    res.json(equipos.map(conId));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -36,30 +44,31 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
     if (typeof serie !== 'string' || !/^[A-Za-z0-9-]{4,32}$/.test(serie.trim())) {
       return res.status(400).json({ error: 'Serie inválida: usa entre 4 y 32 letras, números o guiones' });
     }
+    if (marca !== undefined && !MARCAS_VALIDAS.includes(marca)) {
+      return res.status(400).json({ error: 'Marca inválida' });
+    }
 
-    const equipo = await Dispositivo.create({
-      gymId: req.gymId,
-      nombre: nombre.trim(),
-      serie: serie.trim().toUpperCase(),
-      marca: marca || 'zkteco'
+    const equipo = await prisma.dispositivo.create({
+      data: {
+        gymId: req.gymId,
+        nombre: nombre.trim(),
+        serie: serie.trim().toUpperCase(),
+        marca: marca || 'zkteco'
+      }
     });
 
     await registrarAuditoria(req, 'REGISTRAR_DISPOSITIVO', {
       recurso: 'Dispositivo',
-      recursoId: equipo._id,
+      recursoId: equipo.id,
       detalle: { serie: equipo.serie, marca: equipo.marca }
     });
 
-    res.status(201).json(equipo);
+    res.status(201).json(conId(equipo));
   } catch (error) {
     // La serie es única a nivel global. No se dice en qué gimnasio está para
     // no filtrar datos de otro cliente; basta con que el admin sepa que choca.
-    if (error.code === 11000) {
+    if (error.code === 'P2002') {
       return res.status(409).json({ error: 'Esa serie ya está registrada. Verifícala o contacta con soporte.' });
-    }
-    if (error.name === 'ValidationError') {
-      const primero = Object.values(error.errors)[0];
-      return res.status(400).json({ error: primero.message });
     }
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -79,20 +88,18 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Nada que actualizar' });
     }
 
-    const equipo = await Dispositivo.findOneAndUpdate(
-      { _id: req.params.id, gymId: req.gymId },
-      cambios,
-      { new: true, runValidators: true }
-    );
-    if (!equipo) return res.status(404).json({ error: 'Equipo no encontrado' });
+    const actual = await prisma.dispositivo.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
+    if (!actual) return res.status(404).json({ error: 'Equipo no encontrado' });
+
+    const equipo = await prisma.dispositivo.update({ where: { id: actual.id }, data: cambios });
 
     await registrarAuditoria(req, 'EDITAR_DISPOSITIVO', {
       recurso: 'Dispositivo',
-      recursoId: equipo._id,
+      recursoId: equipo.id,
       detalle: cambios
     });
 
-    res.json(equipo);
+    res.json(conId(equipo));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -101,8 +108,9 @@ router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
 // Dar de baja un equipo. Borrado real, para que su serie vuelva a quedar libre.
 router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const equipo = await Dispositivo.findOneAndDelete({ _id: req.params.id, gymId: req.gymId });
+    const equipo = await prisma.dispositivo.findFirst({ where: { id: req.params.id, gymId: req.gymId } });
     if (!equipo) return res.status(404).json({ error: 'Equipo no encontrado' });
+    await prisma.dispositivo.delete({ where: { id: equipo.id } });
 
     await registrarAuditoria(req, 'ELIMINAR_DISPOSITIVO', {
       recurso: 'Dispositivo',

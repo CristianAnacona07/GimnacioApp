@@ -16,21 +16,25 @@
 #   web        http://localhost:8090
 #   API        http://localhost:10000
 #   correo     http://localhost:8026        (SMTP 1026)
-#   MongoDB    mongodb://localhost:27018    (para Compass; la app no lo usa desde fuera)
+#   Postgres   postgresql://localhost:5433  (para psql/DBeaver; la app no lo usa desde fuera)
 name: gimnacio-app
 
 services:
   # ── Base de datos ──────────────────────────────────────────────────────
-  # Sustituye a Atlas. Los datos viven en el volumen `mongo_datos`, así que
-  # sobreviven a `down` y solo se borran con `down -v`.
-  mongo:
-    image: mongo:7
+  # Los datos viven en el volumen `postgres_datos`, así que sobreviven a
+  # `down` y solo se borran con `down -v`.
+  postgres:
+    image: postgres:17
     ports:
-      - "${MONGO_PORT:-27018}:27017"
+      - "${POSTGRES_PORT:-5433}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gymdb}
+      POSTGRES_USER: ${POSTGRES_USER:-gymapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en el .env}
     volumes:
-      - mongo_datos:/data/db
+      - postgres_datos:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gymapp} -d ${POSTGRES_DB:-gymdb}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -62,8 +66,8 @@ services:
       NODE_ENV: production
       PORT: 10000
       # Dentro de la red de Compose los servicios se llaman por su nombre.
-      # Para usar Atlas en vez del contenedor, define MONGO_URI en el .env.
-      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/gymdb}
+      # Para usar un Postgres externo en vez del contenedor, define DATABASE_URL en el .env.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-gymapp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-gymdb}}
       JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET en el .env}
       # Correo por Mailpit: con SMTP_HOST definido, Gmail se ignora por completo.
       SMTP_HOST: ${SMTP_HOST:-mailpit}
@@ -75,7 +79,7 @@ services:
       GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-}
       TENANT_ROOT_DOMAIN: ${TENANT_ROOT_DOMAIN:-}
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
@@ -95,4 +99,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  mongo_datos:
+  postgres_datos:
