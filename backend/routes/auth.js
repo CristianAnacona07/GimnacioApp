@@ -9,6 +9,7 @@ const User = require('../models/user');
 const Gym = require('../models/gym');
 const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
 
 const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
@@ -500,6 +501,9 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
         usuario.fechaVencimiento = fechaBase;
         await usuario.save();
         await registrarAuditoria(req, 'RENOVAR_MEMBRESIA', { recurso: 'User', recursoId: usuario._id, detalle: { dias } });
+        // Cambian los avisos de vencimiento: los del gimnasio y los del socio.
+        emitirAGym(req.gymId, 'avisos:revisar', { motivo: 'membresia' });
+        emitirAUsuario(usuario._id, 'avisos:revisar', { motivo: 'membresia' });
 
         res.json({
             mensaje: 'Membresía renovada exitosamente',

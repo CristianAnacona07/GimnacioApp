@@ -1,9 +1,11 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth';
 import { AdminDashboard } from './components/admin/dashboardAdmin/dashboardAdmin';
 import { noAuthGuard } from './guards/no-auth-guard';
 import { superAdminGuard } from './guards/superadmin.guard';
 import { tenantGuard } from './guards/tenant.guard';
+import { TenantService } from './services/tenant.service';
 
 // Rutas compartidas entre admin y socio
 const sharedRoutes: Routes = [
@@ -22,7 +24,23 @@ const sharedRoutes: Routes = [
 ];
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/gimnasios', pathMatch: 'full' },
+  // En el subdominio de un gimnasio la raíz es su página pública; en el dominio
+  // general no hay una sola página que mostrar, así que va al selector.
+  {
+    path: '',
+    pathMatch: 'full',
+    redirectTo: () => {
+      const slug = inject(TenantService).slug;
+      return slug ? `/g/${slug}` : '/gimnasios';
+    }
+  },
+
+  // Página pública de un gimnasio (sin sesión). Si no publicó la suya, el
+  // propio componente manda al login.
+  {
+    path: 'g/:slug',
+    loadComponent: () => import('./components/landing/landing').then(m => m.Landing)
+  },
 
   {
     path: 'gimnasios',
@@ -101,6 +119,14 @@ export const routes: Routes = [
         loadComponent: () => import('./components/admin/configuracion/gimnasio/gimnasio').then(m => m.ConfiguracionGimnasio)
       },
       {
+        path: 'configuracion/agenda',
+        loadComponent: () => import('./components/admin/configuracion/agenda/agenda').then(m => m.ConfiguracionAgenda)
+      },
+      {
+        path: 'configuracion/pagina',
+        loadComponent: () => import('./components/admin/configuracion/pagina/pagina').then(m => m.ConfiguracionPagina)
+      },
+      {
         path: 'configuracion/acceso',
         loadComponent: () => import('./components/admin/configuracion/acceso/acceso').then(m => m.ConfiguracionAcceso)
       },
@@ -153,6 +179,10 @@ export const routes: Routes = [
         loadComponent: () => import('./components/socio/medidas/medidas').then(m => m.Medidas)
       },
       {
+        path: 'agendar',
+        loadComponent: () => import('./components/socio/agendar/agendar').then(m => m.Agendar)
+      },
+      {
         path: 'feedback',
         loadComponent: () => import('./components/socio/feedback/feedback').then(m => m.FeedbackComponent)
       },
@@ -193,6 +223,10 @@ export const routes: Routes = [
       {
         path: 'socio/:id',
         loadComponent: () => import('./components/entrenador/socio-detalle/socio-detalle').then(m => m.SocioDetalle)
+      },
+      {
+        path: 'agenda',
+        loadComponent: () => import('./components/entrenador/agenda/agenda').then(m => m.AgendaProfesional)
       },
       { path: '', redirectTo: 'socios', pathMatch: 'full' }
     ]

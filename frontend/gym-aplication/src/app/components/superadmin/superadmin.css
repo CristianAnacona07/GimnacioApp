@@ -11,7 +11,7 @@
   gap: 0.4rem;
   background: #1e293b;
   border: 1.5px solid #334155;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   border-radius: 999px;
   padding: 0.45rem 1.1rem;
   font-size: 0.8rem;
@@ -46,7 +46,7 @@
 }
 
 .fb-empty {
-  color: #475569;
+  color: var(--txt-2, #475569);
   font-size: 0.85rem;
   text-align: center;
   padding: 3rem;
@@ -77,7 +77,7 @@
 
 .fb-item-meta { display: flex; align-items: center; gap: 0.4rem; }
 .fb-usuario { font-size: 0.82rem; font-weight: 800; color: #e2e8f0; }
-.fb-gym { font-size: 0.75rem; color: #64748b; }
+.fb-gym { font-size: 0.75rem; color: var(--txt-3, #64748b); }
 
 .fb-item-right { display: flex; align-items: center; gap: 0.5rem; }
 
@@ -88,7 +88,7 @@
   flex-shrink: 0;
 }
 
-.fb-fecha { font-size: 0.7rem; color: #475569; }
+.fb-fecha { font-size: 0.7rem; color: var(--txt-2, #475569); }
 
 .fb-mensaje {
   font-size: 0.85rem;
@@ -118,13 +118,13 @@
 .sa-title {
   font-size: 1.6rem;
   font-weight: 800;
-  color: #f97316;
+  color: var(--txt-ambar, #f97316);
   margin: 0;
 }
 
 .sa-sub {
   font-size: .8rem;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   margin: 0;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -150,7 +150,7 @@
 
 .btn-salir {
   background: #1e293b;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   border: 1px solid #334155;
   border-radius: 8px;
   padding: .55rem 1.1rem;
@@ -213,7 +213,7 @@
 
 .logo-hint {
   font-size: .72rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
 }
 
 .form-grid {
@@ -227,7 +227,7 @@
 
 .flabel {
   font-size: .75rem;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   font-weight: 600;
 }
 
@@ -280,7 +280,7 @@
   padding: .35rem .8rem;
   border-radius: 20px;
   border: 1.5px solid #334155;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: .8rem;
   font-weight: 600;
   cursor: pointer;
@@ -289,7 +289,7 @@
 }
 .modulo-toggle.activo {
   border-color: #f97316;
-  color: #f97316;
+  color: var(--txt-ambar, #f97316);
   background: rgba(249,115,22,.08);
 }
 
@@ -310,7 +310,7 @@
 
 /* Cargando */
 .cargando {
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   text-align: center;
   padding: 2rem;
   font-size: .9rem;
@@ -375,7 +375,7 @@
 
 .gym-slug {
   font-size: .75rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   margin: 0;
 }
 
@@ -386,14 +386,14 @@
   border-radius: 20px;
   flex-shrink: 0;
 }
-.badge-on { background: rgba(34,197,94,.12); color: #22c55e; }
-.badge-off { background: rgba(239,68,68,.12); color: #ef4444; }
+.badge-on { background: rgba(34,197,94,.12); color: var(--txt-verde, #22c55e); }
+.badge-off { background: rgba(239,68,68,.12); color: var(--txt-rojo, #ef4444); }
 
 .gym-stats {
   display: flex;
   gap: 1rem;
   font-size: .78rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   margin-bottom: .75rem;
 }
 
@@ -413,7 +413,7 @@
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 10px;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   padding: .7rem;
   font-size: .9rem;
   font-weight: 600;
@@ -424,33 +424,33 @@
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   padding: .45rem .7rem;
   font-size: .85rem;
   cursor: pointer;
   transition: all .2s;
 }
-.btn-editar:hover { border-color: #f97316; color: #f97316; }
+.btn-editar:hover { border-color: #f97316; color: var(--txt-ambar, #f97316); }
 
 .btn-toggle {
   flex: 1;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   padding: .45rem;
   font-size: .8rem;
   font-weight: 600;
   cursor: pointer;
   transition: all .2s;
 }
-.btn-toggle:hover { border-color: #f97316; color: #f97316; }
+.btn-toggle:hover { border-color: #f97316; color: var(--txt-ambar, #f97316); }
 
 .btn-eliminar {
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
-  color: #ef4444;
+  color: var(--txt-rojo, #ef4444);
   padding: .45rem .7rem;
   font-size: .85rem;
   cursor: pointer;
@@ -476,12 +476,12 @@
   border-left: none;
   border-top-right-radius: 8px;
   border-bottom-right-radius: 8px;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   font-size: .85rem;
   white-space: nowrap;
 }
-.subdominio-hint { font-size: .75rem; color: #94a3b8; margin: .4rem 0 0; }
-.subdominio-hint strong { color: #f97316; }
+.subdominio-hint { font-size: .75rem; color: var(--txt-3, #94a3b8); margin: .4rem 0 0; }
+.subdominio-hint strong { color: var(--txt-ambar, #f97316); }
 
 /* ── Vista previa del gimnasio ── */
 .preview-box {
@@ -523,5 +523,5 @@
 }
 .preview-link { font-weight: 600; font-size: .82rem; text-decoration: underline; }
 
-.colores-nota { font-size: .72rem; color: #94a3b8; margin: .1rem 0 .5rem; }
-.colores-nota strong { color: #f97316; }
+.colores-nota { font-size: .72rem; color: var(--txt-3, #94a3b8); margin: .1rem 0 .5rem; }
+.colores-nota strong { color: var(--txt-ambar, #f97316); }

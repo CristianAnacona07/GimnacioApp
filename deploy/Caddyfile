@@ -1,0 +1,57 @@
+# Puerta de entrada del servidor: recibe todo el tráfico de internet y lo
+# reparte entre los contenedores. También consigue y renueva los certificados
+# HTTPS solo, sin intervención.
+#
+# Las variables ({$DOMINIO}) las inyecta docker compose desde el .env.
+
+{
+	email {$EMAIL_CERTIFICADOS}
+
+	# Certificados "a demanda": cuando alguien visita kodiak.midominio.com por
+	# primera vez, Caddy consigue el certificado en ese momento. Así un gimnasio
+	# nuevo funciona apenas se crea, sin tocar el servidor ni esperar nada.
+	#
+	# `ask` es el freno de seguridad: antes de pedir un certificado, Caddy le
+	# pregunta al backend si ese dominio es de un gimnasio real. Sin esto,
+	# cualquiera podría apuntar su dominio aquí y hacernos pedir certificados
+	# hasta que Let's Encrypt nos bloquee por exceso de peticiones.
+	on_demand_tls {
+		ask http://backend:10000/api/gym/dominio-permitido
+	}
+}
+
+# El dominio principal y el de cada gimnasio se sirven igual: es la misma
+# aplicación, que se identifica por el subdominio de la URL.
+{$DOMINIO}, *.{$DOMINIO} {
+	tls {
+		on_demand
+	}
+
+	encode gzip zstd
+
+	# Necesario para el inicio de sesión con Google por ventana emergente.
+	header Cross-Origin-Opener-Policy "same-origin-allow-popups"
+
+	# --- API ---
+	# Caddy reenvía los WebSockets sin configuración extra: detecta la petición
+	# de actualización de protocolo y mantiene la conexión abierta. Con nginx
+	# esto habría exigido cabeceras manuales, y olvidarlas rompe el tiempo real.
+	handle /api/* {
+		reverse_proxy backend:10000
+	}
+	handle /socket.io/* {
+		reverse_proxy backend:10000
+	}
+
+	# --- Archivos subidos (fotos de las páginas públicas) ---
+	# El almacén no se expone directo a internet: solo se llega por aquí, y solo
+	# en lectura. /archivos/gimnacio/landing/foto.jpg → minio:9000/gimnacio/...
+	handle_path /archivos/* {
+		reverse_proxy minio:9000
+	}
+
+	# --- La aplicación web ---
+	handle {
+		reverse_proxy frontend:80
+	}
+}

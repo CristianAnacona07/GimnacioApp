@@ -16,6 +16,7 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 import { AsistenciaService } from '../../../services/asistencia.service';
 import { ToastService } from '../../../services/toast.service';
+import { TiempoRealService } from '../../../services/tiempo-real.service';
 
 interface SocioBusqueda {
   _id: string;
@@ -71,6 +72,7 @@ export class Recepcion implements OnInit, OnDestroy {
   private toast = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
   private destroyRef = inject(DestroyRef);
+  private tiempoReal = inject(TiempoRealService);
 
   // Buscador
   textoBusqueda = '';
@@ -121,6 +123,13 @@ export class Recepcion implements OnInit, OnDestroy {
       });
 
     this.cargarHoy();
+
+    // Cada ingreso aparece en el momento, venga de esta pantalla o de otra: la
+    // tablet de la entrada y la oficina ven la misma lista sin recargar.
+    this.tiempoReal.conectar();
+    this.tiempoReal.escuchar('asistencia:nueva')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.cargarHoy());
   }
 
   // ---- Buscador ----

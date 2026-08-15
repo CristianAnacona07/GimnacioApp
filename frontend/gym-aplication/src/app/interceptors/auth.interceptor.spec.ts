@@ -11,6 +11,7 @@ import {
 import { Router } from '@angular/router';
 import { authInterceptor } from './auth.interceptor';
 import { StorageService } from '../services/storage.service';
+import { GymService } from '../services/gym.service';
 
 /**
  * Meaningful tests for authInterceptor: header injection, 401 session-clear
@@ -23,7 +24,10 @@ describe('authInterceptor', () => {
     getToken: ReturnType<typeof vi.fn>;
     clearSessionPreservingData: ReturnType<typeof vi.fn>;
   };
-  let router: { navigate: ReturnType<typeof vi.fn> };
+  let router: { navigate: ReturnType<typeof vi.fn>; navigateByUrl: ReturnType<typeof vi.fn> };
+  let gymService: { rutaSalida: ReturnType<typeof vi.fn> };
+  // Al caducar la sesión se sale a la página pública del gimnasio.
+  const SALIDA = '/g/mi-gym';
 
   function setup() {
     TestBed.configureTestingModule({
@@ -31,6 +35,7 @@ describe('authInterceptor', () => {
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         { provide: StorageService, useValue: storage },
+        { provide: GymService, useValue: gymService },
         { provide: Router, useValue: router },
       ],
     });
@@ -43,7 +48,8 @@ describe('authInterceptor', () => {
       getToken: vi.fn(),
       clearSessionPreservingData: vi.fn(),
     };
-    router = { navigate: vi.fn() };
+    router = { navigate: vi.fn(), navigateByUrl: vi.fn() };
+    gymService = { rutaSalida: vi.fn().mockReturnValue(SALIDA) };
   });
 
   it('agrega el header Authorization cuando hay token', () => {
@@ -95,7 +101,7 @@ describe('authInterceptor', () => {
 
     expect(errored).toBe(true);
     expect(storage.clearSessionPreservingData).toHaveBeenCalled();
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
+    expect(router.navigateByUrl).toHaveBeenCalledWith(SALIDA);
     httpMock.verify();
   });
 
@@ -112,7 +118,7 @@ describe('authInterceptor', () => {
 
     expect(errored).toBe(true);
     expect(storage.clearSessionPreservingData).not.toHaveBeenCalled();
-    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
     httpMock.verify();
   });
 
@@ -127,7 +133,7 @@ describe('authInterceptor', () => {
       .flush('unauth', { status: 401, statusText: 'Unauthorized' });
 
     expect(storage.clearSessionPreservingData).not.toHaveBeenCalled();
-    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
     httpMock.verify();
   });
 

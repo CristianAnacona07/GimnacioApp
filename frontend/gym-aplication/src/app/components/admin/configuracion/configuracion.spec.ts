@@ -26,7 +26,7 @@ describe('Configuracion', () => {
   });
 
   it('lista todas las secciones de configuración', () => {
-    expect(component.secciones.length).toBe(5);
+    expect(component.secciones.length).toBe(7);
     expect(component.secciones.every(s => s.ruta.startsWith('/admin/configuracion/'))).toBe(true);
   });
 });

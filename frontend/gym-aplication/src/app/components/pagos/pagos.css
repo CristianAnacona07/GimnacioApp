@@ -11,12 +11,12 @@
   align-items: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--bde, #e0e0e0);
 }
 
 .pagos-header h1 {
   font-size: 1.8rem;
-  color: #333;
+  color: var(--txt-1, #333);
   margin: 0;
 }
 
@@ -49,12 +49,12 @@
 
 /* --- TARJETA COMPACTA --- */
 .pago-card {
-  background: #f8fbff;
+  background: var(--sup-1, #f8fbff);
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   transition: all 0.3s;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--bde, #e0e0e0);
   
   display: flex;
   flex-direction: column;
@@ -82,7 +82,7 @@
 }
 
 .btn-mini-edit, .btn-mini-delete {
-  background: #fff8e1; /* Color papayawhip suave */
+  background: var(--tinte-ambar, #fff8e1); /* Color papayawhip suave */
   border: 1px solid #ffe082;
   border-radius: 8px;
   width: 34px;
@@ -95,8 +95,8 @@
   transition: all 0.2s;
 }
 
-.btn-mini-edit:hover { background: #e3f2fd; border-color: #90caf9; }
-.btn-mini-delete:hover { background: #ffebee; border-color: #ef9a9a; }
+.btn-mini-edit:hover { background: var(--tinte-azul, #e3f2fd); border-color: #90caf9; }
+.btn-mini-delete:hover { background: var(--tinte-rojo, #ffebee); border-color: #ef9a9a; }
 
 /* --- CONTENIDO DE LA TARJETA --- */
 .card-icon img {
@@ -111,7 +111,7 @@
   margin: 5px 0;
   font-size: 1.2rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, var(--tinte-morado, #f093fb) 100%);
   
   /* Compatibilidad con navegadores Webkit (Chrome, Safari, Edge) */
   -webkit-background-clip: text;
@@ -123,7 +123,7 @@
 }
 
 .descripcion {
-  color: #666;
+  color: var(--txt-2, #666);
   font-size: 0.85rem;
   line-height: 1.4;
   margin-bottom: 12px;
@@ -135,7 +135,7 @@
   width: auto;
   min-width: 150px;
   padding: 6px 12px;
-  background: #f0f2ff;
+  background: var(--sup-1, #f0f2ff);
   border-radius: 8px;
   border: 1px dashed #667eea;
   cursor: pointer;
@@ -143,7 +143,7 @@
 
 .valor {
   font-weight: 700;
-  color: #4a59bd;
+  color: var(--txt-azul, #4a59bd);
   font-size: 1rem;
 }
 
@@ -151,7 +151,7 @@
   font-size: 0.6rem;
   display: block;
   font-weight: bold;
-  color: #667eea;
+  color: var(--txt-azul, #667eea);
 }
 
 /* --- MODAL (ESTILO NOTICIAS) --- */
@@ -168,7 +168,7 @@
 }
 
 .modal-contenido {
-  background: #f8fbff;
+  background: var(--sup-1, #f8fbff);
   border-radius: 12px;
   width: 90%;
   max-width: 450px;
@@ -181,13 +181,13 @@
 .form-grupo input, .form-grupo textarea {
   width: 100%;
   padding: 10px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--bde, #e0e0e0);
   border-radius: 8px;
 }
 
 .modal-botones { display: flex; gap: 10px; margin-top: 15px; }
 .btn-guardar { flex: 1; background: #667eea; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
-.btn-cancelar { flex: 1; background: #eee; border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
+.btn-cancelar { flex: 1; background: var(--sup-2, #eee); border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
 
 /* RESPONSIVE */
 @media (max-width: 600px) {

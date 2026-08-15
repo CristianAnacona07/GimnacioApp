@@ -9,14 +9,31 @@
         </div>
       </div>
 
-      <button
-        type="button"
-        (click)="logout()"
-        class="flex items-center gap-1 rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm font-medium transition-colors"
-      >
-        <span>🚪</span>
-        <span class="hidden sm:inline">Cerrar sesión</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <a routerLink="/entrenador/socios" routerLinkActive="ring-2 ring-white/40"
+           class="rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm font-medium transition-colors">
+          👥 <span class="hidden sm:inline">Mis socios</span>
+        </a>
+        <a routerLink="/entrenador/agenda" routerLinkActive="ring-2 ring-white/40"
+           class="rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm font-medium transition-colors">
+          📅 <span class="hidden sm:inline">Mi agenda</span>
+        </a>
+        <button
+          type="button"
+          (click)="alternarTema()"
+          [title]="esOscuro ? 'Modo claro' : 'Modo oscuro'"
+          class="rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm transition-colors">
+          {{ esOscuro ? '☀️' : '🌙' }}
+        </button>
+        <button
+          type="button"
+          (click)="logout()"
+          class="flex items-center gap-1 rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm font-medium transition-colors"
+        >
+          <span>🚪</span>
+          <span class="hidden sm:inline">Salir</span>
+        </button>
+      </div>
     </div>
   </header>
 

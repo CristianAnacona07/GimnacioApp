@@ -6,6 +6,7 @@ const Asistencia = require('../models/asistencia');
 // puede usar un empleado con cargo de recepcionista (es su trabajo diario).
 const { verificarToken, soloRecepcion } = require('../middleware/auth');
 const { enviarRecibo, linkWhatsApp } = require('../helpers/whatsapp');
+const { emitirAGym } = require('../helpers/tiempoReal');
 
 // Días restantes de membresía (0 si ya venció o no tiene fecha).
 function diasRestantes(fechaVencimiento) {
@@ -142,6 +143,16 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
 
     const wa = await enviarRecibo(socio.datosPersonales?.telefono, [socio.nombre, fechaTxt, String(dias)]);
     const link = linkWhatsApp(socio.datosPersonales?.telefono, texto);
+
+    // Aviso en vivo a las pantallas de recepción del gimnasio: si hay una
+    // tablet en la entrada y el admin en la oficina, ambas ven el ingreso.
+    if (!yaHoy) {
+      emitirAGym(req.gymId, 'asistencia:nueva', {
+        socio: { _id: socio._id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '' },
+        fecha: new Date().toISOString(),
+        metodo: metodo || 'codigo',
+      });
+    }
 
     res.json({
       acceso: 'permitido',

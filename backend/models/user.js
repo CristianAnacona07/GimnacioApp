@@ -31,6 +31,16 @@ const UserSchema = new mongoose.Schema({
         default: 'socio'
     },
 
+    // Horario en el que este profesional atiende sesiones personalizadas.
+    // Se repite todas las semanas: 'Martes de 18:00 a 22:00'. Vacío = no atiende
+    // citas, y entonces no aparece en la lista al agendar.
+    disponibilidad: [{
+        _id: false,
+        dia: { type: String, enum: ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'] },
+        desde: { type: String, match: /^\d{2}:\d{2}$/ },
+        hasta: { type: String, match: /^\d{2}:\d{2}$/ }
+    }],
+
     // Cargo del empleado (solo cuando role === 'empleado'); el entrenador es un
     // rol propio y no lo necesita. Determina qué puede hacer: el recepcionista
     // accede a la pantalla de Recepción, los demás solo a su cuenta.

@@ -3,6 +3,7 @@ const router = express.Router();
 const Noticia = require('../models/noticia');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { emitirAGym } = require('../helpers/tiempoReal');
 
 router.get('/', verificarToken, async (req, res) => {
   try {
@@ -49,6 +50,9 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
 
     const noticiaGuardada = await new Noticia(datosNoticia).save();
     await registrarAuditoria(req, 'CREAR_NOTICIA', { recurso: 'Noticia', recursoId: noticiaGuardada._id, detalle: { titulo: noticiaGuardada.titulo } });
+    // Los avisos se calculan al vuelo, así que no se manda el aviso ya hecho:
+    // se avisa de que hay algo que recalcular y cada cliente pide los suyos.
+    emitirAGym(req.gymId, 'avisos:revisar', { motivo: 'noticia' });
     res.status(201).json(noticiaGuardada);
   } catch (error) {
     res.status(400).json({ error: 'Error interno del servidor' });

@@ -34,6 +34,18 @@ export class Configuracion implements OnInit {
       ruta: '/admin/configuracion/gimnasio'
     },
     {
+      icono: '📅',
+      nombre: 'Sesiones personalizadas',
+      desc: 'Duración, precio y quién atiende las citas uno a uno',
+      ruta: '/admin/configuracion/agenda'
+    },
+    {
+      icono: '🌐',
+      nombre: 'Página web',
+      desc: 'La página pública que ve quien todavía no es socio',
+      ruta: '/admin/configuracion/pagina'
+    },
+    {
       icono: '🚪',
       nombre: 'Control de acceso',
       desc: 'Lectores de huella y torniquetes',
@@ -66,6 +78,6 @@ export class Configuracion implements OnInit {
 
   cerrarSesion(): void {
     this.authService.logout();
-    this.router.navigate(['/login']);
+    this.router.navigateByUrl(this.gymService.rutaSalida());
   }
 }

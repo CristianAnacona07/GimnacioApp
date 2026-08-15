@@ -6,6 +6,7 @@ import { environment } from '../../environments/environment';
 import { AlertaService } from './alerta.service';
 import { UserStateService } from './user-state.service';
 import { StorageService } from './storage.service';
+import { TiempoRealService } from './tiempo-real.service';
 
 /** Aviso de la campanita. */
 export interface Aviso {
@@ -52,6 +53,9 @@ export class NotificacionesService {
   /** Cuántos de ellos el usuario todavía no ha visto (el número del globito). */
   readonly noLeidos$: Observable<number> = this.noLeidosSubject.asObservable();
 
+  private tiempoReal = inject(TiempoRealService);
+  private escuchaTiempoReal?: Subscription;
+
   private leidas = new Set<string>();
   /**
    * Firmas por las que ya sonó el aviso en esta sesión. Sin esto, un aviso que
@@ -65,7 +69,12 @@ export class NotificacionesService {
   /** La primera carga no suena: al entrar, todo es "nuevo" y sería un ruido inútil. */
   private primeraCarga = true;
 
-  /** Arranca el sondeo periódico. Idempotente: llamarlo dos veces no duplica. */
+  /**
+   * Arranca el sondeo periódico. Idempotente: llamarlo dos veces no duplica.
+   *
+   * El sondeo cada 5 minutos se mantiene como respaldo; lo normal es que el
+   * aviso llegue por el canal en tiempo real en cuanto ocurre el cambio.
+   */
   iniciar(): void {
     const usuario = this.userState.getUserId() || 'anon';
     // Si cambió la cuenta sin recargar la página (logout → login), el sondeo
@@ -91,11 +100,28 @@ export class NotificacionesService {
         })
       )
       .subscribe(res => this.procesar(res.avisos || []));
+
+    // El servidor avisa cuando cambió algo que afecta a los avisos (una noticia
+    // nueva, una membresía renovada) y aquí se piden de inmediato.
+    this.tiempoReal.conectar();
+    this.escuchaTiempoReal = this.tiempoReal.escuchar('avisos:revisar')
+      .subscribe(() => this.refrescar());
+  }
+
+  /** Pide los avisos ahora mismo, sin esperar al siguiente sondeo. */
+  private refrescar(): void {
+    if (!this.storage.getToken() || this.storage.isTokenExpired()) return;
+    this.http.get<{ avisos: Aviso[] }>(`${environment.apiUrl}/api/notificaciones`)
+      .pipe(catchError(() => of({ avisos: [] as Aviso[] })))
+      .subscribe(res => this.procesar(res.avisos || []));
   }
 
   detener(): void {
     this.sondeo?.unsubscribe();
     this.sondeo = undefined;
+    this.escuchaTiempoReal?.unsubscribe();
+    this.escuchaTiempoReal = undefined;
+    this.tiempoReal.desconectar();
     this.primeraCarga = true;
     this.notificadas.clear();
     this.avisosSubject.next([]);

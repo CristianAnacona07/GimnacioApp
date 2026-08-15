@@ -1,0 +1,84 @@
+<div class="page">
+
+  <h2 class="page-title">📅 Mi agenda</h2>
+  <p class="page-sub">Tus sesiones personalizadas y el horario en que atendés.</p>
+
+  <!-- ===== HORARIO QUE OFREZCO ===== -->
+  <div class="tarjeta">
+    <div class="tarjeta-cabecera">
+      <div>
+        <p class="tarjeta-titulo">Horario que ofrezco</p>
+        <p class="tarjeta-sub">
+          @if (horario.length) {
+            Los socios pueden reservarte dentro de estas franjas.
+          } @else {
+            Sin franjas publicadas nadie puede agendarte.
+          }
+        </p>
+      </div>
+      <button class="btn btn--chico" (click)="editandoHorario = !editandoHorario">
+        {{ editandoHorario ? 'Cerrar' : 'Editar' }}
+      </button>
+    </div>
+
+    @if (!editandoHorario) {
+      @if (horario.length) {
+        <div class="franjas-vista">
+          @for (f of horario; track $index) {
+            <span class="franja-chip">{{ f.dia }} · {{ f.desde }}–{{ f.hasta }}</span>
+          }
+        </div>
+      } @else {
+        <p class="aviso">Todavía no publicaste ninguna franja.</p>
+      }
+    } @else {
+      @for (f of horario; track $index) {
+        <div class="franja-editar">
+          <select class="input" [(ngModel)]="f.dia" [name]="'dia' + $index">
+            @for (d of dias; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+          <input class="input input--hora" type="time" [(ngModel)]="f.desde" [name]="'desde' + $index">
+          <span class="a">a</span>
+          <input class="input input--hora" type="time" [(ngModel)]="f.hasta" [name]="'hasta' + $index">
+          <button class="quitar" (click)="quitarFranja($index)" title="Quitar">🗑️</button>
+        </div>
+      }
+      <button class="btn btn--claro btn--bloque" (click)="agregarFranja()">+ Agregar franja</button>
+      <button class="btn btn--bloque" (click)="guardarHorario()" [disabled]="guardando">
+        @if (guardando) { Guardando… } @else { Guardar horario }
+      </button>
+    }
+  </div>
+
+  <!-- ===== CITAS ===== -->
+  @if (cargando) {
+    <p class="cargando">Cargando…</p>
+  } @else if (!citas.length) {
+    <div class="vacio">
+      <span class="vacio-icono">🗓️</span>
+      <p class="vacio-titulo">No tenés citas agendadas</p>
+      <p class="vacio-sub">Cuando alguien reserve, aparecerá acá al instante.</p>
+    </div>
+  } @else {
+    @for (grupo of porDia; track grupo.fecha) {
+      <p class="dia-titulo">
+        {{ esHoy(grupo.fecha) ? 'Hoy' : fechaLegible(grupo.fecha) }}
+      </p>
+      @for (c of grupo.citas; track c._id) {
+        <div class="cita">
+          <span class="cita-hora">{{ c.hora }}</span>
+          <div class="cita-quien">
+            <p class="cita-nombre">{{ c.socioId.nombre }}</p>
+            @if (c.nota) { <p class="cita-nota">{{ c.nota }}</p> }
+          </div>
+          <div class="cita-acciones">
+            <button class="btn-icono btn-ok" (click)="marcar(c, 'cumplida')" title="Vino">✓</button>
+            <button class="btn-icono" (click)="marcar(c, 'ausente')" title="No vino">∅</button>
+            <button class="btn-icono btn-borrar" (click)="cancelar(c)" title="Cancelar">✕</button>
+          </div>
+        </div>
+      }
+    }
+  }
+
+</div>

@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { StorageService } from './storage.service';
 import { ToastService } from './toast.service';
 import { AuthService } from './auth';
+import { GymService } from './gym.service';
 
 /**
  * Servicio que monitorea la expiración del token JWT
@@ -18,6 +19,7 @@ export class TokenMonitorService implements OnDestroy {
   private readonly RENEWAL_THRESHOLD_MS = 2 * 60 * 60 * 1000; // Renovar con 2 horas
 
   private authService = inject(AuthService);
+  private gymService = inject(GymService);
 
   constructor(
     private storageService: StorageService,
@@ -112,9 +114,10 @@ export class TokenMonitorService implements OnDestroy {
     this.storageService.clearSessionPreservingData();
     this.stopMonitoring();
 
-    // Redirigir al login después de un breve delay
+    // Salir a la página del gimnasio tras un breve delay, igual que al cerrar
+    // sesión a mano; el aviso de arriba ya explica lo que pasó.
     setTimeout(() => {
-      this.router.navigate(['/login']);
+      this.router.navigateByUrl(this.gymService.rutaSalida());
     }, 1500);
   }
 

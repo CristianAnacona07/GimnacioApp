@@ -6,8 +6,8 @@
   gap: 0.75rem;
 }
 
-.field-wrap.field-error { border-color: #f87171; background: #fff5f5; }
-.field-wrap.field-ok    { border-color: #4ade80; background: #f0fdf4; }
+.field-wrap.field-error { border-color: #f87171; background: var(--sup-1, #fff5f5); }
+.field-wrap.field-ok    { border-color: #4ade80; background: var(--tinte-verde, #f0fdf4); }
 
-.msg-warn  { font-size: 0.72rem; font-weight: 700; color: #d97706; text-align: center; }
-.msg-error { font-size: 0.72rem; font-weight: 700; color: #ef4444; text-align: center; }
+.msg-warn  { font-size: 0.72rem; font-weight: 700; color: var(--txt-ambar, #d97706); text-align: center; }
+.msg-error { font-size: 0.72rem; font-weight: 700; color: var(--txt-rojo, #ef4444); text-align: center; }

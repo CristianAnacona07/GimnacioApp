@@ -4,6 +4,7 @@ const Rutina = require('../models/rutina');
 const User = require('../models/user');
 const { verificarToken, soloAdmin, resolverUsuarioId, filtroPropiedad } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { emitirAUsuario } = require('../helpers/tiempoReal');
 
 router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
   try {
@@ -27,6 +28,8 @@ router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
       recursoId: nuevaRutina._id,
       detalle: { usuarioId, dia, nombre }
     });
+    // El socio ve la rutina nueva sin salir ni recargar la pantalla.
+    emitirAUsuario(usuarioId, 'rutina:actualizada', { dia });
     res.status(201).json({ mensaje: 'Rutina asignada con éxito', rutina: nuevaRutina });
   } catch (error) {
     // Duplicado por el índice único {gymId,usuarioId,dia} (carrera con el findOne previo)
@@ -57,6 +60,7 @@ router.put('/actualizar/:id', verificarToken, soloAdmin, async (req, res) => {
       { new: true }
     ).lean();
     if (!rutina) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
+    emitirAUsuario(rutina.usuarioId, 'rutina:actualizada', { dia: rutina.dia });
     res.json({ mensaje: 'Rutina actualizada', rutina });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al actualizar' });

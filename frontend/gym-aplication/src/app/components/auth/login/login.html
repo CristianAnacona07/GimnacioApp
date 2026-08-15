@@ -30,7 +30,7 @@
         </div>
         <h1 class="brand-name">{{ gym?.nombre || 'GymApp' }}</h1>
         <p class="brand-sub">{{ gym?.slogan || 'Strength · Discipline · Power' }}</p>
-        @if (gym) {
+        @if (gym && !gymFijado) {
           <button type="button" class="btn-cambiar-gym" (click)="cambiarGym()">
             ← Cambiar gimnasio
           </button>

@@ -1,0 +1,215 @@
+.page {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 5rem;
+}
+
+.page-title { font-size: 1.2rem; font-weight: 800; color: var(--txt-1, #1e293b); margin: 0; }
+.page-sub { font-size: 0.8rem; color: var(--txt-3, #94a3b8); font-weight: 600; margin: 0.2rem 0 1.25rem; }
+
+.bloque-titulo {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--txt-3, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 0.6rem;
+}
+
+.cargando { font-size: 0.85rem; color: var(--txt-3, #94a3b8); text-align: center; padding: 1.5rem 0; }
+
+/* ── Mis citas ───────────────────────────────────────────────────────────── */
+.bloque { margin-bottom: 1.75rem; }
+
+.cita {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--sup-1, #fff);
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 1rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.cita-cuando {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 62px;
+  padding-right: 0.85rem;
+  border-right: 1.5px solid var(--bde, #e2e8f0);
+}
+.cita-hora { font-size: 1.05rem; font-weight: 900; color: var(--color-secundario, #1d4ed8); line-height: 1.1; }
+.cita-fecha { font-size: 0.62rem; font-weight: 700; color: var(--txt-3, #94a3b8); text-align: center; text-transform: capitalize; }
+
+.cita-quien { flex: 1; min-width: 0; }
+.cita-nombre { font-size: 0.9rem; font-weight: 700; color: var(--txt-1, #1e293b); margin: 0; }
+.cita-nota { font-size: 0.75rem; color: var(--txt-3, #94a3b8); margin: 0.1rem 0 0; }
+
+.btn-cancelar {
+  border: none;
+  background: var(--tinte-rojo, #fee2e2);
+  color: var(--txt-rojo, #dc2626);
+  border-radius: 0.6rem;
+  width: 32px; height: 32px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Profesionales ───────────────────────────────────────────────────────── */
+.profesionales { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.profesional {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  background: var(--sup-1, #fff);
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.profesional:hover {
+  border-color: var(--color-secundario, #1d4ed8);
+  transform: translateY(-1px);
+}
+
+.profesional-foto, .profesional-inicial {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.profesional-inicial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-secundario, #1d4ed8);
+  color: #fff;
+  font-weight: 900;
+  font-size: 1.1rem;
+}
+
+.profesional-datos { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.profesional-nombre { font-size: 0.95rem; font-weight: 700; color: var(--txt-1, #1e293b); }
+.profesional-cargo { font-size: 0.75rem; color: var(--txt-3, #94a3b8); font-weight: 600; }
+.profesional-flecha { color: var(--txt-3, #94a3b8); font-size: 1.1rem; flex-shrink: 0; }
+
+/* ── Profesional elegido ─────────────────────────────────────────────────── */
+.elegido {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--sup-2, #f0f5ff);
+  border-radius: 1rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1rem;
+}
+.volver {
+  border: 1.5px solid var(--bde, #c8dcff);
+  background: var(--sup-1, #fff);
+  color: var(--color-secundario, #1d4ed8);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.elegido-datos { min-width: 0; }
+.elegido-nombre { font-size: 0.95rem; font-weight: 800; color: var(--txt-1, #1e293b); margin: 0; }
+.elegido-cargo { font-size: 0.75rem; color: var(--txt-3, #94a3b8); font-weight: 600; margin: 0.1rem 0 0; }
+
+/* ── Nota ────────────────────────────────────────────────────────────────── */
+.campo-nota { display: block; margin-bottom: 1rem; }
+.campo-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--txt-3, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.3rem;
+}
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--txt-1, #1e293b);
+  background: var(--sup-1, #fff);
+  outline: none;
+}
+.input:focus { border-color: var(--color-secundario, #1d4ed8); }
+
+/* ── Días y horas ────────────────────────────────────────────────────────── */
+.dias { display: flex; flex-direction: column; gap: 0.55rem; }
+
+.dia {
+  background: var(--sup-1, #fff);
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.dia--abierto { border-color: var(--color-secundario, #1d4ed8); }
+
+.dia-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  text-align: left;
+}
+.dia-nombre {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--txt-1, #1e293b);
+  text-transform: capitalize;
+}
+.dia-cuantos { font-size: 0.72rem; font-weight: 700; color: var(--txt-3, #94a3b8); }
+.dia-flecha { color: var(--txt-3, #94a3b8); font-size: 0.9rem; }
+
+.horas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 0.5rem;
+  padding: 0 1rem 1rem;
+}
+
+.hora {
+  background: var(--sup-2, #f0f5ff);
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 0.7rem;
+  padding: 0.65rem 0.4rem;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--color-secundario, #1d4ed8);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.hora:hover:not(:disabled) {
+  background: var(--color-secundario, #1d4ed8);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.hora:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Vacío ───────────────────────────────────────────────────────────────── */
+.vacio { text-align: center; padding: 2.5rem 1rem; }
+.vacio-icono { font-size: 2.4rem; display: block; margin-bottom: 0.6rem; }
+.vacio-titulo { font-size: 0.95rem; font-weight: 700; color: var(--txt-2, #334155); margin: 0 0 0.3rem; }
+.vacio-sub { font-size: 0.8rem; color: var(--txt-3, #94a3b8); margin: 0 auto; max-width: 300px; }

@@ -1,0 +1,259 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">🌐 Página web</h2>
+  <p class="page-sub">La página que ve alguien que todavía no es socio.</p>
+
+  @if (!gym) {
+    <p class="vacio">No hay ningún gimnasio seleccionado.</p>
+  } @else {
+
+    <!-- Publicación y enlace -->
+    <div class="card">
+      <label class="interruptor">
+        <input type="checkbox" [(ngModel)]="landing.activa" name="activa">
+        <span class="interruptor__texto">
+          <strong>Publicar la página</strong>
+          <small>Mientras esté apagada, el enlace lleva directo al inicio de sesión.</small>
+        </span>
+      </label>
+
+      <div class="enlace">
+        <code class="enlace__url">{{ enlace }}</code>
+        <div class="enlace__acciones">
+          <button class="btn btn--chico" (click)="copiarEnlace()">Copiar</button>
+          <button class="btn btn--chico btn--claro" (click)="verPagina()">Ver</button>
+        </div>
+      </div>
+      <p class="card-hint">Este es el enlace para compartir por WhatsApp o poner en Instagram.</p>
+    </div>
+
+    <!-- Portada -->
+    <div class="card">
+      <p class="card-title">Portada</p>
+      <p class="card-hint">Lo primero que se ve: una foto grande con el nombre encima.</p>
+
+      <span class="campo__label">Foto de fondo</span>
+      <div class="foto-zona">
+        <label for="portadaInput" class="foto-caja">
+          @if (landing.portada.imagen) {
+            <img class="foto-preview" [src]="landing.portada.imagen" alt="Portada">
+          } @else {
+            <span class="foto-vacia">+ Elegir foto</span>
+          }
+        </label>
+        <input type="file" id="portadaInput" accept="image/*" hidden (change)="cambiarPortada($event)">
+        @if (subiendo === 'portada') { <span class="subiendo">Subiendo…</span> }
+      </div>
+
+      <label class="campo">
+        <span class="campo__label">Título</span>
+        <input class="input" type="text" maxlength="70" [(ngModel)]="landing.portada.titulo"
+               name="pTitulo" [placeholder]="gym.nombre">
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Frase</span>
+        <input class="input" type="text" maxlength="120" [(ngModel)]="landing.portada.subtitulo"
+               name="pSub" [placeholder]="gym.slogan || 'Entrená con nosotros'">
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Texto del botón</span>
+        <input class="input" type="text" maxlength="30" [(ngModel)]="landing.portada.textoBoton"
+               name="pBoton" placeholder="Quiero inscribirme">
+      </label>
+    </div>
+
+    <!-- Sobre nosotros -->
+    <div class="card">
+      <label class="interruptor">
+        <input type="checkbox" [(ngModel)]="landing.sobreNosotros.activo" name="nosotrosActivo">
+        <span class="interruptor__texto"><strong>Sobre nosotros</strong></span>
+      </label>
+
+      @if (landing.sobreNosotros.activo) {
+        <label class="campo">
+          <span class="campo__label">Título</span>
+          <input class="input" type="text" maxlength="60" [(ngModel)]="landing.sobreNosotros.titulo"
+                 name="nTitulo" placeholder="Sobre nosotros">
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">Texto</span>
+          <textarea class="input input--area" rows="5" maxlength="1200"
+                    [(ngModel)]="landing.sobreNosotros.texto" name="nTexto"
+                    placeholder="Contá quiénes son, qué ofrecen y por qué alguien debería entrenar con ustedes."></textarea>
+        </label>
+
+        <span class="campo__label">Foto</span>
+        <div class="foto-zona">
+          <label for="nosotrosInput" class="foto-caja foto-caja--chica">
+            @if (landing.sobreNosotros.imagen) {
+              <img class="foto-preview" [src]="landing.sobreNosotros.imagen" alt="">
+            } @else {
+              <span class="foto-vacia">+ Foto</span>
+            }
+          </label>
+          <input type="file" id="nosotrosInput" accept="image/*" hidden (change)="cambiarFotoNosotros($event)">
+          @if (subiendo === 'nosotros') { <span class="subiendo">Subiendo…</span> }
+        </div>
+      }
+    </div>
+
+    <!-- Galería -->
+    <div class="card">
+      <label class="interruptor">
+        <input type="checkbox" [(ngModel)]="landing.galeria.activo" name="galeriaActivo">
+        <span class="interruptor__texto">
+          <strong>Galería de fotos</strong>
+          <small>Las instalaciones, las máquinas, las clases.</small>
+        </span>
+      </label>
+
+      @if (landing.galeria.activo) {
+        <label class="campo">
+          <span class="campo__label">Título</span>
+          <input class="input" type="text" maxlength="60" [(ngModel)]="landing.galeria.titulo"
+                 name="gTitulo" placeholder="Nuestro espacio">
+        </label>
+
+        <div class="galeria-grid">
+          @for (foto of landing.galeria.fotos; track $index) {
+            <div class="galeria-item">
+              <img [src]="foto.url" alt="">
+              <input class="input input--mini" type="text" maxlength="60"
+                     [(ngModel)]="foto.descripcion" [name]="'foto' + $index" placeholder="Descripción">
+              <button class="quitar" (click)="quitarFoto($index)" title="Quitar">🗑️</button>
+            </div>
+          }
+          <label for="galeriaInput" class="galeria-agregar">
+            @if (subiendo === 'galeria') { Subiendo… } @else { + Agregar foto }
+          </label>
+          <input type="file" id="galeriaInput" accept="image/*" hidden (change)="agregarFotoGaleria($event)">
+        </div>
+      }
+    </div>
+
+    <!-- Horarios -->
+    <div class="card">
+      <label class="interruptor">
+        <input type="checkbox" [(ngModel)]="landing.horarios.activo" name="horariosActivo">
+        <span class="interruptor__texto"><strong>Horarios de atención</strong></span>
+      </label>
+
+      @if (landing.horarios.activo) {
+        <label class="campo">
+          <span class="campo__label">Título</span>
+          <input class="input" type="text" maxlength="60" [(ngModel)]="landing.horarios.titulo"
+                 name="hTitulo" placeholder="Horarios">
+        </label>
+
+        @for (fila of landing.horarios.filas; track $index) {
+          <div class="fila-horario">
+            <input class="input" type="text" maxlength="40" [(ngModel)]="fila.dias"
+                   [name]="'dias' + $index" placeholder="Lunes a viernes">
+            <input class="input" type="text" maxlength="30" [(ngModel)]="fila.horas"
+                   [name]="'horas' + $index" placeholder="5:00 - 22:00">
+            <button class="quitar" (click)="quitarHorario($index)" title="Quitar">🗑️</button>
+          </div>
+        }
+        <button class="btn btn--claro btn--bloque" (click)="agregarHorario()">+ Agregar franja</button>
+      }
+    </div>
+
+    <!-- Planes y noticias -->
+    <div class="card">
+      <p class="card-title">Secciones automáticas</p>
+      <p class="card-hint">Se llenan solas con lo que ya cargaste en la app.</p>
+
+      <label class="interruptor">
+        <input type="checkbox" [(ngModel)]="landing.planes.activo" name="planesActivo">
+        <span class="interruptor__texto">
+          <strong>Planes y precios</strong>
+          <small>Muestra los planes de la sección Planes.</small>
+        </span>
+      </label>
+      @if (landing.planes.activo) {
+        <label class="campo">
+          <span class="campo__label">Título</span>
+          <input class="input" type="text" maxlength="60" [(ngModel)]="landing.planes.titulo"
+                 name="plTitulo" placeholder="Planes y precios">
+        </label>
+      }
+
+      <label class="interruptor">
+        <input type="checkbox" [(ngModel)]="landing.noticias.activo" name="noticiasActivo">
+        <span class="interruptor__texto">
+          <strong>Novedades</strong>
+          <small>Muestra las últimas noticias que publicaste.</small>
+        </span>
+      </label>
+      @if (landing.noticias.activo) {
+        <label class="campo">
+          <span class="campo__label">Título</span>
+          <input class="input" type="text" maxlength="60" [(ngModel)]="landing.noticias.titulo"
+                 name="noTitulo" placeholder="Novedades">
+        </label>
+      }
+    </div>
+
+    <!-- Contacto -->
+    <div class="card">
+      <label class="interruptor">
+        <input type="checkbox" [(ngModel)]="landing.contacto.activo" name="contactoActivo">
+        <span class="interruptor__texto"><strong>Contacto y ubicación</strong></span>
+      </label>
+
+      @if (landing.contacto.activo) {
+        <label class="campo">
+          <span class="campo__label">Dirección</span>
+          <input class="input" type="text" maxlength="120" [(ngModel)]="landing.contacto.direccion"
+                 name="cDir" placeholder="Calle 12 #4-56, Popayán">
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">WhatsApp (con indicativo del país)</span>
+          <input class="input" type="text" maxlength="20" [(ngModel)]="landing.contacto.whatsapp"
+                 name="cWa" placeholder="573001234567">
+        </label>
+        <p class="card-hint">Es el número al que escriben los botones "Quiero inscribirme".</p>
+
+        <label class="campo">
+          <span class="campo__label">Teléfono</span>
+          <input class="input" type="text" maxlength="20" [(ngModel)]="landing.contacto.telefono"
+                 name="cTel" placeholder="3001234567">
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">Correo</span>
+          <input class="input" type="email" maxlength="80" [(ngModel)]="landing.contacto.email"
+                 name="cMail" placeholder="contacto@migimnasio.com">
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">Instagram</span>
+          <input class="input" type="url" maxlength="150" [(ngModel)]="landing.contacto.instagram"
+                 name="cIg" placeholder="https://instagram.com/migimnasio">
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">Facebook</span>
+          <input class="input" type="url" maxlength="150" [(ngModel)]="landing.contacto.facebook"
+                 name="cFb" placeholder="https://facebook.com/migimnasio">
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">Enlace del mapa</span>
+          <input class="input" type="url" maxlength="300" [(ngModel)]="landing.contacto.mapaUrl"
+                 name="cMapa" placeholder="Pegá aquí el enlace de Google Maps">
+        </label>
+      }
+    </div>
+
+    <button class="btn btn--bloque" (click)="guardar()" [disabled]="guardando">
+      @if (guardando) { Guardando… } @else { Guardar página }
+    </button>
+
+  }
+</div>

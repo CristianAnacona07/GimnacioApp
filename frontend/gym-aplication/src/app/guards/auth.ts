@@ -1,10 +1,12 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
 import { StorageService } from '../services/storage.service';
+import { GymService } from '../services/gym.service';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
   const storageService = inject(StorageService);
+  const gymService = inject(GymService);
   const token = storageService.getToken();
   const gym   = storageService.getGym();
 
@@ -14,22 +16,24 @@ export const authGuard: CanActivateFn = (route, state) => {
     return false;
   }
 
-  if (!token) {
-    router.navigate(['/login']);
+  // Quien llega aquí sin sesión válida sale a la página pública del gimnasio,
+  // el mismo destino que al cerrar sesión (allí tiene el botón de entrar).
+  const salir = () => {
+    router.navigateByUrl(gymService.rutaSalida());
     return false;
-  }
+  };
+
+  if (!token) return salir();
 
   if (storageService.isTokenExpired()) {
     storageService.clearSessionPreservingData();
-    router.navigate(['/login']);
-    return false;
+    return salir();
   }
 
   const payload = storageService.decodeTokenPayload(token);
   if (!payload) {
     storageService.clearSessionPreservingData();
-    router.navigate(['/login']);
-    return false;
+    return salir();
   }
 
   const role = payload.role?.toLowerCase().trim();

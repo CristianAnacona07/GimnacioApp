@@ -1,0 +1,41 @@
+/* Interruptor de sección (mismo patrón que el editor de la página web). */
+.interruptor {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+.interruptor input {
+  width: 20px;
+  height: 20px;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+  accent-color: var(--color-secundario, #1d4ed8);
+  cursor: pointer;
+}
+.interruptor__texto { display: flex; flex-direction: column; gap: 0.15rem; }
+.interruptor__texto strong { font-size: 0.92rem; color: var(--txt-1, #1e293b); }
+.interruptor__texto small { font-size: 0.75rem; color: var(--txt-3, #94a3b8); line-height: 1.4; }
+
+/* Lista de quién atiende */
+.profesional {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--bde, #f1f5f9);
+}
+.profesional:last-child { border-bottom: none; }
+.profesional-nombre { font-size: 0.88rem; font-weight: 700; color: var(--txt-1, #1e293b); }
+.profesional-franjas { font-size: 0.75rem; color: var(--txt-3, #94a3b8); font-weight: 600; }
+
+.sin-horario {
+  font-size: 0.8rem;
+  color: var(--txt-2, #475569);
+  background: var(--tinte-ambar, #fef3c7);
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.85rem;
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+}

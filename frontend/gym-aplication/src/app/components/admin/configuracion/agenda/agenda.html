@@ -1,0 +1,86 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">📅 Sesiones personalizadas</h2>
+  <p class="page-sub">Entrenamientos uno a uno que los socios reservan desde la app.</p>
+
+  @if (!gym) {
+    <p class="vacio">No hay ningún gimnasio seleccionado.</p>
+  } @else {
+
+    <div class="card">
+      <label class="interruptor">
+        <input type="checkbox" [(ngModel)]="agenda.activa" name="activa">
+        <span class="interruptor__texto">
+          <strong>Permitir que los socios agenden</strong>
+          <small>Si está apagado, nadie puede reservar aunque haya horarios publicados.</small>
+        </span>
+      </label>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Duración y precio</p>
+
+      <label class="campo">
+        <span class="campo__label">Duración de cada sesión (minutos)</span>
+        <input class="input" type="number" min="15" step="15" [(ngModel)]="agenda.duracionMin" name="duracion">
+      </label>
+      <p class="card-hint">
+        Define cómo se parten los horarios. Con 60 minutos, un profesional que
+        atiende de 18:00 a 22:00 ofrece cuatro turnos: 18, 19, 20 y 21.
+      </p>
+
+      <label class="campo">
+        <span class="campo__label">Precio por sesión</span>
+        <input class="input" type="number" min="0" step="1000" [(ngModel)]="agenda.precio" name="precio">
+      </label>
+      <p class="card-hint">
+        Se le muestra al socio antes de confirmar y queda guardado en la cita. Si
+        más adelante subís el precio, las citas ya reservadas mantienen el suyo.
+        Poné 0 si las sesiones van incluidas en la membresía.
+      </p>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Reglas de reserva</p>
+
+      <label class="campo">
+        <span class="campo__label">Reservar con al menos (horas de antelación)</span>
+        <input class="input" type="number" min="0" [(ngModel)]="agenda.horasMinimasReserva" name="antelacion">
+      </label>
+      <p class="card-hint">Evita que alguien reserve para dentro de cinco minutos.</p>
+
+      <label class="campo">
+        <span class="campo__label">Se puede reservar hasta (días hacia adelante)</span>
+        <input class="input" type="number" min="1" max="60" [(ngModel)]="agenda.diasVisibles" name="dias">
+      </label>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Quién atiende</p>
+      <p class="card-hint">
+        El horario lo publica cada profesional desde su propia pantalla. Solo
+        aparecen al agendar los que ya lo hicieron.
+      </p>
+
+      @if (profesionales.length) {
+        @for (p of profesionales; track p._id) {
+          <div class="profesional">
+            <span class="profesional-nombre">{{ p.nombre }}</span>
+            <span class="profesional-franjas">{{ franjasDe(p) }}</span>
+          </div>
+        }
+      } @else {
+        <p class="sin-horario">
+          Ningún profesional publicó su horario todavía, así que los socios no
+          pueden agendar. Pediles que entren a <strong>Mi agenda</strong> y lo carguen.
+        </p>
+      }
+    </div>
+
+    <button class="btn btn--bloque" (click)="guardar()" [disabled]="guardando">
+      @if (guardando) { Guardando… } @else { Guardar }
+    </button>
+
+  }
+</div>

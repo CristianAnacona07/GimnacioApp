@@ -28,6 +28,11 @@ export class App implements OnInit {
     return this.router.url.startsWith('/socio');
   }
 
+  /** La página pública del gimnasio se muestra sola: sin cronómetro ni reproductor. */
+  esPaginaPublica() {
+    return this.router.url.startsWith('/g/');
+  }
+
   ngOnInit() {
     this.theme.aplicar();
 

@@ -6,6 +6,7 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { GymService, Gym } from '../../../services/gym.service';
+import { TenantService } from '../../../services/tenant.service';
 import { StorageService } from '../../../services/storage.service';
 import { UserStateService } from '../../../services/user-state.service';
 import { Capacitor } from '@capacitor/core';
@@ -43,13 +44,18 @@ export class Login implements OnInit, AfterViewInit {
     private authService: AuthService,
     private toast: ToastService,
     private gymService: GymService,
+    private tenant: TenantService,
     private ngZone: NgZone,
     private storageService: StorageService,
     private userStateService: UserStateService
   ) {}
 
+  /** En el subdominio (o la página pública) de un gimnasio, la URL ya lo fija. */
+  gymFijado = false;
+
   ngOnInit() {
     this.gym = this.gymService.getGym();
+    this.gymFijado = this.tenant.esSubdominio;
     if (!this.gym) {
       this.router.navigate(['/gimnasios']);
     }
