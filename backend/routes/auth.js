@@ -7,6 +7,7 @@ const { OAuth2Client } = require('google-auth-library');
 const mongoose = require('mongoose');
 const User = require('../models/user');
 const Gym = require('../models/gym');
+const Invitacion = require('../models/invitacion');
 const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
@@ -207,62 +208,51 @@ router.post('/google', async (req, res) => {
         }
         const emailNorm = email.toLowerCase().trim();
 
-        // El superadmin no pertenece a ningún gimnasio (mismo criterio que /login).
-        let usuario = await User.findOne({ email: emailNorm, role: 'superadmin' });
+                // Superadmin: cuenta global, fuera de los gimnasios.
+        let usuario = await User.findOne({ email: emailNorm, role: 'superadmin' }).lean();
 
-        if (!usuario) {
-            // Multi-gym: la cuenta vive DENTRO del gimnasio elegido en el selector.
-            // Sin gymId el usuario quedaría huérfano y su JWT saldría con gymId null,
-            // dejando vacía toda consulta con alcance de gimnasio.
-            if (!gymId || !mongoose.Types.ObjectId.isValid(gymId)) {
-                return res.status(400).json({ mensaje: 'Debes seleccionar un gimnasio válido' });
+        if (!usuario && gymId) {
+            // Segunda llamada, cuando ya eligió gimnasio en el selector múltiple.
+            if (!mongoose.Types.ObjectId.isValid(gymId)) {
+                return res.status(400).json({ mensaje: 'Gimnasio inválido' });
             }
-            const gymValido = await Gym.findOne({ _id: gymId, activo: true }).select('_id').lean();
-            if (!gymValido) {
-                return res.status(400).json({ mensaje: 'El gimnasio no existe o no está activo' });
-            }
-
-            // El índice único es {email, gymId}: el mismo correo puede ser socio de
-            // varios gimnasios, así que la búsqueda va acotada al gym elegido.
-            usuario = await User.findOne({ email: emailNorm, gymId });
-
-            // Cuentas heredadas que Google creó sin gimnasio: se adoptan en el gym
-            // elegido en vez de duplicarlas (el índice compuesto lo permitiría).
+            usuario = await User.findOne({ email: emailNorm, gymId }).lean();
+            // Cuentas heredadas que Google creó sin gimnasio: se adoptan en el
+            // gym elegido en vez de duplicarlas (el índice compuesto lo permitiría).
             if (!usuario) {
                 const huerfano = await User.findOne({ email: emailNorm, gymId: null });
                 if (huerfano) {
                     huerfano.gymId = gymId;
                     await huerfano.save();
-                    usuario = huerfano;
+                    usuario = huerfano.toObject();
                 }
             }
-
-            if (!usuario) {
-                const salt = await bcrypt.genSalt(10);
-                usuario = new User({
-                    gymId,
-                    nombre: name,
-                    email: emailNorm,
-                    password: await bcrypt.hash(sub + Date.now(), salt),
-                    role: 'socio',
-                    fotoUrl: picture || '',
-                    emailVerified: true   // el correo ya viene verificado por Google
-                });
-                await usuario.save();
+        } else if (!usuario) {
+            // Login universal: la cuenta se busca en todos los gimnasios. Google ya
+            // verificó la identidad, así que listarle SUS gimnasios es seguro.
+            const cuentas = await User.find({ email: emailNorm }).lean();
+            if (cuentas.length > 1) {
+                const gyms = await Gym.find({
+                    _id: { $in: cuentas.map(c => c.gymId).filter(Boolean) }, activo: true
+                }).select('nombre slug logo').lean();
+                if (gyms.length > 1) {
+                    return res.json({ mensaje: 'Elige el gimnasio', multiple: true, gimnasios: gyms });
+                }
+                usuario = cuentas.find(c => String(c.gymId) === String(gyms[0] && gyms[0]._id)) || cuentas[0];
+            } else {
+                usuario = cuentas[0] || null;
             }
         }
 
-        const token = jwt.sign(
-            { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
-            JWT_SECRET,
-            { expiresIn: TOKEN_EXPIRY }
-        );
+        // El registro está cerrado: Google entra a cuentas que ya existen, no
+        // crea cuentas nuevas. Registrarse es solo con la invitación del gimnasio.
+        if (!usuario) {
+            return res.status(403).json({
+                mensaje: 'No existe una cuenta con este correo. Pedile el enlace de registro a tu gimnasio.'
+            });
+        }
 
-        res.json({
-            mensaje: 'Login con Google exitoso',
-            token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
-        });
+        return responderLogin(res, usuario);
     } catch (error) {
         console.error('Error Google auth:', error.message);
         res.status(401).json({ mensaje: 'Autenticación con Google fallida' });
@@ -609,25 +599,48 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
 
 // ✅ REGISTRO
 router.post('/register', async (req, res) => {
+    // Referencia fuera del try para poder liberar la invitación si algo falla
+    // después de haberla consumido.
+    let inv = null;
+    const liberarInvitacion = () => inv
+        ? Invitacion.updateOne({ _id: inv._id }, { usada: false }).catch(() => {})
+        : Promise.resolve();
     try {
-        const { nombre, email, password, gymId } = req.body;
+        const { nombre, email, password, invitacion } = req.body;
         if (!nombre || !email || !password) {
             return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
         }
         if (typeof password !== 'string' || password.length < 8) {
             return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
         }
-        // El registro público exige un gimnasio válido y activo (evita socios huérfanos).
-        if (!gymId || !mongoose.Types.ObjectId.isValid(gymId)) {
-            return res.status(400).json({ mensaje: 'Debes seleccionar un gimnasio válido' });
+
+        // El registro es SOLO con invitación: un link o QR de un solo uso que
+        // genera el gimnasio. El gym lo fija la invitación, nunca el cliente.
+        if (!invitacion || typeof invitacion !== 'string') {
+            return res.status(403).json({ mensaje: 'El registro requiere una invitación del gimnasio' });
         }
+        // Consumo atómico: dos registros simultáneos no pueden compartir el link.
+        inv = await Invitacion.findOneAndUpdate(
+            { token: invitacion, usada: false, expiraEn: { $gt: new Date() } },
+            { usada: true },
+            { new: true }
+        );
+        if (!inv) {
+            return res.status(403).json({ mensaje: 'La invitación no existe, ya fue usada o venció' });
+        }
+
+        const gymId = inv.gymId;
         const gymValido = await Gym.findOne({ _id: gymId, activo: true }).select('_id').lean();
         if (!gymValido) {
+            await liberarInvitacion();
             return res.status(400).json({ mensaje: 'El gimnasio no existe o no está activo' });
         }
         const emailNorm = email.toLowerCase().trim();
-        const usuarioExiste = await User.findOne({ email: emailNorm, gymId: gymId || null }).lean();
-        if (usuarioExiste) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        const usuarioExiste = await User.findOne({ email: emailNorm, gymId }).lean();
+        if (usuarioExiste) {
+            await liberarInvitacion();
+            return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        }
 
         const salt = await bcrypt.genSalt(10);
         const passwordHasheada = await bcrypt.hash(password, salt);
@@ -635,7 +648,7 @@ router.post('/register', async (req, res) => {
         // El registro público SIEMPRE crea socios. Crear admins/entrenadores
         // debe hacerse por una ruta protegida (soloAdmin), nunca desde el body.
         const nuevoUsuario = new User({
-            gymId: gymId || null,
+            gymId,
             nombre,
             email: emailNorm,
             password: passwordHasheada,
@@ -643,10 +656,12 @@ router.post('/register', async (req, res) => {
         });
 
         await nuevoUsuario.save();
+        await Invitacion.updateOne({ _id: inv._id }, { usadaPor: nuevoUsuario._id }).catch(() => {});
         // Enviar correo de verificación (no bloquea el registro si falla el email).
         await enviarVerificacion(nuevoUsuario);
         res.status(201).json({ mensaje: 'Usuario creado con éxito. Revisa tu correo para verificar la cuenta.' });
     } catch (error) {
+        await liberarInvitacion();
         res.status(500).json({ mensaje: 'Error en el servidor' });
     }
 });
@@ -690,31 +705,76 @@ router.post('/resend-verification', verificarToken, async (req, res) => {
 });
 
 // ✅ LOGIN
+// Firma el token y arma la respuesta de un login correcto. Incluye el gym del
+// usuario para que el frontend aplique su marca sin otra consulta.
+async function responderLogin(res, usuario) {
+    const token = jwt.sign(
+        { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
+        JWT_SECRET,
+        { expiresIn: TOKEN_EXPIRY }
+    );
+    const gym = usuario.gymId
+        ? await Gym.findOne({ _id: usuario.gymId, activo: true })
+            .select('nombre slug logo slogan colores modulos spotifyPlaylist').lean()
+        : null;
+    res.json({
+        mensaje: 'Login exitoso',
+        token,
+        usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
+        gym
+    });
+}
+
+// ✅ LOGIN — universal: un solo formulario para todos los gimnasios.
+//
+// La cuenta se busca por el correo en TODOS los gimnasios; no hace falta
+// elegir gimnasio antes de entrar. Si el mismo correo tiene cuenta en varios
+// (el índice único es {email, gymId}), se le devuelven SOLO los gimnasios
+// donde la contraseña coincidió, para que elija; el cliente repite la llamada
+// con el gymId elegido. Esa lista no filtra información: quien la recibe ya
+// demostró conocer la contraseña de esas cuentas.
 router.post('/login', async (req, res) => {
     try {
         const { email, password, gymId } = req.body;
-        // Superadmin no pertenece a ningún gym
         const emailNorm = (email || '').toLowerCase().trim();
-        const esSuperAdmin = await User.findOne({ email: emailNorm, role: 'superadmin' }).lean();
-        const query = esSuperAdmin ? { email: emailNorm } : { email: emailNorm, gymId: gymId || null };
-        const usuario = await User.findOne(query).select('+password').lean();
-        // Mensaje genérico idéntico para "usuario inexistente" y "contraseña incorrecta"
-        // (evita enumeración de correos registrados por gimnasio).
-        if (!usuario) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        if (!emailNorm || typeof password !== 'string') {
+            return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        }
 
-        const esValida = await bcrypt.compare(password, usuario.password);
-        if (!esValida) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        // Superadmin: cuenta global, fuera de los gimnasios.
+        const superadmin = await User.findOne({ email: emailNorm, role: 'superadmin' })
+            .select('+password').lean();
+        if (superadmin) {
+            const ok = await bcrypt.compare(password, superadmin.password);
+            if (!ok) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+            return responderLogin(res, superadmin);
+        }
 
-        const token = jwt.sign(
-            { id: usuario._id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
-            JWT_SECRET,
-            { expiresIn: TOKEN_EXPIRY }
-        );
+        // Con gymId (segunda llamada del selector, o flujos viejos): esa cuenta.
+        // Sin gymId: todas las cuentas de ese correo.
+        const filtro = gymId ? { email: emailNorm, gymId } : { email: emailNorm };
+        const cuentas = await User.find(filtro).select('+password').lean();
 
+        // La contraseña se comprueba contra CADA cuenta: cada una tiene la suya.
+        const validas = [];
+        for (const cuenta of cuentas) {
+            if (cuenta.password && await bcrypt.compare(password, cuenta.password)) {
+                validas.push(cuenta);
+            }
+        }
+
+        // Mensaje genérico idéntico para "no existe" y "contraseña incorrecta"
+        // (evita enumeración de correos registrados).
+        if (!validas.length) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        if (validas.length === 1) return responderLogin(res, validas[0]);
+
+        // Mismo correo y misma contraseña en varios gimnasios: que elija.
+        const gyms = await Gym.find({ _id: { $in: validas.map(c => c.gymId) }, activo: true })
+            .select('nombre slug logo').lean();
         res.json({
-            mensaje: 'Login exitoso',
-            token,
-            usuario: { _id: usuario._id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
+            mensaje: 'Elige el gimnasio',
+            multiple: true,
+            gimnasios: gyms
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error en el login' });

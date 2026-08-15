@@ -42,7 +42,7 @@ export class Landing implements OnInit {
 
   ngOnInit(): void {
     const slug = this.ruta.snapshot.paramMap.get('slug') || this.tenant.slug;
-    if (!slug) { this.router.navigate(['/gimnasios']); return; }
+    if (!slug) { this.router.navigate(['/login']); return; }
 
     this.landingService.obtener(slug).subscribe({
       next: (datos) => {

@@ -49,12 +49,12 @@ describe('authGuard', () => {
     });
   });
 
-  it('redirige a /gimnasios cuando no hay gym seleccionado', () => {
+  it('redirige al login cuando no hay gym seleccionado', () => {
     storage.getGym.mockReturnValue(null);
     storage.getToken.mockReturnValue('t');
 
     expect(run('/admin')).toBe(false);
-    expect(router.navigate).toHaveBeenCalledWith(['/gimnasios']);
+    expect(router.navigate).toHaveBeenCalledWith(['/login']);
   });
 
   it('saca a la página del gimnasio cuando hay gym pero no token', () => {

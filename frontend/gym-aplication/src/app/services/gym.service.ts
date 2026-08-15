@@ -132,7 +132,7 @@ export class GymService {
    */
   rutaSalida(): string {
     const slug = this.getGym()?.slug;
-    return slug ? `/g/${slug}` : '/gimnasios';
+    return slug ? `/g/${slug}` : '/login';
   }
 
   moduloActivo(nombre: keyof Gym['modulos']): boolean {

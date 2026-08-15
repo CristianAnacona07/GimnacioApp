@@ -30,14 +30,28 @@
         </div>
         <h1 class="brand-name">{{ gym?.nombre || 'GymApp' }}</h1>
         <p class="brand-sub">{{ gym?.slogan || 'Strength · Discipline · Power' }}</p>
-        @if (gym && !gymFijado) {
-          <button type="button" class="btn-cambiar-gym" (click)="cambiarGym()">
-            ← Cambiar gimnasio
-          </button>
-        }
       </div>
 
       <div class="card-body">
+
+        @if (gimnasiosMultiples) {
+          <div class="multi-gym">
+            <p class="multi-gym__titulo">Tu cuenta existe en varios gimnasios</p>
+            <p class="multi-gym__sub">¿A cuál querés entrar?</p>
+            @for (g of gimnasiosMultiples; track g._id) {
+              <button type="button" class="multi-gym__opcion" (click)="elegirGimnasio(g)">
+                @if (g.logo) {
+                  <img class="multi-gym__logo" [src]="g.logo" [alt]="g.nombre">
+                } @else {
+                  <span class="multi-gym__inicial">{{ g.nombre[0] }}</span>
+                }
+                <span class="multi-gym__nombre">{{ g.nombre }}</span>
+                <span class="multi-gym__flecha">→</span>
+              </button>
+            }
+            <button type="button" class="multi-gym__cancelar" (click)="cancelarEleccion()">Cancelar</button>
+          </div>
+        } @else {
 
         <div class="field-group">
           <label class="field-label" for="login-email">Correo electrónico</label>
@@ -100,9 +114,10 @@
         <p class="card-footer-text">
           <a routerLink="/forgot-password" class="card-link-soft">¿Olvidaste tu contraseña?</a>
         </p>
-        <p class="card-footer-text">
-          ¿Eres nuevo? <a routerLink="/register" class="card-link">Regístrate aquí</a>
+        <p class="card-footer-text card-footer-nota">
+          ¿Primera vez? Pedile el enlace de registro a tu gimnasio.
         </p>
+        }
 
       </div>
     </div>

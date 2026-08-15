@@ -24,14 +24,15 @@ const sharedRoutes: Routes = [
 ];
 
 export const routes: Routes = [
-  // En el subdominio de un gimnasio la raíz es su página pública; en el dominio
-  // general no hay una sola página que mostrar, así que va al selector.
+  // En el subdominio de un gimnasio la raíz es su página pública; en el
+  // dominio general va directo al login universal (el selector de gimnasios
+  // ya no existe: cada gimnasio entra por su propio dominio).
   {
     path: '',
     pathMatch: 'full',
     redirectTo: () => {
       const slug = inject(TenantService).slug;
-      return slug ? `/g/${slug}` : '/gimnasios';
+      return slug ? `/g/${slug}` : '/login';
     }
   },
 
@@ -42,10 +43,14 @@ export const routes: Routes = [
     loadComponent: () => import('./components/landing/landing').then(m => m.Landing)
   },
 
+  // El viejo selector de gimnasios: queda como alias por si hay enlaces
+  // guardados, pero la entrada es el login universal.
+  { path: 'gimnasios', redirectTo: 'login', pathMatch: 'full' },
+
+  // Registro por invitación: el link o QR que el gimnasio le manda al socio.
   {
-    path: 'gimnasios',
-    canActivate: [tenantGuard], // en subdominio de gym el selector se salta → /login
-    loadComponent: () => import('./components/gym-selector/gym-selector').then(m => m.GymSelector)
+    path: 'invitacion/:token',
+    loadComponent: () => import('./components/auth/invitacion/invitacion').then(m => m.RegistroInvitacion)
   },
   {
     path: 'gym/nuevo',

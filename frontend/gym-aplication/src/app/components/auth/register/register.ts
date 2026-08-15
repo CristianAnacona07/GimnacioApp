@@ -27,10 +27,16 @@ export class Register implements OnInit {
     private gymService: GymService
   ) {}
 
+  /** Token de la invitación con la que se llegó; sin él no hay registro. */
+  private invitacion: string | null = null;
+
   ngOnInit() {
+    // Solo se llega aquí desde /invitacion/<token>, que valida el link, fija el
+    // gimnasio y deja el token en sessionStorage. Entrar directo no sirve.
+    this.invitacion = sessionStorage.getItem('invitacionToken');
     this.gym = this.gymService.getGym();
-    if (!this.gym) {
-      this.router.navigate(['/gimnasios']);
+    if (!this.invitacion || !this.gym) {
+      this.router.navigate(['/login']);
     }
   }
 
@@ -54,11 +60,12 @@ export class Register implements OnInit {
     const usuarioAEnviar = {
       ...this.nuevoUsuario,
       role: 'socio',
-      gymId: this.gym?._id || null
+      invitacion: this.invitacion
     };
 
     this.authService.registrar(usuarioAEnviar).subscribe({
       next: () => {
+        sessionStorage.removeItem('invitacionToken');
         this.toast.success('¡Cuenta creada con éxito! Ahora puedes iniciar sesión.');
         this.router.navigate(['/login']);
       },

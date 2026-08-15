@@ -10,9 +10,10 @@ export const authGuard: CanActivateFn = (route, state) => {
   const token = storageService.getToken();
   const gym   = storageService.getGym();
 
-  // Sin gym seleccionado → selector
+  // Sin gym en memoria → al login universal (al entrar, la respuesta del
+  // servidor trae el gimnasio de la cuenta y lo deja fijado).
   if (!gym) {
-    router.navigate(['/gimnasios']);
+    router.navigate(['/login']);
     return false;
   }
 

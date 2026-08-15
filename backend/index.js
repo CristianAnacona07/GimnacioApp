@@ -146,6 +146,7 @@ app.use('/api/buscador', require('./routes/buscador'));
 app.use('/api/notificaciones', require('./routes/notificaciones'));
 app.use('/api/archivos', require('./routes/archivos'));
 app.use('/api/citas', require('./routes/citas'));
+app.use('/api/invitaciones', require('./routes/invitaciones'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 
