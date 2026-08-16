@@ -1,5 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { GymService, Gym } from '../../../../services/gym.service';
@@ -30,6 +30,7 @@ export class ConfiguracionGimnasio implements OnInit {
   private toast = inject(ToastService);
   private theme = inject(ThemeService);
   private cdr = inject(ChangeDetectorRef);
+  private location = inject(Location);
 
   gym: Gym | null = null;
   guardando = false;
@@ -39,6 +40,13 @@ export class ConfiguracionGimnasio implements OnInit {
     // Copia local: así descartar los cambios es no guardar, sin tocar la sesión.
     const actual = this.gymService.getGym();
     this.gym = actual ? JSON.parse(JSON.stringify(actual)) : null;
+  }
+
+  // Se llega tanto desde el hub de Configuración como desde el enlace de
+  // Página web: volver por historial, no a una ruta fija, para no saltarse
+  // el paso intermedio cuando se entró desde ahí.
+  volver(): void {
+    this.location.back();
   }
 
   /** Redimensiona el logo antes de subirlo: se guarda como data URL en Mongo. */

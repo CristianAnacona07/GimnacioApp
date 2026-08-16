@@ -21,7 +21,7 @@
   margin: 0 0 1.25rem;
 }
 
-/* Volver al hub */
+/* Volver (al hub, o por historial cuando se puede entrar desde más de un sitio) */
 .volver {
   display: inline-flex;
   align-items: center;
@@ -31,6 +31,12 @@
   font-size: 0.875rem;
   text-decoration: none;
   margin-bottom: 0.75rem;
+  /* Reset por si es un <button> (volver por historial) en vez de un <a>. */
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 /* ── Hub: tarjetas de sección ───────────────────────────────────────── */
