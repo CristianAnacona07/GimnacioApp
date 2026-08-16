@@ -260,6 +260,10 @@ export class Matricula implements OnInit {
         this.toast.error('El nombre es obligatorio');
         return;
       }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.correo.trim())) {
+        this.toast.error('El correo es obligatorio y debe ser válido');
+        return;
+      }
     } else if (!this.socioSeleccionado) {
       this.toast.error('Selecciona un socio existente');
       return;

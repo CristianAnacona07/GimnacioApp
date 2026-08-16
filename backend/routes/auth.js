@@ -13,6 +13,7 @@ const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
 
+const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
 // de administradores) comparta exactamente la misma configuración.
@@ -330,13 +331,10 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
     try {
         const { nombre, email, telefono, password, identificacion } = req.body;
         if (!nombre) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
-
-        // El correo es opcional; si no se da, se genera uno interno para cumplir el índice único
-        // (esa cuenta queda solo para uso interno: nadie conoce ese correo para iniciar sesión).
-        const emailDado = !!(email && email.trim());
-        const emailNorm = emailDado
-            ? email.toLowerCase().trim()
-            : `socio_${Date.now()}${Math.floor(Math.random() * 1000)}@sin-correo.local`;
+        if (!EMAIL_RX.test((email || '').trim())) {
+            return res.status(400).json({ mensaje: 'El correo es obligatorio y debe ser válido' });
+        }
+        const emailNorm = email.toLowerCase().trim();
 
         const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
         if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
@@ -346,9 +344,9 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
         const passPlano = passwordDada ? password : crypto.randomBytes(6).toString('hex');
         const salt = await bcrypt.genSalt(10);
 
-        // Con correo real y sin contraseña puesta a mano, se le manda un enlace para
-        // que el socio defina la suya — en vez de que recepción se la lea en voz alta.
-        const invitar = emailDado && !passwordDada;
+        // Sin contraseña puesta a mano, se le manda un enlace para que el socio
+        // defina la suya — en vez de que recepción se la lea en voz alta.
+        const invitar = !passwordDada;
         let resetToken = null, resetTokenExpiry = null, tokenPlano = null;
         if (invitar) {
             tokenPlano = crypto.randomBytes(32).toString('hex');
