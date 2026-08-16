@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { RouterStateSnapshot, ActivatedRouteSnapshot } from '@angular/router';
 import { authGuard } from './auth';
 import { StorageService } from '../services/storage.service';
+import { GymService } from '../services/gym.service';
 
 /**
  * Meaningful tests for authGuard: token validity, gym presence and
@@ -17,7 +18,10 @@ describe('authGuard', () => {
     decodeTokenPayload: ReturnType<typeof vi.fn>;
     clearSessionPreservingData: ReturnType<typeof vi.fn>;
   };
-  let router: { navigate: ReturnType<typeof vi.fn> };
+  let router: { navigate: ReturnType<typeof vi.fn>; navigateByUrl: ReturnType<typeof vi.fn> };
+  let gymService: { rutaSalida: ReturnType<typeof vi.fn> };
+  // Sin sesión válida el guard saca a la página pública del gimnasio.
+  const SALIDA = '/g/mi-gym';
 
   function run(url: string): boolean {
     const state = { url } as RouterStateSnapshot;
@@ -33,43 +37,45 @@ describe('authGuard', () => {
       decodeTokenPayload: vi.fn(),
       clearSessionPreservingData: vi.fn(),
     };
-    router = { navigate: vi.fn() };
+    router = { navigate: vi.fn(), navigateByUrl: vi.fn() };
+    gymService = { rutaSalida: vi.fn().mockReturnValue(SALIDA) };
 
     TestBed.configureTestingModule({
       providers: [
         { provide: StorageService, useValue: storage },
+        { provide: GymService, useValue: gymService },
         { provide: Router, useValue: router },
       ],
     });
   });
 
-  it('redirige a /gimnasios cuando no hay gym seleccionado', () => {
+  it('redirige al login cuando no hay gym seleccionado', () => {
     storage.getGym.mockReturnValue(null);
     storage.getToken.mockReturnValue('t');
 
     expect(run('/admin')).toBe(false);
-    expect(router.navigate).toHaveBeenCalledWith(['/gimnasios']);
+    expect(router.navigate).toHaveBeenCalledWith(['/login']);
   });
 
-  it('redirige a /login cuando hay gym pero no token', () => {
+  it('saca a la página del gimnasio cuando hay gym pero no token', () => {
     storage.getGym.mockReturnValue('mi-gym');
     storage.getToken.mockReturnValue(null);
 
     expect(run('/socio')).toBe(false);
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
+    expect(router.navigateByUrl).toHaveBeenCalledWith(SALIDA);
   });
 
-  it('limpia sesión y redirige a /login cuando el token está expirado', () => {
+  it('limpia sesión y saca a la página del gimnasio cuando el token está expirado', () => {
     storage.getGym.mockReturnValue('mi-gym');
     storage.getToken.mockReturnValue('t');
     storage.isTokenExpired.mockReturnValue(true);
 
     expect(run('/socio')).toBe(false);
     expect(storage.clearSessionPreservingData).toHaveBeenCalled();
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
+    expect(router.navigateByUrl).toHaveBeenCalledWith(SALIDA);
   });
 
-  it('limpia sesión y redirige cuando el payload no decodifica', () => {
+  it('limpia sesión y saca a la página del gimnasio cuando el payload no decodifica', () => {
     storage.getGym.mockReturnValue('mi-gym');
     storage.getToken.mockReturnValue('t');
     storage.isTokenExpired.mockReturnValue(false);
@@ -77,7 +83,7 @@ describe('authGuard', () => {
 
     expect(run('/socio')).toBe(false);
     expect(storage.clearSessionPreservingData).toHaveBeenCalled();
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
+    expect(router.navigateByUrl).toHaveBeenCalledWith(SALIDA);
   });
 
   it('permite a un admin acceder a la zona /admin', () => {

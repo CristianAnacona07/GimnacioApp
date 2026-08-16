@@ -54,6 +54,13 @@ enum DiaSemana {
   Domingo
 }
 
+enum EstadoCita {
+  agendada
+  cumplida
+  cancelada
+  ausente
+}
+
 // ── Tenant root ──────────────────────────────────────────────────────
 model Gym {
   id     String  @id @db.Char(24)
@@ -79,6 +86,22 @@ model Gym {
   activo          Boolean @default(true)
   spotifyPlaylist String  @default("") @map("spotify_playlist")
 
+  // agenda{} aplanado — sesiones personalizadas (duración/precio los fija el
+  // gimnasio; el horario lo publica cada profesional en User.disponibilidad).
+  agendaActiva                  Boolean @default(false) @map("agenda_activa")
+  agendaDuracionMin             Int     @default(60) @map("agenda_duracion_min")
+  agendaPrecio                  Decimal @default(0) @db.Decimal(10, 2) @map("agenda_precio")
+  agendaHorasMinimasReserva     Int     @default(2) @map("agenda_horas_minimas_reserva")
+  agendaHorasMinimasCancelacion Int     @default(4) @map("agenda_horas_minimas_cancelacion")
+  agendaDiasVisibles            Int     @default(14) @map("agenda_dias_visibles")
+
+  // Página pública del gimnasio: estructura anidada con bloques y arrays
+  // (galería de fotos, filas de horario) que se edita entera desde un solo
+  // formulario de admin — JSONB en vez de aplanar decenas de columnas o
+  // crear tablas hijas para listas que nunca se consultan por su cuenta.
+  // Forma completa documentada en lib/gymMapper.js (LANDING_DEFAULT).
+  landing Json @default("{\"activa\":false}")
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -95,6 +118,8 @@ model Gym {
   progresos     Progreso[]
   rutinas       Rutina[]
   transacciones Transaccion[]
+  citas         Cita[]
+  invitaciones  Invitacion[]
 
   @@index([deletedAt])
   @@map("gyms")
@@ -132,6 +157,11 @@ model User {
   racha           Int @default(0)
   asistenciasMes  Int @default(0) @map("asistencias_mes")
 
+  // Horario semanal de sesiones personalizadas (solo entrenador/empleado).
+  // Array de {dia, desde, hasta} — se reemplaza entero al guardar, sin
+  // updates por posición, así que JSONB es más simple que una tabla hija.
+  disponibilidad Json @default("[]")
+
   fechaRegistro    DateTime  @default(now()) @map("fecha_registro")
   fechaVencimiento DateTime? @map("fecha_vencimiento")
 
@@ -160,6 +190,12 @@ model User {
   rutinas                  Rutina[]
   transaccionesComo        Transaccion[] @relation("TransaccionUsuario")
   transaccionesRegistradas Transaccion[] @relation("TransaccionRegistradoPor")
+
+  citasComoSocio         Cita[] @relation("CitaSocio")
+  citasComoProfesional   Cita[] @relation("CitaProfesional")
+  citasCanceladas        Cita[] @relation("CitaCanceladaPor")
+  invitacionesCreadas    Invitacion[] @relation("InvitacionCreadaPor")
+  invitacionesUsadas     Invitacion[] @relation("InvitacionUsadaPor")
 
   @@unique([email, gymId])
   @@index([gymId])
@@ -408,4 +444,64 @@ model Transaccion {
   @@index([usuarioId])
   @@index([deletedAt])
   @@map("transacciones")
+}
+
+// ── Agenda de sesiones personalizadas ─────────────────────────────────
+model Cita {
+  id             String     @id @db.Char(24)
+  gymId          String     @db.Char(24) @map("gym_id")
+  gym            Gym        @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  socioId        String     @db.Char(24) @map("socio_id")
+  socio          User       @relation("CitaSocio", fields: [socioId], references: [id], onDelete: Restrict)
+  profesionalId  String     @db.Char(24) @map("profesional_id")
+  profesional    User       @relation("CitaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+
+  // Texto, no DateTime: el servidor vive en UTC y el gimnasio no. Guardar
+  // 'martes 20:00' como instante lo movería de hora al leerlo; como texto
+  // son las 20:00 para todos (ver detalle en el comentario original del
+  // modelo Mongoose). 'YYYY-MM-DD' además ordena bien alfabéticamente.
+  fecha       String @db.VarChar(10)
+  hora        String @db.VarChar(5)
+  duracionMin Int    @map("duracion_min")
+
+  estado        EstadoCita @default(agendada)
+  precio        Decimal    @default(0) @db.Decimal(10, 2)
+  nota          String     @default("")
+  canceladaPor  String?    @db.Char(24) @map("cancelada_por")
+  canceladaPorUsuario User? @relation("CitaCanceladaPor", fields: [canceladaPor], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // El único parcial real (profesional_id,fecha,hora) WHERE estado IN
+  // ('agendada','cumplida') se crea a mano en la migración SQL — Prisma no
+  // expresa uniques parciales condicionados por otra columna.
+  @@index([profesionalId, fecha, hora])
+  @@index([gymId, fecha])
+  @@map("citas")
+}
+
+// ── Invitaciones de registro ───────────────────────────────────────────
+model Invitacion {
+  id         String    @id @db.Char(24)
+  gymId      String    @db.Char(24) @map("gym_id")
+  gym        Gym       @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  token      String    @unique
+  creadaPor  String    @db.Char(24) @map("creada_por")
+  creador    User      @relation("InvitacionCreadaPor", fields: [creadaPor], references: [id], onDelete: Restrict)
+  usada      Boolean   @default(false)
+  usadaPor   String?   @db.Char(24) @map("usada_por")
+  usuario    User?     @relation("InvitacionUsadaPor", fields: [usadaPor], references: [id], onDelete: SetNull)
+  expiraEn   DateTime  @map("expira_en")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Mongo las borraba solas al vencer (TTL); Postgres no tiene ese
+  // mecanismo integrado, así que las invitaciones vencidas simplemente se
+  // quedan en la tabla (inertes: toda lectura filtra expiraEn > ahora) hasta
+  // que algo las limpie a mano o con un job programado — no existe todavía.
+  @@index([gymId])
+  @@index([expiraEn])
+  @@map("invitaciones")
 }

@@ -1,0 +1,129 @@
+# Pila de PRODUCCIÓN para el servidor propio (VPS).
+#
+# Diferencias con docker-compose.local.yml, que es para desarrollar:
+#   · Nada se publica a internet salvo los puertos 80 y 443 de Caddy. La base de
+#     datos, el almacén y la API solo se ven desde dentro de la red de Docker.
+#   · HTTPS automático, incluidos los subdominios de cada gimnasio.
+#   · Las contraseñas y el dominio salen del .env; no hay valores por defecto
+#     para lo sensible, así que arrancar sin configurarlo falla en vez de
+#     quedarse con una clave conocida.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml logs -f
+#
+# Guía completa: docs/DESPLIEGUE-VPS.md
+name: gimnacio-app
+
+services:
+  # ── Puerta de entrada ──────────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_datos:/data      # certificados: NO borrar, o se vuelven a pedir
+      - caddy_config:/config
+    environment:
+      DOMINIO: ${DOMINIO:?define DOMINIO en el .env}
+      EMAIL_CERTIFICADOS: ${EMAIL_CERTIFICADOS:?define EMAIL_CERTIFICADOS en el .env}
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  # ── Base de datos ──────────────────────────────────────────────────────
+  # Sin `ports`: solo se llega desde la red interna. Para conectarte con
+  # DBeaver/psql desde tu máquina, usa un túnel SSH (ver la guía).
+  postgres:
+    image: postgres:17
+    volumes:
+      - postgres_datos:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gymdb}
+      POSTGRES_USER: ${POSTGRES_USER:-gymapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gymapp} -d ${POSTGRES_DB:-gymdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── Almacén de archivos ────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    volumes:
+      - minio_datos:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER:?define MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:?define MINIO_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── API ────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+    environment:
+      NODE_ENV: production
+      PORT: 10000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gymapp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-gymdb}
+      JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET}
+      FRONTEND_URL: https://${DOMINIO}
+      TENANT_ROOT_DOMAIN: ${DOMINIO}
+
+      # Correo real (no Mailpit). Con SMTP_HOST definido se ignora Gmail.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-no-reply@${DOMINIO}}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID:-}
+      GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-}
+
+      # El navegador pide las fotos por el dominio público, no por la red
+      # interna: por eso las dos direcciones son distintas.
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_URL: https://${DOMINIO}/archivos
+      S3_BUCKET: ${S3_BUCKET:-gimnacio}
+      S3_ACCESS_KEY: ${MINIO_USER}
+      S3_SECRET_KEY: ${MINIO_PASSWORD}
+
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      WHATSAPP_PHONE_ID: ${WHATSAPP_PHONE_ID:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Web ────────────────────────────────────────────────────────────────
+  # Angular incrusta estos valores AL COMPILAR: si cambian, hay que reconstruir
+  # (`up -d --build frontend`), no basta con reiniciar el contenedor.
+  frontend:
+    build:
+      context: ./frontend/gym-aplication
+      args:
+        API_URL: https://${DOMINIO}
+        TENANT_ROOT_DOMAIN: ${DOMINIO}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_datos:
+  minio_datos:
+  caddy_datos:
+  caddy_config:

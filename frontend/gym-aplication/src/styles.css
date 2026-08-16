@@ -12,6 +12,63 @@
 }
 
 /* ============================================
+   PALETA CLARA / OSCURA
+   El modo lo marca ThemeService como data-tema en el <html>.
+
+   Son tres familias: superficies (fondos), tintas (textos) y bordes. Los
+   componentes las usan con su color de siempre como reserva —
+   `var(--sup-1, #fff)` — así una pantalla a la que le falte una variable se
+   sigue viendo como antes en vez de romperse.
+
+   Los colores de marca del gimnasio (primario, navbar) NO cambian con el modo:
+   son su identidad, y ya los ajusta ThemeService.
+   ============================================ */
+:root {
+  --sup-1: #f8fbff;   /* tarjetas y paneles */
+  --sup-2: #f0f5ff;   /* fondos alternos, cabeceras de tabla */
+  --sup-3: #e8f0ff;   /* realces y estados activos */
+
+  --txt-1: #1e293b;   /* títulos */
+  --txt-2: #475569;   /* texto corrido */
+  --txt-3: #94a3b8;   /* etiquetas y texto tenue */
+
+  --bde: #c8dcff;     /* bordes y separadores */
+  --sombra: rgba(29, 78, 216, 0.07);
+
+  /* Colores con significado: el fondo pastel de una etiqueta y su texto.
+     No son decoración — rojo es error, verde es correcto — así que en modo
+     oscuro conservan el tono y solo cambian de intensidad. */
+  --tinte-rojo:   #fee2e2;  --txt-rojo:   #dc2626;
+  --tinte-verde:  #dcfce7;  --txt-verde:  #15803d;
+  --tinte-azul:   #dbeafe;  --txt-azul:   #1d4ed8;
+  --tinte-morado: #ede9fe;  --txt-morado: #6d28d9;
+  --tinte-ambar:  #fef3c7;  --txt-ambar:  #b45309;
+}
+
+[data-tema='oscuro'] {
+  --color-fondo: #0b1119;
+
+  --sup-1: #161d27;
+  --sup-2: #111823;
+  --sup-3: #1e2733;
+
+  --txt-1: #eef2f8;
+  --txt-2: #b6c2d3;
+  --txt-3: #8b98ad;
+
+  --bde: #2a3543;
+  --sombra: rgba(0, 0, 0, 0.5);
+
+  /* Mismo significado, apagado: fondo apenas teñido y texto luminoso, que es
+     lo que se lee bien sobre oscuro (el rojo #dc2626 sobre negro no se ve). */
+  --tinte-rojo:   #3a2024;  --txt-rojo:   #f87171;
+  --tinte-verde:  #17301f;  --txt-verde:  #4ade80;
+  --tinte-azul:   #16273d;  --txt-azul:   #60a5fa;
+  --tinte-morado: #251f3e;  --txt-morado: #a78bfa;
+  --tinte-ambar:  #33291a;  --txt-ambar:  #fbbf24;
+}
+
+/* ============================================
    COMPATIBILIDAD — prefijos y fallbacks
    ============================================ */
 
@@ -44,34 +101,59 @@ body {
 }
 
 /* --- Tailwind overrides con tono azulado --- */
-.bg-white        { background-color: #f8fbff !important; }
-.bg-slate-50     { background-color: #f0f5ff !important; }
-.bg-slate-100    { background-color: #e8f0ff !important; }
-.bg-slate-200    { background-color: #d8e6ff !important; }
+.bg-white        { background-color: var(--sup-1) !important; }
+.bg-slate-50     { background-color: var(--sup-2) !important; }
+.bg-slate-100    { background-color: var(--sup-3) !important; }
+.bg-slate-200    { background-color: var(--sup-3, #d8e6ff) !important; }
 .bg-slate-800    { background-color: #101d36 !important; }
 .bg-slate-900    { background-color: #090f1e !important; }
 
 /* Bordes con tinte azul */
-.border-slate-100 { border-color: #d8e8ff !important; }
-.border-slate-200 { border-color: #c8dcff !important; }
-.border-slate-300 { border-color: #b0caff !important; }
+.border-slate-100 { border-color: var(--bde) !important; }
+.border-slate-200 { border-color: var(--bde) !important; }
+.border-slate-300 { border-color: var(--bde) !important; }
 
 /* Textos grises con tinte azul */
-.text-slate-300  { color: #9ab5da !important; }
-.text-slate-400  { color: #7a9bc0 !important; }
-.text-slate-500  { color: #5c7fa8 !important; }
+.text-slate-300  { color: var(--txt-3) !important; }
+.text-slate-400  { color: var(--txt-3) !important; }
+.text-slate-500  { color: var(--txt-2) !important; }
+
+/* Textos oscuros de Tailwind: en modo oscuro deben aclararse o desaparecen. */
+.text-slate-600, .text-slate-700 { color: var(--txt-2) !important; }
+.text-slate-800, .text-slate-900 { color: var(--txt-1) !important; }
 
 /* Input backgrounds */
 input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="number"],
+input[type="date"],
+input[type="search"],
 textarea,
 select {
-  background-color: #f0f5ff;
+  background-color: var(--sup-2);
+  color: var(--txt-1);
 }
 input:focus,
 textarea:focus,
 select:focus {
-  background-color: #e8f0ff;
+  background-color: var(--sup-3);
+}
+
+/* En oscuro el gris claro de Tailwind sigue siendo claro: hay que apagarlo. */
+[data-tema='oscuro'] .bg-slate-200 { background-color: var(--sup-3) !important; }
+
+/* ============================================
+   AJUSTES DE MODO OSCURO
+
+   Los degradados decorativos y las fotos se ven demasiado brillantes sobre un
+   fondo apagado: no cambian de color, solo bajan de intensidad para que el
+   contenido no compita con la decoración.
+   ============================================ */
+[data-tema='oscuro'] img:not([src*='avatar']):not(.logo-blend) {
+  filter: brightness(0.88);
+}
+[data-tema='oscuro'] [class*='--placeholder'],
+[data-tema='oscuro'] [class*='placeholder'] {
+  filter: brightness(0.6) saturate(0.85);
 }

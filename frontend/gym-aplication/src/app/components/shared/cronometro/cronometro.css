@@ -4,7 +4,7 @@
   bottom: 5.5rem;
   right: 1rem;
   background: #1e293b;
-  color: #fbbf24;
+  color: var(--txt-ambar, #fbbf24);
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0.5rem 0.85rem;
@@ -75,7 +75,7 @@
 .mini-label {
   font-size: 0.62rem;
   font-weight: 800;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   line-height: 1;
@@ -96,18 +96,18 @@
 .mini-tiempo {
   font-size: 1.3rem;
   font-weight: 900;
-  color: #22c55e;
+  color: var(--txt-verde, #22c55e);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
 .mini-tiempo.tiempo-alerta {
-  color: #ef4444;
+  color: var(--txt-rojo, #ef4444);
   animation: parpadeo-rojo 0.5s ease infinite;
 }
 
 .mini-tiempo.tiempo-fin {
-  color: #22c55e;
+  color: var(--txt-verde, #22c55e);
 }
 
 .mini-dot {
@@ -125,7 +125,7 @@
 .mini-estado {
   font-size: 0.68rem;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   margin-top: 0.2rem;
   letter-spacing: 0.03em;
 }
@@ -133,7 +133,7 @@
 .mini-fin-texto {
   font-size: 0.68rem;
   font-weight: 800;
-  color: #22c55e;
+  color: var(--txt-verde, #22c55e);
   margin-top: 0.2rem;
   letter-spacing: 0.03em;
 }
@@ -176,7 +176,7 @@
 
 .celeb-sub {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-weight: 600;
   margin-bottom: 1.25rem;
 }
@@ -221,7 +221,7 @@
 .handle-label {
   font-size: 0.72rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -241,7 +241,7 @@
   border-radius: 999px;
   border: 1.5px solid #1e293b;
   background: transparent;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
@@ -321,7 +321,7 @@
   width: 2.5rem; height: 2.5rem;
   border-radius: 50%;
   background: #1e293b; border: none;
-  color: #64748b; font-size: 1.1rem;
+  color: var(--txt-3, #64748b); font-size: 1.1rem;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: color 0.15s;
@@ -351,12 +351,12 @@
   50%       { opacity: 0.3; }
 }
 @keyframes parpadeo-rojo {
-  0%, 100% { color: #ef4444; }
+  0%, 100% { color: var(--txt-rojo, #ef4444); }
   50%       { color: #ff8080; }
 }
 @keyframes parpadeo-numero {
   0%, 100% { color: #f1f5f9; }
-  50%       { color: #ef4444; }
+  50%       { color: var(--txt-rojo, #ef4444); }
 }
 @keyframes pulso-borde {
   0%, 100% { box-shadow: 0 4px 24px rgba(29,78,216,0.5); }

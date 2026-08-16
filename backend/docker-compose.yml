@@ -5,7 +5,8 @@
 #   2) docker compose pull        # descarga las imágenes desde ghcr.io
 #   3) docker compose up -d       # levanta backend + frontend
 #
-# MongoDB sigue en Atlas (la nube): se conecta por MONGO_URI, no hay contenedor de BD.
+# Postgres no está en este compose: DATABASE_URL apunta a donde sea que viva
+# (un Postgres gestionado, u otro contenedor cercano al destino de despliegue).
 
 services:
   backend:
@@ -15,7 +16,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 10000
-      MONGO_URI: ${MONGO_URI}
+      DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID}

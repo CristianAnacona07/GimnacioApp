@@ -41,6 +41,7 @@ function log(...args) {
 function tGym(d) {
   const colores = d.colores || {};
   const modulos = d.modulos || {};
+  const agenda = d.agenda || {};
   return {
     id: hex(d._id),
     nombre: d.nombre,
@@ -59,6 +60,13 @@ function tGym(d) {
     moduloPagos: modulos.pagos ?? true,
     moduloNoticias: modulos.noticias ?? true,
     moduloCronometro: modulos.cronometro ?? true,
+    agendaActiva: agenda.activa ?? false,
+    agendaDuracionMin: agenda.duracionMin ?? 60,
+    agendaPrecio: decimal(agenda.precio ?? 0),
+    agendaHorasMinimasReserva: agenda.horasMinimasReserva ?? 2,
+    agendaHorasMinimasCancelacion: agenda.horasMinimasCancelacion ?? 4,
+    agendaDiasVisibles: agenda.diasVisibles ?? 14,
+    landing: d.landing ?? { activa: false },
     activo: d.activo ?? true,
     spotifyPlaylist: d.spotifyPlaylist ?? '',
     createdAt: d.createdAt ?? new Date(),
@@ -92,6 +100,7 @@ function tUser(d) {
     telefono: dp.telefono ?? '',
     racha: stats.racha ?? 0,
     asistenciasMes: stats.asistenciasMes ?? 0,
+    disponibilidad: Array.isArray(d.disponibilidad) ? d.disponibilidad : [],
     fechaRegistro: d.fechaRegistro ?? d.createdAt ?? new Date(),
     fechaVencimiento: d.fechaVencimiento ?? null,
     resetToken: d.resetToken ?? null,
@@ -215,6 +224,24 @@ function tTransaccion(d) {
   };
 }
 
+function tCita(d) {
+  return {
+    id: hex(d._id), gymId: hex(d.gymId), socioId: hex(d.socioId), profesionalId: hex(d.profesionalId),
+    fecha: d.fecha, hora: d.hora, duracionMin: d.duracionMin ?? 60,
+    estado: d.estado || 'agendada', precio: decimal(d.precio ?? 0), nota: d.nota ?? '',
+    canceladaPor: hex(d.canceladaPor),
+    createdAt: d.createdAt ?? new Date(), updatedAt: d.updatedAt ?? new Date(),
+  };
+}
+
+function tInvitacion(d) {
+  return {
+    id: hex(d._id), gymId: hex(d.gymId), token: d.token, creadaPor: hex(d.creadaPor),
+    usada: d.usada ?? false, usadaPor: hex(d.usadaPor), expiraEn: d.expiraEn ?? new Date(),
+    createdAt: d.createdAt ?? new Date(), updatedAt: d.updatedAt ?? new Date(),
+  };
+}
+
 // ── Motor genérico de copia por lotes ───────────────────────────────────────
 
 async function copiarColeccion(db, prisma, nombreColeccion, delegate, transform, { strict = false } = {}) {
@@ -252,7 +279,7 @@ async function asegurarTablasVacias(prisma) {
     ['dispositivo', 'dispositivos'], ['feedback', 'feedbacks'], ['medidas', 'medidas'],
     ['progreso', 'progresos'], ['noticia', 'noticias'], ['metodoPago', 'metodos_pago'],
     ['plan', 'planes'], ['rutina', 'rutinas'], ['rutinaEjercicio', 'rutina_ejercicios'],
-    ['transaccion', 'transacciones'],
+    ['transaccion', 'transacciones'], ['cita', 'citas'], ['invitacion', 'invitaciones'],
   ];
   for (const [modelo, tabla] of tablas) {
     const n = await prisma[modelo].count();
@@ -273,6 +300,7 @@ async function verificar(db, prisma, counts) {
     ['dispositivos', 'dispositivo'], ['feedbacks', 'feedback'], ['medidas', 'medidas'],
     ['progresos', 'progreso'], ['noticias', 'noticia'], ['metodopagos', 'metodoPago'],
     ['plans', 'plan'], ['rutinas', 'rutina'], ['transaccions', 'transaccion'],
+    ['citas', 'cita'], ['invitacions', 'invitacion'],
   ];
 
   for (const [coleccion, modelo] of paresColeccionModelo) {
@@ -298,6 +326,8 @@ async function verificar(db, prisma, counts) {
       ['users.entrenador_id -> users', Prisma.sql`SELECT count(*)::int AS n FROM users u LEFT JOIN users e ON e.id = u.entrenador_id WHERE u.entrenador_id IS NOT NULL AND e.id IS NULL`],
       ['rutinas.usuario_id -> users', Prisma.sql`SELECT count(*)::int AS n FROM rutinas r LEFT JOIN users u ON u.id = r.usuario_id WHERE u.id IS NULL`],
       ['transacciones.metodo_id -> metodos_pago', Prisma.sql`SELECT count(*)::int AS n FROM transacciones t LEFT JOIN metodos_pago m ON m.id = t.metodo_id WHERE t.metodo_id IS NOT NULL AND m.id IS NULL`],
+      ['citas.profesional_id -> users', Prisma.sql`SELECT count(*)::int AS n FROM citas c LEFT JOIN users u ON u.id = c.profesional_id WHERE u.id IS NULL`],
+      ['invitaciones.creada_por -> users', Prisma.sql`SELECT count(*)::int AS n FROM invitaciones i LEFT JOIN users u ON u.id = i.creada_por WHERE u.id IS NULL`],
     ];
     for (const [nombre, sql] of chequeos) {
       const [{ n }] = await prisma.$queryRaw(sql);
@@ -402,6 +432,12 @@ async function main() {
     // 8 — Transaccion (depende de Gym, User, MetodoPago)
     counts.transaccions = await copiarColeccion(db, prisma, 'transaccions', prisma.transaccion, tTransaccion, { strict: STRICT });
     log(`✅ transaccions: ${counts.transaccions}`);
+
+    // 9 — Cita e Invitacion (dependen de Gym + User; van después para que las FK ya existan)
+    counts.citas = await copiarColeccion(db, prisma, 'citas', prisma.cita, tCita, { strict: STRICT });
+    log(`✅ citas: ${counts.citas}`);
+    counts.invitacions = await copiarColeccion(db, prisma, 'invitacions', prisma.invitacion, tInvitacion, { strict: STRICT });
+    log(`✅ invitacions: ${counts.invitacions}`);
 
     const ok = await verificar(db, prisma, counts);
     if (!ok) process.exitCode = 1;

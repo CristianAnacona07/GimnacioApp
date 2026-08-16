@@ -23,6 +23,14 @@
       <app-buscador-global />
       <app-notificaciones />
 
+      <!-- Claro/oscuro disponible desde cualquier pantalla de la app. -->
+      <button type="button" (click)="alternarTema()"
+        [attr.aria-label]="esOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        [title]="esOscuro ? 'Modo claro' : 'Modo oscuro'"
+        class="text-white text-lg cursor-pointer p-1.5 rounded-lg hover:bg-white/15 transition-colors">
+        <span aria-hidden="true">{{ esOscuro ? '☀️' : '🌙' }}</span>
+      </button>
+
       <span
         class="hidden sm:block ml-1 text-slate-400 text-[9px] font-black uppercase bg-slate-800 px-2 py-1 rounded border border-slate-700">
         {{ role }}

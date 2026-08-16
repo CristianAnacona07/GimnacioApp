@@ -9,6 +9,7 @@ import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { ProgresoService } from '../../../services/progreso.service';
 import { UserStateService } from '../../../services/user-state.service';
+import { TiempoRealService } from '../../../services/tiempo-real.service';
 import { DIAS_RUTINA } from '../../../../data/ejercicios-catalogo';
 
 interface SetForm { peso: number | null; reps: number | null; }
@@ -34,6 +35,7 @@ export class MiRutina implements OnInit, OnDestroy {
   private progresoService = inject(ProgresoService);
   private userState = inject(UserStateService);
   private toast = inject(ToastService);
+  private tiempoReal = inject(TiempoRealService);
   private destroy$ = new Subject<void>();
 
   rutinas: any[] = [];
@@ -89,7 +91,12 @@ export class MiRutina implements OnInit, OnDestroy {
     const alVolver$ = fromEvent(document, 'visibilitychange').pipe(
       filter(() => document.visibilityState === 'visible')
     );
-    merge(timer(0, INTERVALO_RECARGA_MS), alVolver$)
+    // El servidor avisa en cuanto el entrenador guarda un cambio; el temporizador
+    // de 30 s queda de respaldo por si el canal no está disponible.
+    this.tiempoReal.conectar();
+    const alCambiar$ = this.tiempoReal.escuchar('rutina:actualizada');
+
+    merge(timer(0, INTERVALO_RECARGA_MS), alVolver$, alCambiar$)
       .pipe(
         switchMap(() => this.authService.obtenerRutina(usuario._id).pipe(
           // Si una recarga falla se conserva lo que ya había en pantalla.

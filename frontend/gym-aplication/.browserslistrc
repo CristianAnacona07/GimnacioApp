@@ -1,3 +1,11 @@
+# Navegadores a los que se adapta el código compilado.
+#
+# El suelo es Chrome 111 porque Tailwind v4 necesita CSS moderno (@property,
+# color-mix): bajarlo rompería los estilos, no los arreglaría.
+#
+# Para el WebView viejo de un teléfono sin servicios de Google, el problema no
+# es la sintaxis —esa la entiende— sino los métodos nuevos del lenguaje, que el
+# compilador nunca añade. De eso se encarga src/polyfills.ts.
 last 2 Chrome versions
 last 2 Firefox versions
 last 2 Safari versions

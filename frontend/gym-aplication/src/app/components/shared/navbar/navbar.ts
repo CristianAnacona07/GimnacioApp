@@ -7,6 +7,7 @@ import { takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth';
 import { UserStateService } from '../../../services/user-state.service';
 import { GymService } from '../../../services/gym.service';
+import { ThemeService } from '../../../services/theme.service';
 import { BuscadorGlobal } from '../buscador-global/buscador-global';
 import { Notificaciones } from '../notificaciones/notificaciones';
 import { NotificacionesService } from '../../../services/notificaciones.service';
@@ -25,6 +26,14 @@ export class Navbar implements OnInit, OnDestroy {
   menuOpen = false;
 
   private notificaciones = inject(NotificacionesService);
+  private theme = inject(ThemeService);
+
+  get esOscuro(): boolean { return this.theme.modo === 'oscuro'; }
+
+  alternarTema(): void {
+    this.theme.alternarModo();
+    this.cdr.detectChanges();
+  }
 
   private static perfilCache: any = null;
   private static lastLoadTime = 0;
@@ -86,6 +95,7 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '📢',    name: 'noticias',    route: '/socio/noticias',   show: m('noticias') },
         { icon: '🏋️‍♂️', name: 'mi rutina',  route: '/socio/mi-rutina',  show: m('rutinas') },
         { icon: '📈',    name: 'mi progreso', route: '/socio/progreso',   show: m('progreso') },
+        { icon: '📅',    name: 'agendar',     route: '/socio/agendar',    show: true },
         { icon: '👤',    name: 'perfil',      route: '/socio/perfil',     show: true },
         { icon: '💎',    name: 'planes',      route: '/socio/planes',     show: m('pagos') },
         { icon: '💰',    name: 'pagos',              route: '/socio/pagos',      show: m('pagos') },
@@ -180,7 +190,7 @@ export class Navbar implements OnInit, OnDestroy {
     // con el token ya borrado: hay que pararlo a mano.
     this.notificaciones.detener();
     this.authService.logout();
-    this.router.navigate(['/login']);
+    this.router.navigateByUrl(this.gymService.rutaSalida());
   }
 
   ngOnDestroy() {

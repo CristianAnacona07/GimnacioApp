@@ -64,7 +64,7 @@
 }
 
 .confirm-box {
-  background: #f8fbff;
+  background: var(--sup-1, #f8fbff);
   border-radius: 1.25rem;
   padding: 1.75rem;
   max-width: 24rem;
@@ -73,7 +73,7 @@
 }
 
 .confirm-message {
-  color: #334155;
+  color: var(--txt-1, #334155);
   font-size: 0.975rem;
   font-weight: 500;
   margin-bottom: 1.5rem;
@@ -94,13 +94,13 @@
   padding: 0.55rem 1.25rem;
   border-radius: 0.75rem;
   border: none;
-  background: #e8f0ff;
-  color: #475569;
+  background: var(--tinte-azul, #e8f0ff);
+  color: var(--txt-2, #475569);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
 }
-.btn-cancel:hover { background: #e2e8f0; }
+.btn-cancel:hover { background: var(--sup-3, #e2e8f0); }
 
 .btn-confirm {
   padding: 0.55rem 1.25rem;

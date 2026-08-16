@@ -11,12 +11,12 @@
 .page-title {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
   margin: 0 0 0.25rem;
 }
 
 .page-sub {
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: 0.9rem;
   margin: 0 0 1.25rem;
 }
@@ -26,7 +26,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: #4f46e5;
+  color: var(--txt-azul, #4f46e5);
   font-weight: 600;
   font-size: 0.875rem;
   text-decoration: none;
@@ -45,8 +45,8 @@
   align-items: center;
   gap: 0.85rem;
   padding: 0.95rem 1rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--sup-1, #fff);
+  border: 1px solid var(--bde, #e2e8f0);
   border-radius: 0.9rem;
   text-decoration: none;
   color: inherit;
@@ -71,25 +71,25 @@
 .menu-nombre {
   display: block;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
 }
 
 .menu-desc {
   display: block;
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   margin-top: 0.15rem;
 }
 
 .menu-arrow {
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   flex-shrink: 0;
 }
 
 /* ── Tarjetas de contenido ──────────────────────────────────────────── */
 .card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--sup-1, #fff);
+  border: 1px solid var(--bde, #e2e8f0);
   border-radius: 0.9rem;
   padding: 1.1rem;
   margin-bottom: 1rem;
@@ -98,13 +98,13 @@
 .card-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
   margin: 0 0 0.25rem;
 }
 
 .card-hint {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   margin: 0 0 0.9rem;
   line-height: 1.45;
 }
@@ -119,7 +119,7 @@
   display: block;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--txt-2, #475569);
   margin-bottom: 0.3rem;
 }
 
@@ -127,11 +127,11 @@
 .select {
   width: 100%;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--bde, #cbd5e1);
   border-radius: 0.6rem;
   font-size: 0.95rem;
-  background: #fff;
-  color: #1e293b;
+  background: var(--sup-1, #fff);
+  color: var(--txt-1, #1e293b);
 }
 
 .input:focus,
@@ -163,13 +163,13 @@ textarea.input {
 }
 
 .btn--ghost {
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--tinte-azul, #eef2ff);
+  color: var(--txt-azul, #4338ca);
 }
 
 .btn--peligro {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--tinte-rojo, #fee2e2);
+  color: var(--txt-rojo, #b91c1c);
 }
 
 .btn--bloque {
@@ -189,7 +189,7 @@ textarea.input {
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.6rem 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--bde, #f1f5f9);
 }
 
 .switch-fila:last-child {
@@ -198,7 +198,7 @@ textarea.input {
 
 .switch-texto {
   font-size: 0.9rem;
-  color: #334155;
+  color: var(--txt-1, #334155);
 }
 
 /* ── Colores ────────────────────────────────────────────────────────── */
@@ -213,7 +213,7 @@ textarea.input {
   width: 3rem;
   height: 2.25rem;
   padding: 0;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--bde, #cbd5e1);
   border-radius: 0.5rem;
   background: none;
   cursor: pointer;
@@ -257,7 +257,7 @@ textarea.input {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--bde, #f1f5f9);
 }
 
 .lista__item:last-child {
@@ -272,13 +272,13 @@ textarea.input {
 .lista__nombre {
   display: block;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
 }
 
 .lista__meta {
   display: block;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   margin-top: 0.1rem;
   word-break: break-word;
 }
@@ -289,12 +289,12 @@ textarea.input {
   white-space: nowrap;
 }
 
-.estado--ok { color: #16a34a; }
-.estado--espera { color: #d97706; }
-.estado--off { color: #94a3b8; }
+.estado--ok { color: var(--txt-verde, #16a34a); }
+.estado--espera { color: var(--txt-ambar, #d97706); }
+.estado--off { color: var(--txt-3, #94a3b8); }
 
 .vacio {
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: 0.875rem;
   text-align: center;
   padding: 1.25rem 0;
@@ -302,12 +302,12 @@ textarea.input {
 
 /* ── Bloque de instrucciones / códigos ──────────────────────────────── */
 .instrucciones {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: var(--sup-1, #f8fafc);
+  border: 1px dashed var(--bde, #cbd5e1);
   border-radius: 0.7rem;
   padding: 0.85rem;
   font-size: 0.82rem;
-  color: #475569;
+  color: var(--txt-2, #475569);
   line-height: 1.55;
 }
 
@@ -348,5 +348,5 @@ textarea.input {
   gap: 0.75rem;
   margin-top: 1rem;
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--txt-2, #475569);
 }

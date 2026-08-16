@@ -1,9 +1,11 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth';
 import { AdminDashboard } from './components/admin/dashboardAdmin/dashboardAdmin';
 import { noAuthGuard } from './guards/no-auth-guard';
 import { superAdminGuard } from './guards/superadmin.guard';
 import { tenantGuard } from './guards/tenant.guard';
+import { TenantService } from './services/tenant.service';
 
 // Rutas compartidas entre admin y socio
 const sharedRoutes: Routes = [
@@ -22,12 +24,33 @@ const sharedRoutes: Routes = [
 ];
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/gimnasios', pathMatch: 'full' },
-
+  // En el subdominio de un gimnasio la raíz es su página pública; en el
+  // dominio general va directo al login universal (el selector de gimnasios
+  // ya no existe: cada gimnasio entra por su propio dominio).
   {
-    path: 'gimnasios',
-    canActivate: [tenantGuard], // en subdominio de gym el selector se salta → /login
-    loadComponent: () => import('./components/gym-selector/gym-selector').then(m => m.GymSelector)
+    path: '',
+    pathMatch: 'full',
+    redirectTo: () => {
+      const slug = inject(TenantService).slug;
+      return slug ? `/g/${slug}` : '/login';
+    }
+  },
+
+  // Página pública de un gimnasio (sin sesión). Si no publicó la suya, el
+  // propio componente manda al login.
+  {
+    path: 'g/:slug',
+    loadComponent: () => import('./components/landing/landing').then(m => m.Landing)
+  },
+
+  // El viejo selector de gimnasios: queda como alias por si hay enlaces
+  // guardados, pero la entrada es el login universal.
+  { path: 'gimnasios', redirectTo: 'login', pathMatch: 'full' },
+
+  // Registro por invitación: el link o QR que el gimnasio le manda al socio.
+  {
+    path: 'invitacion/:token',
+    loadComponent: () => import('./components/auth/invitacion/invitacion').then(m => m.RegistroInvitacion)
   },
   {
     path: 'gym/nuevo',
@@ -101,6 +124,14 @@ export const routes: Routes = [
         loadComponent: () => import('./components/admin/configuracion/gimnasio/gimnasio').then(m => m.ConfiguracionGimnasio)
       },
       {
+        path: 'configuracion/agenda',
+        loadComponent: () => import('./components/admin/configuracion/agenda/agenda').then(m => m.ConfiguracionAgenda)
+      },
+      {
+        path: 'configuracion/pagina',
+        loadComponent: () => import('./components/admin/configuracion/pagina/pagina').then(m => m.ConfiguracionPagina)
+      },
+      {
         path: 'configuracion/acceso',
         loadComponent: () => import('./components/admin/configuracion/acceso/acceso').then(m => m.ConfiguracionAcceso)
       },
@@ -153,6 +184,10 @@ export const routes: Routes = [
         loadComponent: () => import('./components/socio/medidas/medidas').then(m => m.Medidas)
       },
       {
+        path: 'agendar',
+        loadComponent: () => import('./components/socio/agendar/agendar').then(m => m.Agendar)
+      },
+      {
         path: 'feedback',
         loadComponent: () => import('./components/socio/feedback/feedback').then(m => m.FeedbackComponent)
       },
@@ -193,6 +228,10 @@ export const routes: Routes = [
       {
         path: 'socio/:id',
         loadComponent: () => import('./components/entrenador/socio-detalle/socio-detalle').then(m => m.SocioDetalle)
+      },
+      {
+        path: 'agenda',
+        loadComponent: () => import('./components/entrenador/agenda/agenda').then(m => m.AgendaProfesional)
       },
       { path: '', redirectTo: 'socios', pathMatch: 'full' }
     ]

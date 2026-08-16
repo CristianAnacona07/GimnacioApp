@@ -1,0 +1,154 @@
+.page {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 5rem;
+}
+
+.page-title { font-size: 1.2rem; font-weight: 800; color: var(--txt-1, #1e293b); margin: 0; }
+.page-sub { font-size: 0.8rem; color: var(--txt-3, #94a3b8); font-weight: 600; margin: 0.2rem 0 1.25rem; }
+
+.cargando { font-size: 0.85rem; color: var(--txt-3, #94a3b8); text-align: center; padding: 1.5rem 0; }
+.aviso { font-size: 0.8rem; color: var(--txt-3, #94a3b8); margin: 0.5rem 0 0; }
+
+/* ── Tarjeta del horario ─────────────────────────────────────────────────── */
+.tarjeta {
+  background: var(--sup-1, #fff);
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 1.15rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.tarjeta-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+.tarjeta-titulo { font-size: 0.92rem; font-weight: 800; color: var(--txt-1, #1e293b); margin: 0; }
+.tarjeta-sub { font-size: 0.75rem; color: var(--txt-3, #94a3b8); margin: 0.15rem 0 0; line-height: 1.4; }
+
+.franjas-vista { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.franja-chip {
+  background: var(--sup-3, #e8f0ff);
+  color: var(--color-secundario, #1d4ed8);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.franja-editar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.a { font-size: 0.75rem; color: var(--txt-3, #94a3b8); flex-shrink: 0; }
+
+.input {
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--txt-1, #1e293b);
+  background: var(--sup-1, #fff);
+  outline: none;
+  min-width: 0;
+  flex: 1;
+}
+.input:focus { border-color: var(--color-secundario, #1d4ed8); }
+.input--hora { flex: 0 0 96px; }
+
+.quitar {
+  border: none;
+  background: var(--sup-2, #f8fafc);
+  border-radius: 0.5rem;
+  width: 32px; height: 32px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.quitar:hover { background: var(--tinte-rojo, #fee2e2); }
+
+.btn {
+  background: var(--color-secundario, #1d4ed8);
+  color: #fff;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.83rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--chico { padding: 0.4rem 0.9rem; font-size: 0.76rem; border-radius: 999px; flex-shrink: 0; }
+.btn--claro {
+  background: var(--sup-1, #fff);
+  color: var(--color-secundario, #1d4ed8);
+  border: 1.5px solid var(--bde, #c8dcff);
+}
+.btn--bloque { display: block; width: 100%; margin-top: 0.5rem; }
+
+/* ── Citas ───────────────────────────────────────────────────────────────── */
+.dia-titulo {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--txt-3, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.cita {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--sup-1, #fff);
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 1rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.55rem;
+}
+
+.cita-hora {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--color-secundario, #1d4ed8);
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.cita-quien { flex: 1; min-width: 0; }
+.cita-nombre { font-size: 0.9rem; font-weight: 700; color: var(--txt-1, #1e293b); margin: 0; }
+.cita-nota { font-size: 0.74rem; color: var(--txt-3, #94a3b8); margin: 0.1rem 0 0; }
+
+.cita-acciones { display: flex; gap: 0.3rem; flex-shrink: 0; }
+
+.btn-icono {
+  border: none;
+  background: var(--sup-2, #f0f5ff);
+  border-radius: 0.55rem;
+  width: 32px; height: 32px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--txt-2, #475569);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-icono.btn-ok { background: var(--tinte-verde, #dcfce7); color: var(--txt-verde, #15803d); }
+.btn-icono.btn-borrar:hover { background: var(--tinte-rojo, #fee2e2); color: var(--txt-rojo, #dc2626); }
+
+/* ── Vacío ───────────────────────────────────────────────────────────────── */
+.vacio { text-align: center; padding: 2.5rem 1rem; }
+.vacio-icono { font-size: 2.4rem; display: block; margin-bottom: 0.6rem; }
+.vacio-titulo { font-size: 0.95rem; font-weight: 700; color: var(--txt-2, #334155); margin: 0 0 0.3rem; }
+.vacio-sub { font-size: 0.8rem; color: var(--txt-3, #94a3b8); margin: 0 auto; max-width: 300px; }
+
+@media (max-width: 420px) {
+  .franja-editar { flex-wrap: wrap; }
+  .input--hora { flex: 1 1 40%; }
+}

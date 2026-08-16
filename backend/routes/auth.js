@@ -5,10 +5,11 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { getPrismaClient } = require('../prisma/client');
-const { esIdValido } = require('../lib/ids');
 const { toApiUser, fromApiDatosPersonales } = require('../lib/userMapper');
+const { toApiGym } = require('../lib/gymMapper');
 const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
 
@@ -17,6 +18,13 @@ const TOKEN_EXPIRY = '8h';
 // de administradores) comparta exactamente la misma configuración.
 const { hashToken } = require('../helpers/tokens');
 const { transporter, emailConfigurado, remitente } = require('../helpers/email');
+
+const SELECT_GYM_LOGIN = {
+  id: true, nombre: true, slug: true, logo: true, slogan: true,
+  colorPrimario: true, colorSecundario: true, colorFondo: true, colorNavbar: true, colorMenu: true, colorDias: true,
+  moduloRutinas: true, moduloProgreso: true, moduloMedidas: true, moduloPagos: true, moduloNoticias: true, moduloCronometro: true,
+  spotifyPlaylist: true
+};
 
 // Template del email
 const emailTemplate = (nombre, resetUrl) => `
@@ -152,9 +160,26 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
-// El Client ID debe venir de configuración (nunca hardcodeado en el código).
+// ✅ LOGIN — firma el token y arma la respuesta de un login correcto. Incluye
+// el gym del usuario para que el frontend aplique su marca sin otra consulta.
+async function responderLogin(res, usuario) {
+    const token = jwt.sign(
+        { id: usuario.id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
+        JWT_SECRET,
+        { expiresIn: TOKEN_EXPIRY }
+    );
+    const gym = usuario.gymId
+        ? await prisma.gym.findFirst({ where: { id: usuario.gymId, activo: true }, select: SELECT_GYM_LOGIN })
+        : null;
+    res.json({
+        mensaje: 'Login exitoso',
+        token,
+        usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
+        gym: gym ? toApiGym(gym) : null
+    });
+}
+
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-// Client IDs adicionales aceptados como audience válida (clientes nativos Android/iOS).
 const GOOGLE_AUDIENCES = [
     GOOGLE_CLIENT_ID,
     process.env.GOOGLE_ANDROID_CLIENT_ID,
@@ -162,7 +187,9 @@ const GOOGLE_AUDIENCES = [
 ].filter(Boolean);
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ✅ LOGIN CON GOOGLE
+// ✅ LOGIN CON GOOGLE — universal: la cuenta se busca por correo en todos los
+// gimnasios, igual que /login. Google ya verificó la identidad, así que
+// listarle sus propios gimnasios (si tiene más de uno) es seguro.
 router.post('/google', async (req, res) => {
     try {
         if (!GOOGLE_CLIENT_ID) {
@@ -207,61 +234,44 @@ router.post('/google', async (req, res) => {
         }
         const emailNorm = email.toLowerCase().trim();
 
-        // El superadmin no pertenece a ningún gimnasio (mismo criterio que /login).
+        // Superadmin: cuenta global, fuera de los gimnasios.
         let usuario = await prisma.user.findFirst({ where: { email: emailNorm, role: 'superadmin' } });
 
-        if (!usuario) {
-            // Multi-gym: la cuenta vive DENTRO del gimnasio elegido en el selector.
-            // Sin gymId el usuario quedaría huérfano y su JWT saldría con gymId null,
-            // dejando vacía toda consulta con alcance de gimnasio.
-            if (!gymId || !esIdValido(gymId)) {
-                return res.status(400).json({ mensaje: 'Debes seleccionar un gimnasio válido' });
-            }
-            const gymValido = await prisma.gym.findFirst({ where: { id: gymId, activo: true }, select: { id: true } });
-            if (!gymValido) {
-                return res.status(400).json({ mensaje: 'El gimnasio no existe o no está activo' });
-            }
-
-            // El índice único es {email, gymId}: el mismo correo puede ser socio de
-            // varios gimnasios, así que la búsqueda va acotada al gym elegido.
+        if (!usuario && gymId) {
+            // Segunda llamada, cuando ya eligió gimnasio en el selector múltiple.
             usuario = await prisma.user.findFirst({ where: { email: emailNorm, gymId } });
-
-            // Cuentas heredadas que Google creó sin gimnasio: se adoptan en el gym
-            // elegido en vez de duplicarlas (el índice compuesto lo permitiría).
+            // Cuentas heredadas que Google creó sin gimnasio: se adoptan en el
+            // gym elegido en vez de duplicarlas (el índice compuesto lo permitiría).
             if (!usuario) {
                 const huerfano = await prisma.user.findFirst({ where: { email: emailNorm, gymId: null } });
                 if (huerfano) {
                     usuario = await prisma.user.update({ where: { id: huerfano.id }, data: { gymId } });
                 }
             }
-
-            if (!usuario) {
-                const salt = await bcrypt.genSalt(10);
-                usuario = await prisma.user.create({
-                    data: {
-                        gymId,
-                        nombre: name,
-                        email: emailNorm,
-                        password: await bcrypt.hash(sub + Date.now(), salt),
-                        role: 'socio',
-                        fotoUrl: picture || '',
-                        emailVerified: true   // el correo ya viene verificado por Google
-                    }
-                });
+        } else if (!usuario) {
+            // Login universal: la cuenta se busca en todos los gimnasios.
+            const cuentas = await prisma.user.findMany({ where: { email: emailNorm } });
+            if (cuentas.length > 1) {
+                const gymIds = [...new Set(cuentas.map((c) => c.gymId).filter(Boolean))];
+                const gyms = await prisma.gym.findMany({ where: { id: { in: gymIds }, activo: true }, select: { id: true, nombre: true, slug: true, logo: true } });
+                if (gyms.length > 1) {
+                    return res.json({ mensaje: 'Elige el gimnasio', multiple: true, gimnasios: gyms.map(({ id, ...g }) => ({ ...g, _id: id })) });
+                }
+                usuario = cuentas.find((c) => c.gymId === (gyms[0] && gyms[0].id)) || cuentas[0];
+            } else {
+                usuario = cuentas[0] || null;
             }
         }
 
-        const token = jwt.sign(
-            { id: usuario.id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
-            JWT_SECRET,
-            { expiresIn: TOKEN_EXPIRY }
-        );
+        // El registro está cerrado: Google entra a cuentas que ya existen, no
+        // crea cuentas nuevas. Registrarse es solo con la invitación del gimnasio.
+        if (!usuario) {
+            return res.status(403).json({
+                mensaje: 'No existe una cuenta con este correo. Pedile el enlace de registro a tu gimnasio.'
+            });
+        }
 
-        res.json({
-            mensaje: 'Login con Google exitoso',
-            token,
-            usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
-        });
+        return responderLogin(res, usuario);
     } catch (error) {
         console.error('Error Google auth:', error.message);
         res.status(401).json({ mensaje: 'Autenticación con Google fallida' });
@@ -504,6 +514,9 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
 
         const usuario = await prisma.user.update({ where: { id: usuarioActual.id }, data: { fechaVencimiento: fechaBase } });
         await registrarAuditoria(req, 'RENOVAR_MEMBRESIA', { recurso: 'User', recursoId: usuario.id, detalle: { dias } });
+        // Cambian los avisos de vencimiento: los del gimnasio y los del socio.
+        emitirAGym(req.gymId, 'avisos:revisar', { motivo: 'membresia' });
+        emitirAUsuario(usuario.id, 'avisos:revisar', { motivo: 'membresia' });
 
         res.json({
             mensaje: 'Membresía renovada exitosamente',
@@ -603,27 +616,53 @@ router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
     }
 });
 
-// ✅ REGISTRO
+// ✅ REGISTRO — solo con invitación: un link o QR de un solo uso que genera
+// el gimnasio (recepción o admin). El gym lo fija la invitación, nunca el
+// cliente, así que el registro público nunca puede dejar un socio huérfano.
 router.post('/register', async (req, res) => {
+    // Referencia fuera del try para poder liberar la invitación si algo falla
+    // después de haberla consumido.
+    let invId = null;
+    const liberarInvitacion = () => invId
+        ? prisma.invitacion.update({ where: { id: invId }, data: { usada: false } }).catch(() => {})
+        : Promise.resolve();
     try {
-        const { nombre, email, password, gymId } = req.body;
+        const { nombre, email, password, invitacion } = req.body;
         if (!nombre || !email || !password) {
             return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
         }
         if (typeof password !== 'string' || password.length < 8) {
             return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
         }
-        // El registro público exige un gimnasio válido y activo (evita socios huérfanos).
-        if (!gymId || !esIdValido(gymId)) {
-            return res.status(400).json({ mensaje: 'Debes seleccionar un gimnasio válido' });
+        if (!invitacion || typeof invitacion !== 'string') {
+            return res.status(403).json({ mensaje: 'El registro requiere una invitación del gimnasio' });
         }
+
+        // Consumo atómico: el UPDATE con estas condiciones en el WHERE solo
+        // puede afectar una fila una vez; dos registros simultáneos con el
+        // mismo link no pueden compartirlo (el segundo verá count === 0).
+        const consumida = await prisma.invitacion.updateMany({
+            where: { token: invitacion, usada: false, expiraEn: { gt: new Date() } },
+            data: { usada: true }
+        });
+        if (consumida.count === 0) {
+            return res.status(403).json({ mensaje: 'La invitación no existe, ya fue usada o venció' });
+        }
+        const inv = await prisma.invitacion.findUnique({ where: { token: invitacion } });
+        invId = inv.id;
+
+        const gymId = inv.gymId;
         const gymValido = await prisma.gym.findFirst({ where: { id: gymId, activo: true }, select: { id: true } });
         if (!gymValido) {
+            await liberarInvitacion();
             return res.status(400).json({ mensaje: 'El gimnasio no existe o no está activo' });
         }
         const emailNorm = email.toLowerCase().trim();
-        const usuarioExiste = await prisma.user.findFirst({ where: { email: emailNorm, gymId: gymId || null }, select: { id: true } });
-        if (usuarioExiste) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        const usuarioExiste = await prisma.user.findFirst({ where: { email: emailNorm, gymId }, select: { id: true } });
+        if (usuarioExiste) {
+            await liberarInvitacion();
+            return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        }
 
         const salt = await bcrypt.genSalt(10);
         const passwordHasheada = await bcrypt.hash(password, salt);
@@ -631,13 +670,15 @@ router.post('/register', async (req, res) => {
         // El registro público SIEMPRE crea socios. Crear admins/entrenadores
         // debe hacerse por una ruta protegida (soloAdmin), nunca desde el body.
         const nuevoUsuario = await prisma.user.create({
-            data: { gymId: gymId || null, nombre, email: emailNorm, password: passwordHasheada, role: 'socio' }
+            data: { gymId, nombre, email: emailNorm, password: passwordHasheada, role: 'socio' }
         });
+        await prisma.invitacion.update({ where: { id: invId }, data: { usadaPor: nuevoUsuario.id } }).catch(() => {});
 
         // Enviar correo de verificación (no bloquea el registro si falla el email).
         await enviarVerificacion(nuevoUsuario);
         res.status(201).json({ mensaje: 'Usuario creado con éxito. Revisa tu correo para verificar la cuenta.' });
     } catch (error) {
+        await liberarInvitacion();
         res.status(500).json({ mensaje: 'Error en el servidor' });
     }
 });
@@ -680,32 +721,57 @@ router.post('/resend-verification', verificarToken, async (req, res) => {
     }
 });
 
-// ✅ LOGIN
+// ✅ LOGIN — universal: un solo formulario para todos los gimnasios.
+//
+// La cuenta se busca por el correo en TODOS los gimnasios; no hace falta
+// elegir gimnasio antes de entrar. Si el mismo correo tiene cuenta en varios
+// (el índice único es {email, gymId}), se le devuelven SOLO los gimnasios
+// donde la contraseña coincidió, para que elija; el cliente repite la llamada
+// con el gymId elegido. Esa lista no filtra información: quien la recibe ya
+// demostró conocer la contraseña de esas cuentas.
 router.post('/login', async (req, res) => {
     try {
         const { email, password, gymId } = req.body;
-        // Superadmin no pertenece a ningún gym
         const emailNorm = (email || '').toLowerCase().trim();
-        const esSuperAdmin = await prisma.user.findFirst({ where: { email: emailNorm, role: 'superadmin' }, select: { id: true } });
-        const where = esSuperAdmin ? { email: emailNorm } : { email: emailNorm, gymId: gymId || null };
-        const usuario = await prisma.user.findFirst({ where, omit: { password: false } });
-        // Mensaje genérico idéntico para "usuario inexistente" y "contraseña incorrecta"
-        // (evita enumeración de correos registrados por gimnasio).
-        if (!usuario) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        if (!emailNorm || typeof password !== 'string') {
+            return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        }
 
-        const esValida = await bcrypt.compare(password, usuario.password);
-        if (!esValida) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        // Superadmin: cuenta global, fuera de los gimnasios.
+        const superadmin = await prisma.user.findFirst({ where: { email: emailNorm, role: 'superadmin' }, omit: { password: false } });
+        if (superadmin) {
+            const ok = await bcrypt.compare(password, superadmin.password);
+            if (!ok) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+            return responderLogin(res, superadmin);
+        }
 
-        const token = jwt.sign(
-            { id: usuario.id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
-            JWT_SECRET,
-            { expiresIn: TOKEN_EXPIRY }
-        );
+        // Con gymId (segunda llamada del selector, o flujos viejos): esa cuenta.
+        // Sin gymId: todas las cuentas de ese correo.
+        const where = gymId ? { email: emailNorm, gymId } : { email: emailNorm };
+        const cuentas = await prisma.user.findMany({ where, omit: { password: false } });
 
+        // La contraseña se comprueba contra CADA cuenta: cada una tiene la suya.
+        const validas = [];
+        for (const cuenta of cuentas) {
+            if (cuenta.password && await bcrypt.compare(password, cuenta.password)) {
+                validas.push(cuenta);
+            }
+        }
+
+        // Mensaje genérico idéntico para "no existe" y "contraseña incorrecta"
+        // (evita enumeración de correos registrados).
+        if (!validas.length) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        if (validas.length === 1) return responderLogin(res, validas[0]);
+
+        // Mismo correo y misma contraseña en varios gimnasios: que elija.
+        const gyms = await prisma.gym.findMany({
+            where: { id: { in: validas.map((c) => c.gymId) }, activo: true },
+            select: { id: true, nombre: true, slug: true, logo: true }
+        });
         res.json({
-            mensaje: 'Login exitoso',
-            token,
-            usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null }
+            mensaje: 'Elige el gimnasio',
+            multiple: true,
+            gimnasios: gyms.map(({ id, ...g }) => ({ ...g, _id: id }))
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error en el login' });

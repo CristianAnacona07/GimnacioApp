@@ -15,7 +15,7 @@
 }
 .icono-navbar:hover {
   background: rgba(255, 255, 255, 0.12);
-  color: #22d3ee;
+  color: var(--txt-azul, #22d3ee);
 }
 .icono-navbar svg {
   width: 1.35rem;
@@ -69,7 +69,7 @@
 .buscador-lupa {
   width: 1.15rem;
   height: 1.15rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   flex-shrink: 0;
 }
 .buscador-campo input {
@@ -82,7 +82,7 @@
   font-size: 1rem;
 }
 .buscador-campo input::placeholder {
-  color: #64748b;
+  color: var(--txt-3, #64748b);
 }
 .buscador-cargando {
   font-size: 0.9rem;
@@ -90,7 +90,7 @@
 .buscador-cerrar {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: 1rem;
   cursor: pointer;
   padding: 0.15rem 0.35rem;
@@ -114,7 +114,7 @@
   font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
 }
 
 .buscador-item {
@@ -172,7 +172,7 @@
 }
 .buscador-detalle {
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -187,15 +187,15 @@
   padding: 0.15rem 0.5rem;
   border-radius: 9999px;
 }
-.buscador-estado.nivel-ok    { background: rgba(34, 197, 94, 0.15);  color: #4ade80; }
-.buscador-estado.nivel-aviso { background: rgba(234, 179, 8, 0.15);  color: #facc15; }
-.buscador-estado.nivel-malo  { background: rgba(239, 68, 68, 0.15);  color: #f87171; }
+.buscador-estado.nivel-ok    { background: rgba(34, 197, 94, 0.15);  color: var(--txt-verde, #4ade80); }
+.buscador-estado.nivel-aviso { background: rgba(234, 179, 8, 0.15);  color: var(--txt-ambar, #facc15); }
+.buscador-estado.nivel-malo  { background: rgba(239, 68, 68, 0.15);  color: var(--txt-rojo, #f87171); }
 
 .buscador-vacio {
   padding: 2rem 1rem;
   text-align: center;
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
 }
 
 /* ── Pie con atajos ────────────────────────────────────────────────────── */
@@ -206,7 +206,7 @@
   padding: 0.5rem 1rem;
   border-top: 1px solid #1e293b;
   font-size: 0.68rem;
-  color: #475569;
+  color: var(--txt-2, #475569);
 }
 .buscador-pie kbd {
   display: inline-block;

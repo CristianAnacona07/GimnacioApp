@@ -140,6 +140,9 @@ app.use('/api/asistencia', require('./routes/asistencia'));
 app.use('/api/dispositivos', require('./routes/dispositivos'));
 app.use('/api/buscador', require('./routes/buscador'));
 app.use('/api/notificaciones', require('./routes/notificaciones'));
+app.use('/api/archivos', require('./routes/archivos'));
+app.use('/api/citas', require('./routes/citas'));
+app.use('/api/invitaciones', require('./routes/invitaciones'));
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 
@@ -159,8 +162,12 @@ app.use((err, req, res, next) => {
 });
 
 if (process.env.NODE_ENV !== 'production') {
+  // En desarrollo se levanta aquí, con el canal en tiempo real incluido, para
+  // que `npm start` se comporte igual que el contenedor (ver server.js).
   const PORT = process.env.PORT || 10000;
-  app.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
+  const servidor = require('http').createServer(app);
+  require('./helpers/tiempoReal').iniciar(servidor);
+  servidor.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
 }
 
 module.exports = app;

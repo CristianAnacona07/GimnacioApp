@@ -17,6 +17,15 @@ RUN if [ -n "$API_URL" ]; then \
       echo "apiUrl fijado a $API_URL" && grep apiUrl src/environments/environment.prod.ts; \
     fi
 
+# Dominio raíz para las páginas por gimnasio (<slug>.midominio.com). Igual que
+# la API, Angular lo incrusta al compilar: sin pasarlo aquí, el contenedor no
+# reconoce los subdominios y todos los gimnasios caen en el selector.
+ARG TENANT_ROOT_DOMAIN=""
+RUN if [ -n "$TENANT_ROOT_DOMAIN" ]; then \
+      sed -i "s|tenantRootDomain: *'[^']*'|tenantRootDomain: '$TENANT_ROOT_DOMAIN'|" src/environments/environment.prod.ts && \
+      echo "tenantRootDomain fijado a $TENANT_ROOT_DOMAIN" && grep tenantRootDomain src/environments/environment.prod.ts; \
+    fi
+
 # Salida en dist/frontend/browser. `npm run build` es hoy `ng build` a secas,
 # igual que lo que corre Vercel, asi que lo que se ve en :8090 es lo mismo que
 # se vera en produccion — que es justamente para lo que sirve este contenedor.

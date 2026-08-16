@@ -12,8 +12,8 @@
   margin-bottom: 1.25rem;
 }
 
-.page-title { font-size: 1.2rem; font-weight: 800; color: #1e293b; margin: 0; }
-.page-sub { font-size: 0.78rem; color: #94a3b8; font-weight: 600; margin: 0.2rem 0 0; }
+.page-title { font-size: 1.2rem; font-weight: 800; color: var(--txt-1, #1e293b); margin: 0; }
+.page-sub { font-size: 0.78rem; color: var(--txt-3, #94a3b8); font-weight: 600; margin: 0.2rem 0 0; }
 
 .btn-nuevo {
   background: var(--color-secundario, #1d4ed8);
@@ -33,9 +33,9 @@
 
 /* Formulario */
 .form-card {
-  background: #fff;
+  background: var(--sup-1, #fff);
   border-radius: 1.25rem;
-  border: 1px solid #e0eaff;
+  border: 1px solid var(--bde, #e0eaff);
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   padding: 1.25rem;
   margin-bottom: 1.25rem;
@@ -58,7 +58,7 @@
 .form-label {
   font-size: 0.65rem;
   font-weight: 800;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -69,8 +69,8 @@
   padding: 0.5rem 0.65rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #1e293b;
-  background: #fff;
+  color: var(--txt-1, #1e293b);
+  background: var(--sup-1, #fff);
   outline: none;
   width: 100%;
   box-sizing: border-box;
@@ -79,7 +79,7 @@
 
 .form-hint {
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   margin: 0 0 0.85rem;
 }
 
@@ -100,9 +100,9 @@
 
 /* Lista */
 .lista {
-  background: #fff;
+  background: var(--sup-1, #fff);
   border-radius: 1.25rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--bde, #e2e8f0);
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   overflow: hidden;
 }
@@ -112,17 +112,17 @@
   align-items: center;
   gap: 0.85rem;
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--bde, #f1f5f9);
 }
 .fila:last-child { border-bottom: none; }
 
 .fila-icono { font-size: 1.4rem; flex-shrink: 0; }
 
 .fila-datos { flex: 1; min-width: 0; }
-.fila-nombre { font-size: 0.9rem; font-weight: 700; color: #1e293b; margin: 0; }
+.fila-nombre { font-size: 0.9rem; font-weight: 700; color: var(--txt-1, #1e293b); margin: 0; }
 .fila-email {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   margin: 0.1rem 0 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -132,8 +132,8 @@
 .fila-cargo {
   font-size: 0.68rem;
   font-weight: 800;
-  color: var(--color-secundario, #1d4ed8);
-  background: #e8f0ff;
+  color: var(--color-secundario, var(--txt-azul, #1d4ed8));
+  background: var(--tinte-azul, #e8f0ff);
   border-radius: 999px;
   padding: 0.25rem 0.7rem;
   white-space: nowrap;
@@ -142,7 +142,7 @@
 
 .btn-borrar {
   border: none;
-  background: #f8fafc;
+  background: var(--sup-1, #f8fafc);
   border-radius: 0.5rem;
   width: 32px;
   height: 32px;
@@ -154,13 +154,13 @@
   justify-content: center;
   transition: background 0.15s;
 }
-.btn-borrar:hover { background: #fee2e2; }
+.btn-borrar:hover { background: var(--tinte-rojo, #fee2e2); }
 
 /* Vacío */
 .empty-state { text-align: center; padding: 3rem 1rem; }
 .empty-icon { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; }
-.empty-title { font-size: 0.95rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem; }
-.empty-sub { font-size: 0.8rem; color: #94a3b8; margin: 0 auto; }
+.empty-title { font-size: 0.95rem; font-weight: 700; color: var(--txt-1, #334155); margin-bottom: 0.35rem; }
+.empty-sub { font-size: 0.8rem; color: var(--txt-3, #94a3b8); margin: 0 auto; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-6px); }

@@ -14,9 +14,16 @@ and runs its own dependencies.
 
 | Path                       | Contents                                                            |
 | -------------------------- | ------------------------------------------------------------------- |
-| `backend/`                 | Express 5 + Prisma (PostgreSQL), JWT auth. Deployed to Vercel *and* GHCR/Docker |
+| `backend/`                 | Express 5 + Prisma (PostgreSQL), JWT auth, Socket.IO. Deployed to Vercel, GHCR/Docker, *and* a self-hosted VPS |
 | `frontend/gym-aplication/` | Angular 21 standalone + Tailwind v4, PWA, Capacitor (Android/iOS)    |
 | `docs/`                    | Project context, user stories, subdomain and deployment guides       |
+
+**Moving off Vercel**: the target deployment is a self-hosted VPS (see
+[docs/DESPLIEGUE-VPS.md](docs/DESPLIEGUE-VPS.md), `docker-compose.prod.yml`, `deploy/Caddyfile`) —
+one server running Postgres + MinIO + backend + frontend behind Caddy, which also issues
+per-gym subdomain TLS certs on demand (gated by `GET /api/gym/dominio-permitido`, see below).
+Vercel/GHCR remain supported as deploy targets in the meantime; don't remove either path
+without confirming the VPS cutover actually happened.
 
 **Migrated from MongoDB/Mongoose to PostgreSQL/Prisma** (2026-08-15). Every primary key is
 still the original 24-hex-char Mongo `ObjectId` string, stored as `CHAR(24)` — this was a
@@ -71,8 +78,13 @@ no longer accepts a `url` in `schema.prisma` itself, only `prisma.config.ts` for
 this env var for the runtime client), `JWT_SECRET` (both are
 *hard* requirements — `index.js` throws at boot if missing), `GOOGLE_CLIENT_ID`,
 `GOOGLE_ANDROID_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `EMAIL_USER`, `EMAIL_PASS`,
-`FRONTEND_URL`, `NODE_ENV`, `PORT`, `TENANT_ROOT_DOMAIN`, and optionally
-`WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID`/`WHATSAPP_TEMPLATE`/`WHATSAPP_LANG`.
+`FRONTEND_URL`, `NODE_ENV`, `PORT`, `TENANT_ROOT_DOMAIN`, optionally
+`WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID`/`WHATSAPP_TEMPLATE`/`WHATSAPP_LANG`, and the S3-compatible
+file storage vars consumed by [helpers/almacen.js](backend/helpers/almacen.js)
+(`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_PUBLIC_URL`) —
+`almacenConfigurado()` is the "can we store files at all" check, same pattern as
+`emailConfigurado()`; without it, `/api/archivos` returns 503 instead of failing loudly, and
+gym-landing photo uploads are simply unavailable.
 
 Mail goes through [helpers/email.js](backend/helpers/email.js), which picks its transport
 from env: **`SMTP_HOST` set → plain SMTP** (Mailpit in dev, no credentials needed) and Gmail
@@ -84,13 +96,17 @@ at all" — use it instead of testing `EMAIL_USER` directly, or the dev setup br
 `backend-docker.yml` / `frontend-docker.yml` publish images to GHCR,
 `android-build.yml` produces a debug APK artifact, `ios-build.yml` builds unsigned iOS.
 
-**Two unrelated docker-compose files, don't confuse them**: root
+**Three docker-compose files, don't confuse them**: root
 [docker-compose.local.yml](docker-compose.local.yml) builds everything from source
-(postgres + Mailpit + backend + frontend) for local dev or self-hosting without Vercel —
-configure via a root `.env` copied from `.env.docker.example`. [backend/docker-compose.yml](backend/docker-compose.yml)
-instead *pulls* the prebuilt GHCR images for a real deployment and is configured via
+(postgres + MinIO + Mailpit + backend + frontend) for local dev — configure via a root `.env`
+copied from `.env.docker.example`. [backend/docker-compose.yml](backend/docker-compose.yml)
+instead *pulls* the prebuilt GHCR images for a plain deployment and is configured via
 `backend/.env.example`-style vars (`DATABASE_URL` pointing at wherever Postgres ends up
-living near the deploy target — no bundled DB container there).
+living near the deploy target — no bundled DB container there). Root
+[docker-compose.prod.yml](docker-compose.prod.yml) is the real VPS target: postgres + MinIO +
+backend + frontend + **Caddy**, Caddy handling wildcard-subdomain TLS via `deploy/Caddyfile`
+and the `dominio-permitido` gate above — see [docs/DESPLIEGUE-VPS.md](docs/DESPLIEGUE-VPS.md)
+for the one-time server setup and `.env.prod.example` for its vars.
 
 ## Architecture
 
@@ -100,8 +116,15 @@ Every domain table carries `gymId`. The JWT payload carries `gymId`, the auth
 middleware puts it on `req.gymId`, and **every query must filter by it** — that is the
 only thing keeping gym A's data out of gym B.
 
-Users pick a gym at `/gimnasios` before logging in; the choice lives in
-`localStorage.gymActual` and survives logout/token expiry.
+**Universal login, no gym-selector-before-login**: `POST /api/auth/login` searches by email
+across *every* gym (the unique index is `{email, gymId}`, so the same person can have an
+account in several). If exactly one account's password matches, it logs straight in; if the
+same email+password is valid in more than one gym, the response is
+`{ multiple: true, gimnasios: [...] }` and the client re-posts with the chosen `gymId`. The
+old `/gimnasios` selector-*before*-login screen is gone from this flow — the login response
+itself carries the resolved `gym`, and `localStorage.gymActual` is now set *after* login from
+that, not chosen up front. Registration mirrors this: it's invitation-only (see below), so
+there's no `gymId` field on the public register form either.
 
 **Subdomain-per-gym** (implemented, waiting on a domain purchase): on
 `<slug>.<tenantRootDomain>` a `provideAppInitializer` in
@@ -118,8 +141,8 @@ Four roles, each with its own dashboard shell and route tree:
 | Role         | Entry route          | Scope                                                       |
 | ------------ | -------------------- | ----------------------------------------------------------- |
 | `superadmin` | `/sa`, `/plataforma` | Platform level: creates/edits gyms, colors, modules, slug     |
-| `admin`      | `/admin/*`           | Everything inside one gym (socios, rutinas, recepción, matrícula, settings) |
-| `entrenador` | `/entrenador/*`      | Only the socios whose `entrenadorId` points at them           |
+| `admin`      | `/admin/*`           | Everything inside one gym (socios, rutinas, recepción, matrícula, agenda, invitaciones, settings) |
+| `entrenador` | `/entrenador/*`      | Only the socios whose `entrenadorId` points at them, plus their own agenda |
 | `socio`      | `/socio/*`           | Only their own data                                           |
 
 - Client side: [auth.ts](frontend/gym-aplication/src/app/guards/auth.ts) decodes the JWT and
@@ -133,9 +156,24 @@ Four roles, each with its own dashboard shell and route tree:
 
 ### Auth flow
 
-JWT expires in 8 hours. Google OAuth (web popup + native Credential Manager on Android),
-optional TOTP 2FA (`/api/2fa`, hand-rolled RFC 6238 on `crypto`, no external dep), email
+JWT expires in 8 hours. Google OAuth (web popup + native Credential Manager on Android) is
+also universal — same cross-gym email search as `/login`, but it never creates an account:
+if no matching `User` exists, it 403s and tells the person to get an invitation link instead.
+Also: optional TOTP 2FA (`/api/2fa`, hand-rolled RFC 6238 on `crypto`, no external dep), email
 verification tokens, and password reset by nodemailer.
+
+**Registration is invitation-only.** Gym staff (an admin, or an employee with `cargo:
+'recepcionista'`, gated by the `soloRecepcion` middleware) call `POST /api/invitaciones` to
+mint a single-use token
+(`crypto.randomBytes(24)`, 48h TTL); the link/QR built from it is whatever the frontend wants.
+`POST /api/auth/register` requires that token and consumes it **atomically** —
+`prisma.invitacion.updateMany({ where: { token, usada: false, expiraEn: { gt: now } }, data: {
+usada: true } })`, then checks `result.count === 1` — so two simultaneous registrations on the
+same link can't both succeed. On any failure after that point the route calls
+`liberarInvitacion()` to flip `usada` back to `false` so the link isn't burned by a transient
+error. There is no client-supplied `gymId` anywhere in this flow; the gym comes from the
+invitation. Validate a token and preload the gym's branding before showing the registration
+form with the public `GET /api/invitaciones/:token`.
 
 The [auth.interceptor.ts](frontend/gym-aplication/src/app/interceptors/auth.interceptor.ts):
 - attaches `Authorization: Bearer <token>` and **deliberately does not send a `user-id`
@@ -146,6 +184,23 @@ The [auth.interceptor.ts](frontend/gym-aplication/src/app/interceptors/auth.inte
 
 [TokenMonitorService](frontend/gym-aplication/src/app/services/token-monitor.service.ts) polls
 every 60s, auto-renews under 2h remaining, warns under 30min, and logs out on expiry.
+
+### Real-time channel ([helpers/tiempoReal.js](backend/helpers/tiempoReal.js))
+
+Socket.IO, JWT-authenticated at handshake, room-based isolation: every socket joins a
+`gym:<gymId>` room and a `user:<userId>` room, so a broadcast can't leak across gyms.
+`iniciar(servidorHttp)` is called once, on the raw `http.Server` (not the Express `app`) —
+both [index.js](backend/index.js) (dev, `NODE_ENV !== 'production'`) and
+[server.js](backend/server.js) (Docker/VPS) create their own `http.createServer(app)` and call
+it, because Vercel serverless has no long-lived socket to attach to and simply never gets
+real-time updates. `emitirAGym(gymId, evento, payload)` / `emitirAUsuario(userId, evento,
+payload)` are the two send functions routes use — they're synchronous, fire-and-forget best
+effort, called *after* the DB write succeeds, never inside a transaction. Convention: for
+anything whose relevance depends on a read-time calculation (membership days left, unread
+counts), the event just says "something changed, go refetch" (`avisos:revisar`) rather than
+shipping the computed value — see `renovar-membresia`/`crear-noticia` in
+[auth.js](backend/routes/auth.js)/[noticia.js](backend/routes/noticia.js). Concrete events:
+`asistencia:nueva` (recepción check-in), `rutina:actualizada`, `cita:nueva`/`cita:cancelada`.
 
 ### Backend request pipeline ([index.js](backend/index.js))
 
@@ -182,7 +237,12 @@ The Prisma client is a singleton built once by
 
 - **Soft delete** ([prisma/extensions/softDelete.js](backend/prisma/extensions/softDelete.js))
   replaces the old Mongoose plugin. Applied to the same 7 models as before — Gym, User,
-  Rutina, Noticia, Plan, MetodoPago, Transaccion — via `SOFT_DELETE_MODELS`. It intercepts
+  Rutina, Noticia, Plan, MetodoPago, Transaccion — via `SOFT_DELETE_MODELS`. `Cita` and
+  `Invitacion` are deliberately **not** soft-deletable: a cancelled `Cita` is a real, final
+  state (`estado: 'cancelada'`), not a deletion, and an `Invitacion` is single-use scratch data
+  with its own `usada`/`expiraEn` lifecycle — Mongo used to TTL-expire these automatically;
+  Postgres has no equivalent yet, so expired/used invitations just accumulate until something
+  cleans them up (no scheduled job for this exists today). It intercepts
   `findMany/findFirst/findUnique/count/update/updateMany` and **silently injects
   `deletedAt: null` into `where`**. To see deleted rows, opt in per-query with
   `{ ..., withDeleted: true }` (a sentinel the extension strips before the real query runs —
@@ -252,17 +312,47 @@ The Prisma client is a singleton built once by
 
 | API                  | Frontend surface                        | Notes |
 | -------------------- | --------------------------------------- | ----- |
-| `/api/auth`          | login/register/reset, perfil, renovación | Google OAuth, refresh-token, paginated `/usuarios` |
+| `/api/auth`          | login/register/reset, perfil, renovación | Universal login + Google OAuth, invitation-only register, refresh-token, paginated `/usuarios` |
+| `/api/invitaciones`  | admin/recepción "invitar socio" screen  | mint/validate single-use registration tokens (see Auth flow above) |
+| `/api/citas`         | `admin/agenda`, `entrenador/agenda`, `socio/agendar` | personal-session booking: publish weekly availability, compute free slots, reserve/cancel |
+| `/api/archivos`      | landing page editor (photo upload)      | S3/MinIO-backed, `soloAdmin`, returns a public URL; 503 if `almacenConfigurado()` is false |
 | `/api/asistencia`    | `admin/recepcion`, socio QR in `perfil`  | check-in by código/QR/manual, días restantes, WhatsApp receipt |
 | `/api/transacciones` | `admin/matricula`, `pagos`               | registering a payment extends `fechaVencimiento` and stores history |
 | `/api/entrenador`    | `entrenador/mis-socios`, `socio/:id`     | scoped by `entrenadorId`, guarded by an inline `soloEntrenador` |
 | `/api/admin`         | admin settings                           | CSV export/import of usuarios & transacciones, audit log viewer |
 | `/api/2fa`           | settings                                 | TOTP enroll/verify + backup codes |
-| `/api/gym`           | superadmin `/plataforma`, gym selector   | slug, colores, módulos, `spotifyPlaylist` |
+| `/api/gym`           | superadmin `/plataforma`, public landing | slug, colores, módulos, agenda config, `landing` JSONB, `spotifyPlaylist` |
 | `/api/rutinas`, `/api/noticias`, `/api/planes`, `/api/pagos`, `/api/progreso`, `/api/medidas`, `/api/feedback` | admin CRUD + socio views | progreso/medidas charted with Chart.js |
 
 `Gym.modulos` (rutinas, progreso, medidas, pagos, noticias, cronometro) toggles features per
 gym — check it before assuming a section is visible. `/health` returns `{status:'ok'}`.
+
+**Public gym landing page**: `GET /api/gym/:slug/landing` is unauthenticated and needs
+`Gym.landing.activa === true` (404 otherwise) — it returns the gym's branding plus whichever
+of `planes`/`noticias` the admin opted into showing (`gym.landing.planes.activo` /
+`.noticias.activo`), each capped and sorted for a public page (planes by price, noticias by
+recency). `landing` is a single JSONB column, not flattened columns like `colores`/`modulos`/
+`agenda` — it's edited whole from one admin form and nothing needs to query into its subfields,
+so there's no mapper for it beyond passing it straight through. `GET /api/gym/dominio-permitido`
+is the other unauthenticated gym route: Caddy on the VPS calls it before requesting a TLS cert
+for a subdomain it's never seen, so an attacker pointing a foreign domain at the server can't
+make it spam a certificate authority into rate-limiting the whole box.
+
+**Personal-session booking (`Gym.agenda*` + `User.disponibilidad` + `Cita`)**: the gym sets
+`duracionMin`/`precio`/booking-window rules once (flattened `agenda*` columns on `Gym`,
+reconstructed as a nested `agenda` object by `gymMapper.js` exactly like `colores`/`modulos`);
+each `entrenador`/`empleado` publishes their own weekly availability
+(`User.disponibilidad`, a JSONB array of `{dia, desde, hasta}`, replaced whole on save, no
+per-slot updates needed). Free slots are computed on the fly in `citas.js` by cutting a
+professional's availability into `duracionMin`-sized chunks and subtracting already-booked
+`Cita` rows — nothing is precomputed or cached, so a schedule change is reflected on the very
+next lookup. Double-booking is prevented by a hand-written partial unique index
+(`citas_slot_activo_key` on `(profesional_id, fecha, hora) WHERE estado IN ('agendada',
+'cumplida')`, added by hand in the `agenda_invitaciones_landing` migration — Prisma can't
+express it declaratively), not just the app-level check in the route; a `P2002` from that
+index is caught and turned into a 409. `fecha`/`hora` are stored as plain text
+(`'YYYY-MM-DD'`/`'HH:MM'`), never `DateTime` — the server runs in UTC and the gym doesn't, so a
+timestamp would shift by the gym's offset on read; see the comment on the `Cita` model.
 
 ### Frontend structure
 
@@ -353,6 +443,7 @@ gym — check it before assuming a section is visible. `/health` returns `{statu
 
 [README.md](README.md) (monorepo quickstart), [docs/SUBDOMINIOS.md](docs/SUBDOMINIOS.md)
 (activating per-gym subdomains), [docs/DESPLIEGUE-Y-MOVIL.md](docs/DESPLIEGUE-Y-MOVIL.md),
+[docs/DESPLIEGUE-VPS.md](docs/DESPLIEGUE-VPS.md) (self-hosted VPS: DNS, Caddy, one-time setup),
 [docs/AUDITORIA-PENDIENTES.md](docs/AUDITORIA-PENDIENTES.md) (what the security audit fixed
 and what stays open), and [APP-MOVIL.md](frontend/gym-aplication/APP-MOVIL.md)
 (OAuth client ids, keystore).

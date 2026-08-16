@@ -4,6 +4,7 @@ const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { paginar } = require('../lib/pagination');
+const { emitirAGym } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
 
@@ -49,6 +50,9 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
 
     const noticiaGuardada = await prisma.noticia.create({ data: datosNoticia });
     await registrarAuditoria(req, 'CREAR_NOTICIA', { recurso: 'Noticia', recursoId: noticiaGuardada.id, detalle: { titulo: noticiaGuardada.titulo } });
+    // Los avisos se calculan al vuelo, así que no se manda el aviso ya hecho:
+    // se avisa de que hay algo que recalcular y cada cliente pide los suyos.
+    emitirAGym(req.gymId, 'avisos:revisar', { motivo: 'noticia' });
     res.status(201).json(conId(noticiaGuardada));
   } catch (error) {
     res.status(400).json({ error: 'Error interno del servidor' });

@@ -18,6 +18,21 @@ const SELECT_GYM_PUBLICO = {
   spotifyPlaylist: true
 };
 
+// Igual a SELECT_GYM_PUBLICO pero con agenda/landing: la app la refresca al
+// abrir (agenda) y el editor de landing la necesita para precargar el estado.
+const SELECT_GYM_CONFIG = {
+  ...SELECT_GYM_PUBLICO,
+  agendaActiva: true, agendaDuracionMin: true, agendaPrecio: true,
+  agendaHorasMinimasReserva: true, agendaHorasMinimasCancelacion: true, agendaDiasVisibles: true,
+  landing: true
+};
+
+function conId(p) {
+  if (!p) return p;
+  const { id, ...rest } = p;
+  return { ...rest, _id: id };
+}
+
 // ── ALTA DEL ADMINISTRADOR DE UN GIMNASIO ────────────────────────
 // La cuenta se crea sin contraseña utilizable: se guarda un hash de un valor
 // aleatorio que nadie conoce, y la única forma de entrar es el enlace que llega
@@ -109,10 +124,80 @@ router.get('/buscar', async (req, res) => {
   }
 });
 
+// ¿Este dominio es de un gimnasio nuestro?
+//
+// Lo consulta el servidor web antes de pedir un certificado HTTPS para un
+// subdominio que ve por primera vez. Sin esta comprobación, cualquiera podría
+// apuntar su dominio a nuestro servidor y hacernos pedir certificados sin
+// límite hasta que la autoridad nos bloquee por abuso.
+router.get('/dominio-permitido', async (req, res) => {
+  try {
+    const dominio = String(req.query.domain || '').toLowerCase().trim();
+    const raiz = (process.env.TENANT_ROOT_DOMAIN || '').toLowerCase().trim();
+    if (!dominio || !raiz) return res.status(404).send('no');
+
+    // El dominio principal y www siempre valen (ahí vive la app general).
+    if (dominio === raiz || dominio === `www.${raiz}`) return res.status(200).send('ok');
+
+    if (!dominio.endsWith(`.${raiz}`)) return res.status(404).send('no');
+    const slug = dominio.slice(0, -(raiz.length + 1));
+    // Un subdominio anidado (a.b.raiz) no corresponde a ningún gimnasio.
+    if (!slug || slug.includes('.')) return res.status(404).send('no');
+
+    const gym = await prisma.gym.findFirst({ where: { slug, activo: true }, select: { id: true } });
+    return gym ? res.status(200).send('ok') : res.status(404).send('no');
+  } catch {
+    res.status(404).send('no');
+  }
+});
+
+// Todo lo que necesita la página pública del gimnasio, en una sola consulta y
+// sin sesión: los datos del gym más los planes y noticias que ya administra.
+// Va antes de /:slug solo por claridad; son rutas de distinta profundidad.
+router.get('/:slug/landing', async (req, res) => {
+  try {
+    // Incluye modulos y playlist aunque la página no los use: al visitarla, la
+    // app guarda este gym como el activo, y sin esos campos un módulo apagado
+    // volvería a aparecer encendido.
+    const gym = await prisma.gym.findFirst({
+      where: { slug: req.params.slug, activo: true },
+      select: { ...SELECT_GYM_PUBLICO, landing: true }
+    });
+    if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
+    if (!gym.landing?.activa) {
+      return res.status(404).json({ error: 'Este gimnasio todavía no publicó su página' });
+    }
+
+    // Solo se consulta lo que el gimnasio decidió mostrar.
+    const [planes, noticias] = await Promise.all([
+      gym.landing.planes?.activo
+        ? prisma.plan.findMany({
+            where: { gymId: gym.id },
+            select: { id: true, nombre: true, precio: true, dias: true, descripcion: true, caracteristicas: true },
+            orderBy: { precio: 'asc' }, take: 12
+          })
+        : [],
+      gym.landing.noticias?.activo
+        ? prisma.noticia.findMany({
+            where: { gymId: gym.id, estado: true },
+            select: { id: true, titulo: true, descripcion: true, imageUrl: true, dia: true, horaInicio: true, horaFin: true, createdAt: true },
+            orderBy: { createdAt: 'desc' }, take: 6
+          })
+        : []
+    ]);
+
+    res.json({ gym: toApiGym(gym), planes: planes.map(conId), noticias: noticias.map(conId) });
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // Obtener gym por slug
 router.get('/:slug', async (req, res) => {
   try {
-    const gym = await prisma.gym.findFirst({ where: { slug: req.params.slug, activo: true }, select: SELECT_GYM_PUBLICO });
+    // Incluye agenda/landing: el admin edita su página y su configuración de
+    // citas a partir del gym en memoria, que se refresca por esta ruta al abrir la app.
+    const gym = await prisma.gym.findFirst({ where: { slug: req.params.slug, activo: true }, select: SELECT_GYM_CONFIG });
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
     res.json(toApiGym(gym));
   } catch (error) {
@@ -260,9 +345,13 @@ router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => 
     if (req.userRole !== 'superadmin' && String(req.gymId) !== String(req.params.id)) {
       return res.status(403).json({ error: 'No autorizado para configurar este gimnasio' });
     }
-    const { nombre, logo, slogan, colores, modulos, spotifyPlaylist } = req.body;
-    const cambios = { nombre, logo, slogan, ...fromApiGymConfig({ colores, modulos }) };
+    const { nombre, logo, slogan, colores, modulos, spotifyPlaylist, landing, agenda } = req.body;
+    const cambios = { nombre, logo, slogan, ...fromApiGymConfig({ colores, modulos, agenda }) };
     if (typeof spotifyPlaylist === 'string') cambios.spotifyPlaylist = spotifyPlaylist;
+    // La página pública se guarda entera desde su propio editor: es un JSONB,
+    // así que el cliente puede mandar lo que quiera en ese subárbol (a
+    // diferencia de colores/modulos/agenda, que son columnas propias).
+    if (landing && typeof landing === 'object') cambios.landing = landing;
 
     // El subdominio (slug) solo lo puede cambiar el superadmin: afecta el enrutamiento
     // multi-tenant (<slug>.dominio) y es único entre gimnasios.

@@ -6,6 +6,8 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { GymService, Gym } from '../../../services/gym.service';
+import { TenantService } from '../../../services/tenant.service';
+import { ThemeService } from '../../../services/theme.service';
 import { StorageService } from '../../../services/storage.service';
 import { UserStateService } from '../../../services/user-state.service';
 import { Capacitor } from '@capacitor/core';
@@ -35,6 +37,10 @@ export class Login implements OnInit, AfterViewInit {
   verPass = false;
   procesandoGoogle = false;
   gym: Gym | null = null;
+  /** Cuando el mismo correo y contraseña existen en varios gimnasios. */
+  gimnasiosMultiples: any[] | null = null;
+  /** Token de Google a la espera de que el usuario elija gimnasio. */
+  private googlePendiente: { tipo: 'credential' | 'access_token'; valor: string } | null = null;
   readonly esNativo = Capacitor.isNativePlatform();
   private gsiCargando: Promise<void> | null = null;
 
@@ -43,16 +49,21 @@ export class Login implements OnInit, AfterViewInit {
     private authService: AuthService,
     private toast: ToastService,
     private gymService: GymService,
+    private themeService: ThemeService,
+    private tenant: TenantService,
     private ngZone: NgZone,
     private storageService: StorageService,
     private userStateService: UserStateService
   ) {}
 
+  /** En el subdominio (o la página pública) de un gimnasio, la URL ya lo fija. */
+  gymFijado = false;
+
   ngOnInit() {
+    // El login es universal: si hay un gimnasio en memoria (vino de su página
+    // pública) se muestra su logo, pero no hace falta ninguno para entrar.
     this.gym = this.gymService.getGym();
-    if (!this.gym) {
-      this.router.navigate(['/gimnasios']);
-    }
+    this.gymFijado = this.tenant.esSubdominio;
   }
 
   async ngAfterViewInit() {
@@ -123,8 +134,8 @@ export class Login implements OnInit, AfterViewInit {
         });
         return;
       }
-      const gymId = this.gym?._id || null;
-      this.authService.loginGoogleNativo(idToken, gymId).subscribe({
+      this.googlePendiente = { tipo: 'credential', valor: idToken };
+      this.authService.loginGoogleNativo(idToken).subscribe({
         next: (r: any) => this.guardarSesion(r),
         error: (err) => this.errorGoogle(err)
       });
@@ -179,8 +190,8 @@ export class Login implements OnInit, AfterViewInit {
         return;
       }
 
-      const gymId = this.gym?._id || null;
-      this.authService.loginConGoogle(accessToken, gymId).subscribe({
+      this.googlePendiente = { tipo: 'access_token', valor: accessToken };
+      this.authService.loginConGoogle(accessToken).subscribe({
         next: (r: any) => this.guardarSesion(r),
         error: (err) => this.errorGoogle(err)
       });
@@ -230,8 +241,8 @@ export class Login implements OnInit, AfterViewInit {
   }
 
   private handleGoogleToken(accessToken: string) {
-    const gymId = this.gym?._id || null;
-    this.authService.loginConGoogle(accessToken, gymId).subscribe({
+    this.googlePendiente = { tipo: 'access_token', valor: accessToken };
+    this.authService.loginConGoogle(accessToken).subscribe({
       next: (res: any) => {
         this.guardarSesion(res);
       },
@@ -250,10 +261,9 @@ export class Login implements OnInit, AfterViewInit {
     if (!this.usuario.email || !this.usuario.password || this.cargando) return;
     this.cargando = true;
 
-    const credenciales = {
-      ...this.usuario,
-      gymId: this.gym?._id || null
-    };
+    // Sin gymId: el correo resuelve la cuenta en cualquier gimnasio. Solo se
+    // manda un gym en la segunda llamada, cuando el usuario eligió entre varios.
+    const credenciales = { ...this.usuario };
 
     this.authService.login(credenciales).subscribe({
       next: (res: any) => {
@@ -272,6 +282,14 @@ export class Login implements OnInit, AfterViewInit {
   }
 
   private guardarSesion(res: any) {
+    // ¿El correo existe en varios gimnasios? Que elija entre LOS SUYOS.
+    if (res?.multiple && Array.isArray(res.gimnasios)) {
+      this.cargando = false;
+      this.procesandoGoogle = false;
+      this.gimnasiosMultiples = res.gimnasios;
+      return;
+    }
+
     // 0) Validar la respuesta del servidor antes de tocar la sesión
     if (!res?.usuario?.role || !res?.usuario?._id || !res?.token) {
       this.cargando = false;
@@ -290,7 +308,13 @@ export class Login implements OnInit, AfterViewInit {
     localStorage.setItem('role', role);
     localStorage.setItem('nombre', res.usuario.nombre);
 
-    // 3) Sincronizar estado reactivo (escribe 'usuario' y notifica al navbar)
+    // 3) El gimnasio de la cuenta viene en la respuesta: marca y módulos al día
+    if (res.gym) {
+      this.gymService.guardarGym(res.gym);
+      this.themeService.aplicar(res.gym);
+    }
+
+    // 4) Sincronizar estado reactivo (escribe 'usuario' y notifica al navbar)
     this.userStateService.updateUser(res.usuario);
 
     if (role === 'superadmin') this.router.navigate(['/plataforma']);
@@ -299,8 +323,31 @@ export class Login implements OnInit, AfterViewInit {
     else this.router.navigate(['/socio']);
   }
 
-  cambiarGym() {
-    this.gymService.limpiarGym();
-    this.router.navigate(['/gimnasios']);
+  /** Segunda llamada del login cuando el correo existe en varios gimnasios. */
+  elegirGimnasio(g: any) {
+    this.gimnasiosMultiples = null;
+    if (this.googlePendiente) {
+      const pendiente = this.googlePendiente;
+      this.googlePendiente = null;
+      this.procesandoGoogle = true;
+      const llamada = pendiente.tipo === 'credential'
+        ? this.authService.loginGoogleNativo(pendiente.valor, g._id)
+        : this.authService.loginConGoogle(pendiente.valor, g._id);
+      llamada.subscribe({
+        next: (r: any) => this.ngZone.run(() => this.guardarSesion(r)),
+        error: (err) => this.ngZone.run(() => this.errorGoogle(err))
+      });
+      return;
+    }
+    this.cargando = true;
+    this.authService.login({ ...this.usuario, gymId: g._id }).subscribe({
+      next: (res: any) => { this.guardarSesion(res); this.cargando = false; },
+      error: () => { this.cargando = false; this.toast.error('No se pudo iniciar sesión'); }
+    });
+  }
+
+  cancelarEleccion() {
+    this.gimnasiosMultiples = null;
+    this.googlePendiente = null;
   }
 }

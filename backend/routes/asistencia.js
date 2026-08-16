@@ -7,6 +7,7 @@ const { verificarToken, soloRecepcion } = require('../middleware/auth');
 const { enviarRecibo, linkWhatsApp } = require('../helpers/whatsapp');
 const { ilikeContains } = require('../lib/searchFilters');
 const { paginar } = require('../lib/pagination');
+const { emitirAGym } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
 
@@ -158,6 +159,16 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
 
     const wa = await enviarRecibo(socio.telefono, [socio.nombre, fechaTxt, String(dias)]);
     const link = linkWhatsApp(socio.telefono, texto);
+
+    // Aviso en vivo a las pantallas de recepción del gimnasio: si hay una
+    // tablet en la entrada y el admin en la oficina, ambas ven el ingreso.
+    if (!yaHoy) {
+      emitirAGym(req.gymId, 'asistencia:nueva', {
+        socio: { _id: socio.id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '' },
+        fecha: new Date().toISOString(),
+        metodo: metodo || 'codigo',
+      });
+    }
 
     res.json({
       acceso: 'permitido',

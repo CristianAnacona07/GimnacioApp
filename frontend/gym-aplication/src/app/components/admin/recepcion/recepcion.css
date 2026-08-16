@@ -11,11 +11,11 @@
 .recepcion__titulo {
   font-size: 1.6rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--txt-azul, #0f172a);
 }
 
 .recepcion__subtitulo {
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: 0.95rem;
 }
 
@@ -33,8 +33,8 @@
 
 /* Paneles */
 .panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--sup-1, #ffffff);
+  border: 1px solid var(--bde, #e2e8f0);
   border-radius: 1rem;
   padding: 1.1rem;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
@@ -49,7 +49,7 @@
 .panel__titulo {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
   margin-bottom: 0.75rem;
 }
 
@@ -57,7 +57,7 @@
 .input {
   width: 100%;
   padding: 0.7rem 0.9rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--bde, #cbd5e1);
   border-radius: 0.65rem;
   font-size: 1rem;
   outline: none;
@@ -126,8 +126,8 @@
 }
 
 .btn--ghost {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--tinte-azul, #f1f5f9);
+  color: var(--txt-1, #334155);
   padding: 0.4rem 0.7rem;
 }
 
@@ -165,7 +165,7 @@
 }
 
 .hint {
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: 0.9rem;
   padding: 0.5rem 0.2rem;
 }
@@ -184,14 +184,14 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.55rem 0.7rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--bde, #e2e8f0);
   border-radius: 0.7rem;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 
 .lista__item:hover {
-  background: #f8fafc;
+  background: var(--sup-1, #f8fafc);
   border-color: #c7d2fe;
 }
 
@@ -201,7 +201,7 @@
 
 .lista__item--static:hover {
   background: transparent;
-  border-color: #e2e8f0;
+  border-color: var(--bde, #e2e8f0);
 }
 
 .lista__item--disabled {
@@ -226,7 +226,7 @@
 
 .lista__nombre {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -236,17 +236,17 @@
 .lista__hora,
 .lista__metodo {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
 }
 
 .lista__cedula {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
 }
 
 .lista__metodo {
   text-transform: capitalize;
-  background: #f1f5f9;
+  background: var(--tinte-azul, #f1f5f9);
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
 }
@@ -254,26 +254,26 @@
 .lista__accion {
   font-size: 0.8rem;
   font-weight: 700;
-  color: #4f46e5;
+  color: var(--txt-azul, #4f46e5);
   flex-shrink: 0;
 }
 
 .dias--activo {
-  color: #16a34a;
+  color: var(--txt-verde, #16a34a);
   font-weight: 700;
 }
 
 .dias--vencido {
-  color: #dc2626;
+  color: var(--txt-rojo, #dc2626);
   font-weight: 700;
 }
 
 /* Tarjeta de check-in */
 .tarjeta {
   position: relative;
-  background: #fff;
+  background: var(--sup-1, #fff);
   border-radius: 1.25rem;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--bde, #e2e8f0);
   padding: 1.5rem;
   text-align: center;
   margin-bottom: 1.25rem;
@@ -282,12 +282,12 @@
 
 .tarjeta--activo {
   border-color: #16a34a;
-  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  background: linear-gradient(180deg, var(--tinte-verde, #f0fdf4), var(--sup-1, #ffffff));
 }
 
 .tarjeta--vencido {
   border-color: #dc2626;
-  background: linear-gradient(180deg, #fef2f2, #ffffff);
+  background: linear-gradient(180deg, var(--sup-1, #fef2f2), var(--sup-1, #ffffff));
 }
 
 .tarjeta__cerrar {
@@ -297,7 +297,7 @@
   border: none;
   background: transparent;
   font-size: 1.1rem;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   cursor: pointer;
 }
 
@@ -306,7 +306,7 @@
   height: 96px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #fff;
+  border: 3px solid var(--bde, #fff);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   margin-bottom: 0.75rem;
 }
@@ -314,7 +314,7 @@
 .tarjeta__nombre {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--txt-azul, #0f172a);
 }
 
 .tarjeta__dias {
@@ -325,13 +325,13 @@
 }
 
 .tarjeta__asistencias {
-  color: #475569;
+  color: var(--txt-2, #475569);
   font-size: 0.95rem;
 }
 
 .tarjeta__aviso {
   margin-top: 0.4rem;
-  color: #b45309;
+  color: var(--txt-ambar, #b45309);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -341,11 +341,101 @@
 }
 
 .wa-enviado {
-  color: #16a34a;
+  color: var(--txt-verde, #16a34a);
   font-weight: 700;
 }
 
 .wa-motivo {
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   font-size: 0.85rem;
+}
+
+/* ===== INVITAR SOCIO (link + QR de registro) ===== */
+.recepcion__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.btn-invitar {
+  background: var(--color-secundario, #1d4ed8);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(29,78,216,0.35);
+  transition: transform 0.15s;
+}
+.btn-invitar:hover:not(:disabled) { transform: scale(1.04); }
+.btn-invitar:disabled { opacity: 0.6; cursor: wait; }
+
+.invitacion {
+  position: relative;
+  background: var(--sup-1, #fff);
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 1.15rem;
+  padding: 1.25rem 1rem;
+  margin: 1rem 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.invitacion__cerrar {
+  position: absolute;
+  top: 0.6rem; right: 0.6rem;
+  border: none;
+  background: var(--sup-2, #f0f5ff);
+  border-radius: 0.5rem;
+  width: 30px; height: 30px;
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--txt-2, #475569);
+}
+.invitacion__titulo { font-size: 0.95rem; font-weight: 800; color: var(--txt-1, #1e293b); margin: 0; }
+.invitacion__sub { font-size: 0.75rem; color: var(--txt-3, #94a3b8); margin: 0; }
+.invitacion__qr {
+  width: 200px; height: 200px;
+  border-radius: 0.9rem;
+  border: 1.5px solid var(--bde, #e2e8f0);
+  /* El QR se escanea mejor sobre blanco puro, también en modo oscuro. */
+  background: #fff;
+  padding: 6px;
+  margin: 0.4rem 0;
+}
+.invitacion__url {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--txt-2, #475569);
+  background: var(--sup-2, #f0f5ff);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invitacion__acciones { display: flex; gap: 0.5rem; margin-top: 0.35rem; }
+.invitacion__btn {
+  border: 1.5px solid var(--bde, #c8dcff);
+  background: var(--sup-1, #fff);
+  color: var(--color-secundario, #1d4ed8);
+  border-radius: 999px;
+  padding: 0.5rem 1.2rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+}
+.invitacion__btn--wa {
+  background: #25d366;
+  border-color: #25d366;
+  color: #fff;
 }

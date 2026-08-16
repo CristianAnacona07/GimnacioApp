@@ -1,3 +1,10 @@
+/* Un solo estilo de inicio de sesión para todos los gimnasios: la pantalla no
+   se tiñe con los colores de cada uno (eso empieza una vez dentro de la app);
+   lo único que cambia es el logo. Así entrar se ve y se siente igual siempre. */
+:host {
+  --acento: #1d4ed8;
+}
+
 /* ===== FONDO ===== */
 .login-bg {
   min-height: 100vh;
@@ -111,7 +118,7 @@
 /* ===== CARD ===== */
 .login-card {
   width: 100%;
-  background: #ffffff;
+  background: var(--sup-1, #ffffff);
   border-radius: 1.75rem;
   overflow: hidden;
   box-shadow:
@@ -163,7 +170,7 @@
 .field-label {
   font-size: 0.7rem;
   font-weight: 800;
-  color: var(--color-secundario);
+  color: var(--acento);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding-left: 0.25rem;
@@ -172,15 +179,15 @@
 .field-wrap {
   display: flex;
   align-items: center;
-  background: #f0f5ff;
+  background: var(--sup-1, #f0f5ff);
   border: 2px solid #c8dcff;
   border-radius: 0.875rem;
   padding: 0 0.75rem;
   transition: border-color 0.2s;
 }
 .field-wrap:focus-within {
-  border-color: var(--color-secundario);
-  background: #e8f0ff;
+  border-color: var(--acento);
+  background: var(--tinte-azul, #e8f0ff);
 }
 
 .field-icon {
@@ -197,7 +204,7 @@
   outline: none;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
 }
 .field-input::placeholder { color: #a0b4d0; }
 
@@ -214,7 +221,7 @@
 .btn-login {
   width: 100%;
   padding: 0.9rem;
-  background: var(--color-secundario);
+  background: var(--acento);
   color: #ffffff;
   border: none;
   border-radius: 0.875rem;
@@ -246,21 +253,21 @@
 .card-footer-text {
   text-align: center;
   font-size: 0.82rem;
-  color: #7a9bc0;
+  color: var(--txt-azul, #7a9bc0);
 }
 .card-link {
-  color: var(--color-secundario);
+  color: var(--acento);
   font-weight: 700;
   text-decoration: none;
 }
 .card-link:hover { text-decoration: underline; }
 .card-link-soft {
-  color: #6b9fd4;
+  color: var(--txt-azul, #6b9fd4);
   font-weight: 600;
   text-decoration: none;
   font-size: 0.8rem;
 }
-.card-link-soft:hover { text-decoration: underline; color: var(--color-secundario); }
+.card-link-soft:hover { text-decoration: underline; color: var(--acento); }
 
 /* ===== DIVISOR ===== */
 .divider {
@@ -274,12 +281,12 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: #c8dcff;
+  background: var(--tinte-azul, #c8dcff);
 }
 .divider span {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #7a9bc0;
+  color: var(--txt-azul, #7a9bc0);
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -299,8 +306,8 @@
   gap: 0.5rem;
   height: 44px;
   border: 1.5px solid #c8dcff;
-  background: #f8fbff;
-  color: #1e293b;
+  background: var(--sup-1, #f8fbff);
+  color: var(--txt-1, #1e293b);
   border-radius: 0.875rem;
   font-size: 0.8rem;
   font-weight: 700;
@@ -309,8 +316,8 @@
   white-space: nowrap;
 }
 .btn-social:hover:not(:disabled) {
-  border-color: var(--color-secundario);
-  background: #eff6ff;
+  border-color: var(--acento);
+  background: var(--tinte-azul, #eff6ff);
   transform: translateY(-1px);
 }
 .btn-social:active:not(:disabled) { transform: scale(0.96); }
@@ -353,3 +360,63 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ===== VARIOS GIMNASIOS ===== */
+/* El mismo correo y contraseña existen en más de un gimnasio: se elige entre
+   LOS PROPIOS (la lista solo llega tras demostrar la contraseña). */
+.multi-gym { display: flex; flex-direction: column; gap: 0.6rem; }
+.multi-gym__titulo {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--txt-1, #1e293b);
+  text-align: center;
+  margin: 0;
+}
+.multi-gym__sub {
+  font-size: 0.8rem;
+  color: var(--txt-3, #94a3b8);
+  text-align: center;
+  margin: 0 0 0.5rem;
+}
+.multi-gym__opcion {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  background: var(--sup-2, #f0f5ff);
+  border: 1.5px solid var(--bde, #c8dcff);
+  border-radius: 0.9rem;
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.multi-gym__opcion:hover { border-color: var(--acento); transform: translateY(-1px); }
+.multi-gym__logo, .multi-gym__inicial {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.multi-gym__inicial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--acento);
+  color: #fff;
+  font-weight: 900;
+  font-size: 1.05rem;
+}
+.multi-gym__nombre { flex: 1; font-size: 0.9rem; font-weight: 700; color: var(--txt-1, #1e293b); }
+.multi-gym__flecha { color: var(--txt-3, #94a3b8); }
+.multi-gym__cancelar {
+  background: none;
+  border: none;
+  color: var(--txt-3, #7a9bc0);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.4rem;
+}
+.multi-gym__cancelar:hover { text-decoration: underline; }
+.card-footer-nota { font-size: 0.75rem; }

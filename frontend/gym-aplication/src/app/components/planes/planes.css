@@ -11,12 +11,12 @@
   align-items: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--bde, #e0e0e0);
 }
 
 .planes-header h1 {
   font-size: 2rem;
-  color: #333;
+  color: var(--txt-1, #333);
   margin: 0;
 }
 
@@ -54,7 +54,7 @@
 }
 
 .modal-contenido {
-  background: #f8fbff;
+  background: var(--sup-1, #f8fbff);
   border-radius: 12px;
   width: 90%;
   max-width: 550px;
@@ -75,14 +75,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--bde, #e0e0e0);
 }
 
 .btn-cerrar {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #999;
+  color: var(--txt-3, #999);
   cursor: pointer;
   transition: color 0.2s;
 }
@@ -90,12 +90,12 @@
 /* --- Formulario --- */
 .formulario { padding: 20px; }
 .form-grupo { margin-bottom: 20px; }
-.form-grupo label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+.form-grupo label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--txt-1, #333); }
 
 .form-grupo input, .form-grupo textarea {
   width: 100%;
   padding: 12px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--bde, #e0e0e0);
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.3s;
@@ -134,12 +134,12 @@
 }
 
 .plan-card {
-  background: #f8fbff;
+  background: var(--sup-1, #f8fbff);
   border-radius: 12px;
   padding: 25px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--bde, #e0e0e0);
   display: flex;
   flex-direction: column;
 }
@@ -163,7 +163,7 @@
   margin: 0;
   font-size: 1.6rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, var(--tinte-morado, #f093fb) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -182,14 +182,14 @@
 .monto {
   font-size: 2.2rem;
   font-weight: 900;
-  color: #333;
+  color: var(--txt-1, #333);
 }
 
 .duracion {
   margin-left: 8px;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #666;
+  color: var(--txt-2, #666);
 }
 
 .plan-card:hover .monto,
@@ -200,7 +200,7 @@
 }
 
 .descripcion {
-  color: #666;
+  color: var(--txt-2, #666);
   font-size: 1rem;
   margin-bottom: 20px;
   line-height: 1.5;
@@ -215,7 +215,7 @@
 
 .lista-caracteristicas li {
   padding: 6px 0;
-  color: #555;
+  color: var(--txt-2, #555);
   font-size: 0.95rem;
   display: flex;
   align-items: center;
@@ -227,16 +227,16 @@
   border-radius: 8px;
   border: 2px solid #667eea;
   background: transparent;
-  color: #667eea;
+  color: var(--txt-azul, #667eea);
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .plan-card:hover .btn-elegir {
-  background: #f8fbff;
+  background: var(--sup-1, #f8fbff);
   border-color: white;
-  color: #5a367d;
+  color: var(--txt-morado, #5a367d);
 }
 
 /* --- Acciones Admin --- */

@@ -29,7 +29,7 @@
 }
 
 .sa-label {
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   font-size: .8rem;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -44,7 +44,7 @@
 
 .flabel {
   font-size: .75rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-weight: 600;
 }
 

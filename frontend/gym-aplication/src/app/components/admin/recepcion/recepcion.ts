@@ -14,8 +14,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
+import QRCode from 'qrcode';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../../environments/environment';
 import { AsistenciaService } from '../../../services/asistencia.service';
 import { ToastService } from '../../../services/toast.service';
+import { TiempoRealService } from '../../../services/tiempo-real.service';
 
 interface SocioBusqueda {
   _id: string;
@@ -71,6 +75,13 @@ export class Recepcion implements OnInit, OnDestroy {
   private toast = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
   private destroyRef = inject(DestroyRef);
+  private tiempoReal = inject(TiempoRealService);
+  private http = inject(HttpClient);
+
+  // --- Invitación de registro (link/QR de un solo uso) ---
+  invitandoSocio = false;
+  invitacionUrl: string | null = null;
+  invitacionQr: string | null = null;
 
   // Buscador
   textoBusqueda = '';
@@ -121,6 +132,59 @@ export class Recepcion implements OnInit, OnDestroy {
       });
 
     this.cargarHoy();
+
+    // Cada ingreso aparece en el momento, venga de esta pantalla o de otra: la
+    // tablet de la entrada y la oficina ven la misma lista sin recargar.
+    this.tiempoReal.conectar();
+    this.tiempoReal.escuchar('asistencia:nueva')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.cargarHoy());
+  }
+
+  // ---- Invitar socio ----
+  // Genera el link de un solo uso (48 h) con el que el socio nuevo se registra
+  // en ESTE gimnasio, y su QR para mostrarlo en pantalla o imprimirlo.
+  async invitarSocio(): Promise<void> {
+    if (this.invitandoSocio) return;
+    this.invitandoSocio = true;
+    this.cdr.markForCheck();
+    this.http.post<{ token: string }>(`${environment.apiUrl}/api/invitaciones`, {})
+      .subscribe({
+        next: async (res) => {
+          this.invitacionUrl = `${window.location.origin}/invitacion/${res.token}`;
+          try {
+            this.invitacionQr = await QRCode.toDataURL(this.invitacionUrl, { width: 240, margin: 1 });
+          } catch { this.invitacionQr = null; }
+          this.invitandoSocio = false;
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.invitandoSocio = false;
+          this.toast.error('No se pudo crear la invitación');
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  copiarInvitacion(): void {
+    if (!this.invitacionUrl) return;
+    navigator.clipboard.writeText(this.invitacionUrl)
+      .then(() => this.toast.success('Enlace copiado'))
+      .catch(() => this.toast.error('No se pudo copiar'));
+  }
+
+  get whatsappInvitacion(): string {
+    if (!this.invitacionUrl) return '';
+    const texto = encodeURIComponent(
+      `¡Bienvenido! Registrate en el gimnasio con este enlace (sirve una sola vez y vence en 48 horas): ${this.invitacionUrl}`
+    );
+    return `https://wa.me/?text=${texto}`;
+  }
+
+  cerrarInvitacion(): void {
+    this.invitacionUrl = null;
+    this.invitacionQr = null;
+    this.cdr.markForCheck();
   }
 
   // ---- Buscador ----

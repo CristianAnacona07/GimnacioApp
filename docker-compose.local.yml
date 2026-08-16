@@ -17,6 +17,7 @@
 #   API        http://localhost:10000
 #   correo     http://localhost:8026        (SMTP 1026)
 #   Postgres   postgresql://localhost:5433  (para psql/DBeaver; la app no lo usa desde fuera)
+#   archivos   http://localhost:9010        (consola web en http://localhost:9011)
 name: gimnacio-app
 
 services:
@@ -56,6 +57,32 @@ services:
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
     restart: unless-stopped
 
+  # ── Almacén de archivos ────────────────────────────────────────────────
+  # Guarda las fotos de la página pública de cada gimnasio. Habla el protocolo
+  # de S3, así que el backend usa el mismo código aquí, en el VPS y en cualquier
+  # almacén en la nube: solo cambian las variables S3_* del backend.
+  # Consola web para ver/borrar archivos a mano: http://localhost:9011
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      # 9010/9011 en vez de los 9000/9001 de fábrica: son puertos muy comunes y
+      # otros proyectos del equipo podrían reclamarlos.
+      - "${MINIO_PORT:-9010}:9000"
+      - "${MINIO_CONSOLE_PORT:-9011}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gimnacio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-gimnacio-local-1234}
+    volumes:
+      - minio_datos:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
   # ── API ────────────────────────────────────────────────────────────────
   backend:
     build:
@@ -77,9 +104,21 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID:-}
       GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-}
-      TENANT_ROOT_DOMAIN: ${TENANT_ROOT_DOMAIN:-}
+      # 'localhost' para que <slug>.localhost se comporte como lo hará
+      # <slug>.midominio.com en el servidor (CORS y validación de dominios).
+      TENANT_ROOT_DOMAIN: ${TENANT_ROOT_DOMAIN:-localhost}
+      # Almacén de archivos (protocolo S3). S3_PUBLIC_URL es con la que el
+      # navegador pide las fotos, así que va con el puerto del HOST, no el de
+      # dentro de la red de Compose.
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9010}
+      S3_BUCKET: ${S3_BUCKET:-gimnacio}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-gimnacio}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-gimnacio-local-1234}
     depends_on:
       postgres:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     restart: unless-stopped
 
@@ -92,6 +131,9 @@ services:
       context: ./frontend/gym-aplication
       args:
         API_URL: ${API_URL:-http://localhost:10000}
+        # Con esto, <slug>.localhost:8090 abre la página de ese gimnasio igual
+        # que hará <slug>.midominio.com en el servidor.
+        TENANT_ROOT_DOMAIN: ${TENANT_ROOT_DOMAIN:-localhost}
     ports:
       - "${FRONTEND_PORT:-8090}:80"
     depends_on:
@@ -100,3 +142,4 @@ services:
 
 volumes:
   postgres_datos:
+  minio_datos:

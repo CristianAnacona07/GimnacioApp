@@ -1,0 +1,114 @@
+<div class="page">
+
+  <h2 class="page-title">📅 Agendar sesión</h2>
+  <p class="page-sub">Elegí con quién y a qué hora querés entrenar.</p>
+
+  <!-- ===== MIS CITAS ===== -->
+  @if (misCitas.length) {
+    <div class="bloque">
+      <p class="bloque-titulo">Tus próximas citas</p>
+      @for (c of misCitas; track c._id) {
+        <div class="cita">
+          <div class="cita-cuando">
+            <span class="cita-hora">{{ c.hora }}</span>
+            <span class="cita-fecha">{{ fechaLegible(c.fecha) }}</span>
+          </div>
+          <div class="cita-quien">
+            <p class="cita-nombre">{{ c.profesionalId.nombre }}</p>
+            @if (c.nota) { <p class="cita-nota">{{ c.nota }}</p> }
+          </div>
+          <button class="btn-cancelar" (click)="cancelar(c)" title="Cancelar">✕</button>
+        </div>
+      }
+    </div>
+  }
+
+  @if (cargando) {
+    <p class="cargando">Cargando…</p>
+  }
+
+  <!-- ===== PASO 1: PROFESIONAL ===== -->
+  @if (!cargando && !elegido) {
+    @if (!profesionales.length) {
+      <div class="vacio">
+        <span class="vacio-icono">📅</span>
+        <p class="vacio-titulo">Todavía no hay horarios publicados</p>
+        <p class="vacio-sub">Cuando un entrenador publique su disponibilidad, vas a poder agendar aquí.</p>
+      </div>
+    } @else {
+      <p class="bloque-titulo">¿Con quién?</p>
+      <div class="profesionales">
+        @for (p of profesionales; track p._id) {
+          <button class="profesional" (click)="elegir(p)">
+            @if (p.fotoUrl) {
+              <img class="profesional-foto" [src]="p.fotoUrl" [alt]="p.nombre">
+            } @else {
+              <span class="profesional-inicial">{{ inicial(p.nombre) }}</span>
+            }
+            <span class="profesional-datos">
+              <span class="profesional-nombre">{{ p.nombre }}</span>
+              <span class="profesional-cargo">{{ cargoLegible(p) }}</span>
+            </span>
+            <span class="profesional-flecha">→</span>
+          </button>
+        }
+      </div>
+    }
+  }
+
+  <!-- ===== PASO 2 y 3: DÍA Y HORA ===== -->
+  @if (elegido) {
+    <div class="elegido">
+      @if (profesionales.length > 1) {
+        <button class="volver" (click)="volverALista()">← Cambiar</button>
+      }
+      <div class="elegido-datos">
+        <p class="elegido-nombre">{{ elegido.nombre }}</p>
+        <p class="elegido-cargo">
+          {{ cargoLegible(elegido) }}
+          @if (config?.duracionMin) { · {{ config!.duracionMin }} min }
+          @if (config?.precio) { · {{ formatearPrecio(config!.precio) }} }
+        </p>
+      </div>
+    </div>
+
+    @if (buscandoHoras) {
+      <p class="cargando">Buscando horarios…</p>
+    } @else if (!dias.length) {
+      <div class="vacio">
+        <span class="vacio-icono">🗓️</span>
+        <p class="vacio-titulo">No hay horas libres</p>
+        <p class="vacio-sub">Probá con otro profesional o volvé más adelante.</p>
+      </div>
+    } @else {
+      <label class="campo-nota">
+        <span class="campo-label">¿Algo que quieras avisar? (opcional)</span>
+        <input class="input" type="text" maxlength="200" [(ngModel)]="nota" name="nota"
+               placeholder="Ej: quiero trabajar espalda">
+      </label>
+
+      <div class="dias">
+        @for (d of dias; track d.fecha) {
+          <div class="dia" [class.dia--abierto]="diaAbierto === d.fecha">
+            <button class="dia-cabecera" (click)="abrirDia(d.fecha)">
+              <span class="dia-nombre">
+                {{ esHoy(d.fecha) ? 'Hoy' : fechaLegible(d.fecha) }}
+              </span>
+              <span class="dia-cuantos">{{ d.horas.length }} libre{{ d.horas.length !== 1 ? 's' : '' }}</span>
+              <span class="dia-flecha">{{ diaAbierto === d.fecha ? '⌃' : '⌄' }}</span>
+            </button>
+
+            @if (diaAbierto === d.fecha) {
+              <div class="horas">
+                @for (h of d.horas; track h) {
+                  <button class="hora" (click)="reservar(d, h)" [disabled]="reservando">{{ h }}</button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+
+</div>

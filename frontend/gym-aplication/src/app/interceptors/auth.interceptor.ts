@@ -4,6 +4,7 @@ import { catchError, retry, timeout } from 'rxjs/operators';
 import { throwError, timer } from 'rxjs';
 import { Router } from '@angular/router';
 import { StorageService } from '../services/storage.service';
+import { GymService } from '../services/gym.service';
 
 // Endpoints públicos de auth: un 401 aquí significa "credenciales inválidas",
 // no "sesión expirada", así que no se debe cerrar sesión ni redirigir.
@@ -11,6 +12,7 @@ const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/goog
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const storageService = inject(StorageService);
+  const gymService = inject(GymService);
   const router = inject(Router);
   const token = storageService.getToken();
 
@@ -43,7 +45,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       // Solo cerrar sesión si había un token (sesión real) y no es un login fallido.
       if (err.status === 401 && token && !esEndpointAuth) {
         storageService.clearSessionPreservingData();
-        router.navigate(['/login']);
+        // Salir siempre a la página del gimnasio, igual que el cierre de sesión.
+        router.navigateByUrl(gymService.rutaSalida());
       }
       return throwError(() => err);
     })

@@ -28,11 +28,6 @@ export const noAuthGuard: CanActivateFn = (route, state) => {
     return false;
   }
 
-  // Sin gym y sin token → selector (excepto ruta de superadmin)
-  if (!gym) {
-    router.navigate(['/gimnasios']);
-    return false;
-  }
-
+  // Sin token → al login universal; no hace falta gimnasio elegido.
   return true;
 };

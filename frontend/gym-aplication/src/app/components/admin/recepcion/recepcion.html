@@ -1,8 +1,26 @@
 <div class="recepcion">
   <header class="recepcion__header">
-    <h1 class="recepcion__titulo">🎫 Recepción</h1>
-    <p class="recepcion__subtitulo">Registra las entradas de los socios</p>
+    <div>
+      <h1 class="recepcion__titulo">🎫 Recepción</h1>
+      <p class="recepcion__subtitulo">Registra las entradas de los socios</p>
+    </div>
+    <button type="button" class="btn-invitar" (click)="invitarSocio()" [disabled]="invitandoSocio">
+      {{ invitandoSocio ? 'Creando…' : '+ Invitar socio' }}
+    </button>
   </header>
+
+  <!-- Invitación de registro: link + QR de un solo uso -->
+  <div class="invitacion" *ngIf="invitacionUrl">
+    <button type="button" class="invitacion__cerrar" (click)="cerrarInvitacion()" aria-label="Cerrar">✕</button>
+    <p class="invitacion__titulo">Invitación lista</p>
+    <p class="invitacion__sub">Sirve una sola vez y vence en 48 horas.</p>
+    <img *ngIf="invitacionQr" class="invitacion__qr" [src]="invitacionQr" alt="QR de la invitación">
+    <code class="invitacion__url">{{ invitacionUrl }}</code>
+    <div class="invitacion__acciones">
+      <button type="button" class="invitacion__btn" (click)="copiarInvitacion()">Copiar</button>
+      <a class="invitacion__btn invitacion__btn--wa" [href]="whatsappInvitacion" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
 
   <!-- Tarjeta de resultado del check-in -->
   <div *ngIf="ultimoCheckin as c" class="tarjeta"

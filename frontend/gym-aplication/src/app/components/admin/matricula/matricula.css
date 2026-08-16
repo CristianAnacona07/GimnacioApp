@@ -11,18 +11,18 @@
 .matricula__titulo {
   font-size: 1.6rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--txt-azul, #0f172a);
 }
 
 .matricula__subtitulo {
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: 0.95rem;
 }
 
 /* Panel */
 .panel {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--sup-1, #fff);
+  border: 1px solid var(--bde, #e2e8f0);
   border-radius: 1rem;
   padding: 1.1rem;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
@@ -37,9 +37,9 @@
 
 .tab {
   flex: 1;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
+  border: 1px solid var(--bde, #cbd5e1);
+  background: var(--sup-1, #f8fafc);
+  color: var(--txt-1, #334155);
   border-radius: 0.65rem;
   padding: 0.6rem 0.75rem;
   font-weight: 700;
@@ -81,21 +81,21 @@
 .campo__label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--txt-2, #475569);
 }
 
 .req {
-  color: #dc2626;
+  color: var(--txt-rojo, #dc2626);
 }
 
 .input {
   width: 100%;
   padding: 0.65rem 0.85rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--bde, #cbd5e1);
   border-radius: 0.65rem;
   font-size: 1rem;
   outline: none;
-  background: #fff;
+  background: var(--sup-1, #fff);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -106,7 +106,7 @@
 
 .sep {
   border: none;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--bde, #e2e8f0);
   margin: 1.1rem 0;
 }
 
@@ -141,8 +141,8 @@
 }
 
 .btn--ghost {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--tinte-azul, #f1f5f9);
+  color: var(--txt-1, #334155);
   padding: 0.45rem 0.8rem;
 }
 
@@ -155,7 +155,7 @@
 
 /* Hint y listas */
 .hint {
-  color: #64748b;
+  color: var(--txt-3, #64748b);
   font-size: 0.9rem;
   padding: 0.25rem 0.2rem;
 }
@@ -174,14 +174,14 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.55rem 0.7rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--bde, #e2e8f0);
   border-radius: 0.7rem;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 
 .lista__item:hover {
-  background: #f8fafc;
+  background: var(--sup-1, #f8fafc);
   border-color: #c7d2fe;
 }
 
@@ -194,7 +194,7 @@
 
 .lista__nombre {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -202,7 +202,7 @@
 
 .lista__cedula {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--txt-3, #64748b);
 }
 
 .lista__dias {
@@ -212,17 +212,17 @@
 .lista__accion {
   font-size: 0.8rem;
   font-weight: 700;
-  color: #4f46e5;
+  color: var(--txt-azul, #4f46e5);
   flex-shrink: 0;
 }
 
 .dias--activo {
-  color: #16a34a;
+  color: var(--txt-verde, #16a34a);
   font-weight: 700;
 }
 
 .dias--vencido {
-  color: #dc2626;
+  color: var(--txt-rojo, #dc2626);
   font-weight: 700;
 }
 
@@ -234,7 +234,7 @@
   gap: 0.75rem;
   padding: 0.7rem 0.85rem;
   border: 1px solid #c7d2fe;
-  background: #eef2ff;
+  background: var(--tinte-azul, #eef2ff);
   border-radius: 0.7rem;
 }
 
@@ -246,7 +246,7 @@
 
 .seleccionado__nombre {
   font-weight: 700;
-  color: #1e293b;
+  color: var(--txt-1, #1e293b);
 }
 
 .seleccionado__dias {
@@ -256,7 +256,7 @@
 /* Tarjeta de confirmación */
 .tarjeta {
   position: relative;
-  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  background: linear-gradient(180deg, var(--tinte-verde, #f0fdf4), var(--sup-1, #ffffff));
   border-radius: 1.25rem;
   border: 2px solid #16a34a;
   padding: 1.5rem;
@@ -272,27 +272,27 @@
   border: none;
   background: transparent;
   font-size: 1.1rem;
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   cursor: pointer;
 }
 
 .tarjeta__check {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #16a34a;
+  color: var(--txt-verde, #16a34a);
 }
 
 .tarjeta__nombre {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--txt-azul, #0f172a);
   margin: 0.25rem 0 0.5rem;
 }
 
 .tarjeta__monto,
 .tarjeta__vence,
 .tarjeta__dias {
-  color: #334155;
+  color: var(--txt-1, #334155);
   font-size: 0.98rem;
   margin: 0.2rem 0;
 }
@@ -300,10 +300,10 @@
 .tarjeta__password {
   margin-top: 0.75rem;
   padding: 0.6rem 0.8rem;
-  background: #fff7ed;
+  background: var(--tinte-ambar, #fff7ed);
   border: 1px solid #fed7aa;
   border-radius: 0.65rem;
-  color: #9a3412;
+  color: var(--txt-rojo, #9a3412);
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -311,7 +311,7 @@
 
 .tarjeta__password-hint {
   font-size: 0.8rem;
-  color: #b45309;
+  color: var(--txt-ambar, #b45309);
 }
 
 .tarjeta__wa {
@@ -319,11 +319,11 @@
 }
 
 .wa-enviado {
-  color: #16a34a;
+  color: var(--txt-verde, #16a34a);
   font-weight: 700;
 }
 
 .wa-motivo {
-  color: #94a3b8;
+  color: var(--txt-3, #94a3b8);
   font-size: 0.85rem;
 }

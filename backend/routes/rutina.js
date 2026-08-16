@@ -4,6 +4,7 @@ const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin, resolverUsuarioId, filtroPropiedad } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { conRutina, ejerciciosParaCrear } = require('../lib/rutinaMapper');
+const { emitirAUsuario } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
 
@@ -31,6 +32,8 @@ router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
       recursoId: nuevaRutina.id,
       detalle: { usuarioId, dia, nombre }
     });
+    // El socio ve la rutina nueva sin salir ni recargar la pantalla.
+    emitirAUsuario(usuarioId, 'rutina:actualizada', { dia });
     res.status(201).json({ mensaje: 'Rutina asignada con éxito', rutina: conRutina(nuevaRutina) });
   } catch (error) {
     // Duplicado por el índice único {gymId,usuarioId,dia} (carrera con el findFirst previo)
@@ -73,6 +76,7 @@ router.put('/actualizar/:id', verificarToken, soloAdmin, async (req, res) => {
       });
     });
 
+    emitirAUsuario(rutina.usuarioId, 'rutina:actualizada', { dia: rutina.dia });
     res.json({ mensaje: 'Rutina actualizada', rutina: conRutina(rutina) });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al actualizar' });
