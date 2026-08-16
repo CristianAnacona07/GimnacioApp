@@ -7,16 +7,40 @@
   <div class="card">
     <p class="card-title">Cómo funciona</p>
     <p class="card-hint">
-      Registra aquí el número de serie de tu lector. Después, en el menú del
-      aparato, apunta el servidor a esta dirección y las entradas empezarán a
-      registrarse solas, sin pasar por recepción.
+      Registrás el equipo acá (te va a dar una clave que se muestra una sola
+      vez) y después conectás su "conector" — un programita chico, específico
+      de la marca del equipo, que corre en la PC del gimnasio — apuntando a
+      esta dirección con esa clave:
     </p>
-    <span class="codigo">{{ urlServidor }}</span>
+    <span class="codigo">{{ urlVerificar }}</span>
+    <p class="card-hint">
+      La huella en sí nunca sale del aparato: solo viaja el número interno que
+      el equipo le asigna a cada persona al enrolarla. Por eso, además de
+      registrar el equipo, hay que decirle a la app a qué socio corresponde
+      cada número — eso se hace abriendo cada equipo más abajo.
+    </p>
     <p class="card-hint" style="margin-bottom:0">
-      Las huellas se quedan siempre dentro del aparato: la app solo recibe el
-      número de documento y la hora.
+      Mientras no tengas el conector de tu marca, esto queda listo del lado
+      de la app: el equipo real todavía no le va a llegar a nadie.
     </p>
   </div>
+
+  @if (claveNueva) {
+    <div class="card card--aviso">
+      <p class="card-title">🔑 Clave de "{{ claveNueva.equipo }}"</p>
+      <p class="card-hint">
+        Copiala ahora: no se vuelve a mostrar. Si la perdés, tenés que
+        regenerarla (la anterior deja de servir).
+      </p>
+      <div class="clave-fila">
+        <span class="codigo codigo--clave">{{ claveNueva.clave }}</span>
+        <button class="btn btn--ghost" (click)="copiarClave()">Copiar</button>
+      </div>
+      <button class="btn btn--bloque" style="margin-top:0.75rem" (click)="cerrarClaveNueva()">
+        Ya la copié
+      </button>
+    </div>
+  }
 
   <div class="card">
     <p class="card-title">Mis equipos</p>
@@ -41,11 +65,60 @@
             <span class="estado" [ngClass]="estado(equipo).clase">{{ estado(equipo).texto }}</span>
           </li>
           <div class="acciones" style="padding-bottom:0.6rem">
+            <button class="btn btn--ghost" (click)="alternarHuellas(equipo)">
+              {{ equipoExpandido === equipo._id ? 'Ocultar huellas' : 'Huellas asociadas' }}
+            </button>
+            <button class="btn btn--ghost" (click)="regenerarClave(equipo)">Regenerar clave</button>
             <button class="btn btn--ghost" (click)="alternar(equipo)">
               {{ equipo.activo ? 'Desactivar' : 'Activar' }}
             </button>
             <button class="btn btn--peligro" (click)="eliminar(equipo)">Dar de baja</button>
           </div>
+
+          @if (equipoExpandido === equipo._id) {
+            <div class="huellas">
+              @if (cargandoHuellas && !huellasPorEquipo[equipo._id]) {
+                <p class="vacio">Cargando…</p>
+              } @else if (!huellasPorEquipo[equipo._id]?.length) {
+                <p class="vacio">Todavía no hay ninguna huella asociada en este equipo.</p>
+              } @else {
+                <ul class="lista">
+                  @for (h of huellasPorEquipo[equipo._id]; track h._id) {
+                    <li class="lista__item">
+                      <div class="lista__info">
+                        <span class="lista__nombre">{{ h.socio.nombre }}</span>
+                        <span class="lista__meta">Huella nº {{ h.huellaId }}</span>
+                      </div>
+                      <button class="btn btn--peligro" (click)="quitarHuella(equipo, h)">Quitar</button>
+                    </li>
+                  }
+                </ul>
+              }
+
+              <div class="huella-form">
+                <label class="campo">
+                  <span class="campo__label">ID de huella (el que asignó el equipo al enrolar)</span>
+                  <input class="input" type="number" min="0" [(ngModel)]="nuevaHuellaId" name="nuevaHuellaId" placeholder="47" />
+                </label>
+                <label class="campo">
+                  <span class="campo__label">Socio</span>
+                  <input class="input" type="text" [ngModel]="busquedaSocio" (ngModelChange)="buscarSocio($event)"
+                         name="busquedaSocio" placeholder="Buscar por nombre, correo o cédula…" />
+                  @if (resultados.length && !socioElegido) {
+                    <ul class="resultados">
+                      @for (s of resultados; track s._id) {
+                        <li (click)="elegirSocio(s)">{{ s.nombre }} <span class="lista__meta">{{ s.identificacion }}</span></li>
+                      }
+                    </ul>
+                  }
+                </label>
+                <div class="acciones">
+                  <button class="btn" (click)="agregarHuella(equipo)">Asociar huella</button>
+                  <button class="btn btn--ghost" (click)="cancelarNuevaHuella()">Limpiar</button>
+                </div>
+              </div>
+            </div>
+          }
         }
       </ul>
     }

@@ -340,6 +340,60 @@ textarea.input {
   text-align: center;
 }
 
+/* ── Clave de equipo (se muestra una sola vez) ──────────────────────── */
+.card--aviso {
+  border-color: var(--txt-ambar, #d97706);
+  background: var(--tinte-ambar, #fffbeb);
+}
+
+.clave-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.codigo--clave {
+  flex: 1;
+  margin: 0;
+}
+
+/* ── Huellas por equipo ──────────────────────────────────────────────── */
+.huellas {
+  margin-top: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--bde, #e2e8f0);
+}
+
+.huella-form {
+  margin-top: 0.75rem;
+  position: relative;
+}
+
+.resultados {
+  list-style: none;
+  margin: -0.6rem 0 0.85rem;
+  padding: 0.3rem 0;
+  border: 1px solid var(--bde, #e2e8f0);
+  border-radius: 0.6rem;
+  background: var(--sup-1, #fff);
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.resultados li {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--txt-1, #1e293b);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.resultados li:hover {
+  background: var(--tinte-azul, #eef2ff);
+}
+
 /* Paginación */
 .paginacion {
   display: flex;

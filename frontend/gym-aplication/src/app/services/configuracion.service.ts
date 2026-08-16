@@ -13,6 +13,15 @@ export interface Dispositivo {
   activo: boolean;
   ultimaConexion: string | null;
   createdAt?: string;
+  /** Solo viene en la respuesta de crear o regenerar: no se puede volver a leer después. */
+  apiKey?: string;
+}
+
+/** Huella asociada a un socio, dentro de UN equipo puntual. */
+export interface HuellaAsociada {
+  _id: string;
+  huellaId: number;
+  socio: { _id: string; nombre: string; fotoUrl?: string };
 }
 
 /** Entrada del registro de auditoría. */
@@ -122,6 +131,23 @@ export class ConfiguracionService {
 
   eliminarDispositivo(id: string): Observable<{ mensaje: string }> {
     return this.http.delete<{ mensaje: string }>(`${this.api}/api/dispositivos/${id}`);
+  }
+
+  /** Invalida la clave actual del equipo y entrega una nueva (una sola vez). */
+  regenerarClaveDispositivo(id: string): Observable<{ apiKey: string }> {
+    return this.http.post<{ apiKey: string }>(`${this.api}/api/dispositivos/${id}/regenerar-clave`, {});
+  }
+
+  huellas(dispositivoId: string): Observable<HuellaAsociada[]> {
+    return this.http.get<HuellaAsociada[]>(`${this.api}/api/dispositivos/${dispositivoId}/huellas`);
+  }
+
+  asociarHuella(dispositivoId: string, datos: { huellaId: number; usuarioId: string }): Observable<{ mensaje: string }> {
+    return this.http.post<{ mensaje: string }>(`${this.api}/api/dispositivos/${dispositivoId}/huellas`, datos);
+  }
+
+  desasociarHuella(dispositivoId: string, huellaId: number): Observable<{ mensaje: string }> {
+    return this.http.delete<{ mensaje: string }>(`${this.api}/api/dispositivos/${dispositivoId}/huellas/${huellaId}`);
   }
 
   /** Dispara la descarga de un blob ya recibido, con el nombre indicado. */
