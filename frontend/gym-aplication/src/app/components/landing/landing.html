@@ -65,11 +65,6 @@
       <h1 class="portada__titulo">{{ texto(l.portada.titulo, gym!.nombre) }}</h1>
       <p class="portada__sub">{{ texto(l.portada.subtitulo, gym!.slogan || 'Entrená con nosotros') }}</p>
       <div class="portada__botones">
-        @if (whatsappUrl) {
-          <a class="btn btn--acento" [href]="whatsappUrl" target="_blank" rel="noopener">
-            {{ texto(l.portada.textoBoton, 'Quiero inscribirme') }}
-          </a>
-        }
         <button class="btn btn--claro" (click)="entrar()">Ya soy socio</button>
       </div>
     </div>

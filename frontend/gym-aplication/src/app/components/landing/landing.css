@@ -124,17 +124,17 @@
   transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
 }
 .nav__link:hover {
-  background: rgba(255,255,255,0.2);
-  border-color: rgba(255,255,255,0.55);
+  background: var(--acento, #f97316);
+  border-color: var(--acento, #f97316);
   color: #fff;
   transform: translateY(-1px);
 }
 
 .nav__entrar {
   margin-left: 0.5rem;
-  background: var(--acento, #f97316);
-  color: #fff;
-  border: 1.5px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
+  border: 1.5px solid rgba(255,255,255,0.24);
   border-radius: 999px;
   padding: 0.55rem 1.25rem;
   font-size: 0.85rem;
@@ -142,9 +142,12 @@
   cursor: pointer;
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .nav__entrar:hover {
+  background: var(--acento, #f97316);
+  border-color: var(--acento, #f97316);
+  color: #fff;
   transform: translateY(-1px) scale(1.03);
   box-shadow: 0 6px 22px rgba(0,0,0,0.45);
 }
@@ -259,6 +262,12 @@
   color: #fff;
   border: 1.5px solid rgba(255,255,255,0.55);
   backdrop-filter: blur(6px);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.btn--claro:hover {
+  background: var(--acento, #f97316);
+  border-color: var(--acento, #f97316);
+  color: #fff;
 }
 
 .portada__flecha {
