@@ -4,21 +4,6 @@
   padding: 1.25rem 1rem 6rem;
 }
 
-.volver {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: none;
-  border: none;
-  padding: 0;
-  margin-bottom: 0.75rem;
-  color: var(--txt-azul, var(--color-secundario, #4f46e5));
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  font-family: inherit;
-}
-
 .page-header {
   display: flex;
   align-items: center;

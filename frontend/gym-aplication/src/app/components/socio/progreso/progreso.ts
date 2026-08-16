@@ -1,5 +1,5 @@
 import { Component, OnInit, ElementRef, ViewChild, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProgresoService } from '../../../services/progreso.service';
 import { MedidasService } from '../../../services/medidas.service';
@@ -64,8 +64,13 @@ export class Progreso implements OnInit {
     private toast: ToastService,
     private gymService: GymService,
     private confirm: ConfirmService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private location: Location
   ) {}
+
+  volver(): void {
+    this.location.back();
+  }
 
   ngOnInit() {
     const user = this.userState.getCurrentUser();
