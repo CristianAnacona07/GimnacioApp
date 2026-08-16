@@ -1,17 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const Cita = require('../models/cita');
-const User = require('../models/user');
-const Gym = require('../models/gym');
+const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin, esAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { emitirAUsuario } = require('../helpers/tiempoReal');
+const { conCita } = require('../lib/citaMapper');
 
-const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const prisma = getPrismaClient();
+
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 // ── Utilidades de fecha y hora ──────────────────────────────────────────────
 // Todo se trabaja con texto 'YYYY-MM-DD' y 'HH:MM' para no arrastrar zonas
-// horarias (ver el comentario del modelo).
+// horarias (ver el comentario del modelo en prisma/schema.prisma).
 
 const aMinutos = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -41,15 +42,17 @@ const FORMATO_HORA = /^\d{2}:\d{2}$/;
  * (un gimnasio creado antes de esta función no trae el campo).
  */
 async function configAgenda(gymId) {
-  const gym = await Gym.findById(gymId).select('agenda').lean();
-  const a = gym?.agenda || {};
+  const gym = await prisma.gym.findUnique({ where: { id: gymId }, select: {
+    agendaActiva: true, agendaDuracionMin: true, agendaPrecio: true,
+    agendaHorasMinimasReserva: true, agendaHorasMinimasCancelacion: true, agendaDiasVisibles: true,
+  } });
   return {
-    activa: a.activa === true,
-    duracionMin: a.duracionMin || 60,
-    precio: a.precio || 0,
-    horasMinimasReserva: a.horasMinimasReserva ?? 2,
-    horasMinimasCancelacion: a.horasMinimasCancelacion ?? 4,
-    diasVisibles: a.diasVisibles || 14
+    activa: gym?.agendaActiva === true,
+    duracionMin: gym?.agendaDuracionMin || 60,
+    precio: gym ? Number(gym.agendaPrecio) : 0,
+    horasMinimasReserva: gym?.agendaHorasMinimasReserva ?? 2,
+    horasMinimasCancelacion: gym?.agendaHorasMinimasCancelacion ?? 4,
+    diasVisibles: gym?.agendaDiasVisibles || 14,
   };
 }
 
@@ -58,12 +61,13 @@ async function configAgenda(gymId) {
 // Quiénes tienen horario publicado. El socio elige entre estos.
 router.get('/profesionales', verificarToken, async (req, res) => {
   try {
-    const profesionales = await User.find({
-      gymId: req.gymId,
-      role: { $in: ['entrenador', 'empleado'] },
-      'disponibilidad.0': { $exists: true }   // al menos una franja publicada
-    }).select('nombre fotoUrl role cargo disponibilidad').lean();
-    res.json(profesionales);
+    const candidatos = await prisma.user.findMany({
+      where: { gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
+      select: { id: true, nombre: true, fotoUrl: true, role: true, cargo: true, disponibilidad: true }
+    });
+    // Al menos una franja publicada (equivalente a Mongo 'disponibilidad.0': {$exists:true}).
+    const profesionales = candidatos.filter((p) => Array.isArray(p.disponibilidad) && p.disponibilidad.length > 0);
+    res.json(profesionales.map(({ id, ...p }) => ({ ...p, _id: id })));
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al obtener los profesionales' });
   }
@@ -88,12 +92,15 @@ async function guardarDisponibilidad(req, res) {
       }
     }
 
-    const usuario = await User.findOneAndUpdate(
-      { _id: destino, gymId: req.gymId, role: { $in: ['entrenador', 'empleado'] } },
-      { disponibilidad: franjas },
-      { new: true }
-    ).select('nombre disponibilidad');
-    if (!usuario) return res.status(404).json({ mensaje: 'Profesional no encontrado' });
+    const actual = await prisma.user.findFirst({
+      where: { id: destino, gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
+      select: { id: true }
+    });
+    if (!actual) return res.status(404).json({ mensaje: 'Profesional no encontrado' });
+
+    const usuario = await prisma.user.update({
+      where: { id: actual.id }, data: { disponibilidad: franjas }, select: { nombre: true, disponibilidad: true }
+    });
 
     res.json({ mensaje: 'Horario guardado', disponibilidad: usuario.disponibilidad });
   } catch (error) {
@@ -107,8 +114,9 @@ router.put('/disponibilidad/:profesionalId', verificarToken, guardarDisponibilid
 async function obtenerDisponibilidad(req, res) {
   try {
     const destino = esAdmin(req) && req.params.profesionalId ? req.params.profesionalId : req.userId;
-    const usuario = await User.findOne({ _id: destino, gymId: req.gymId })
-      .select('nombre disponibilidad').lean();
+    const usuario = await prisma.user.findFirst({
+      where: { id: destino, gymId: req.gymId }, select: { nombre: true, disponibilidad: true }
+    });
     if (!usuario) return res.status(404).json({ mensaje: 'Profesional no encontrado' });
     res.json({ disponibilidad: usuario.disponibilidad || [] });
   } catch (error) {
@@ -132,10 +140,10 @@ router.get('/libres/:profesionalId', verificarToken, async (req, res) => {
     const cfg = await configAgenda(req.gymId);
     if (!cfg.activa) return res.json({ dias: [], config: cfg });
 
-    const profesional = await User.findOne({
-      _id: req.params.profesionalId, gymId: req.gymId,
-      role: { $in: ['entrenador', 'empleado'] }
-    }).select('nombre disponibilidad').lean();
+    const profesional = await prisma.user.findFirst({
+      where: { id: req.params.profesionalId, gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
+      select: { id: true, nombre: true, disponibilidad: true }
+    });
     if (!profesional) return res.status(404).json({ mensaje: 'Profesional no encontrado' });
 
     // El cliente manda su hoy y su ahora: el servidor está en UTC y el
@@ -145,18 +153,17 @@ router.get('/libres/:profesionalId', verificarToken, async (req, res) => {
     const ahora = FORMATO_HORA.test(req.query.ahora || '') ? req.query.ahora : '00:00';
     const hasta = sumarDias(hoy, cfg.diasVisibles);
 
-    const ocupadas = await Cita.find({
-      profesionalId: profesional._id,
-      estado: { $in: ['agendada', 'cumplida'] },
-      fecha: { $gte: hoy, $lte: hasta }
-    }).select('fecha hora').lean();
-    const tomadas = new Set(ocupadas.map(c => `${c.fecha} ${c.hora}`));
+    const ocupadas = await prisma.cita.findMany({
+      where: { profesionalId: profesional.id, estado: { in: ['agendada', 'cumplida'] }, fecha: { gte: hoy, lte: hasta } },
+      select: { fecha: true, hora: true }
+    });
+    const tomadas = new Set(ocupadas.map((c) => `${c.fecha} ${c.hora}`));
 
     const dias = [];
     for (let i = 0; i <= cfg.diasVisibles; i++) {
       const fecha = sumarDias(hoy, i);
       const nombreDia = diaSemana(fecha);
-      const franjas = (profesional.disponibilidad || []).filter(f => f.dia === nombreDia);
+      const franjas = (profesional.disponibilidad || []).filter((f) => f.dia === nombreDia);
       if (!franjas.length) continue;
 
       const horas = [];
@@ -173,7 +180,7 @@ router.get('/libres/:profesionalId', verificarToken, async (req, res) => {
       if (horas.length) dias.push({ fecha, dia: nombreDia, horas });
     }
 
-    res.json({ profesional: { _id: profesional._id, nombre: profesional.nombre }, dias, config: cfg });
+    res.json({ profesional: { _id: profesional.id, nombre: profesional.nombre }, dias, config: cfg });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al calcular los horarios libres' });
   }
@@ -193,18 +200,19 @@ router.post('/', verificarToken, async (req, res) => {
 
     // El socio reserva para sí mismo; el admin puede reservar para otro.
     const socioId = esAdmin(req) && req.body.socioId ? req.body.socioId : req.userId;
-    const socio = await User.findOne({ _id: socioId, gymId: req.gymId }).select('nombre').lean();
+    const socio = await prisma.user.findFirst({ where: { id: socioId, gymId: req.gymId }, select: { id: true, nombre: true } });
     if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
-    const profesional = await User.findOne({
-      _id: profesionalId, gymId: req.gymId, role: { $in: ['entrenador', 'empleado'] }
-    }).select('nombre disponibilidad').lean();
+    const profesional = await prisma.user.findFirst({
+      where: { id: profesionalId, gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
+      select: { id: true, nombre: true, disponibilidad: true }
+    });
     if (!profesional) return res.status(404).json({ mensaje: 'Profesional no encontrado' });
 
     // La hora pedida tiene que caer dentro de una franja suya y coincidir con
     // el comienzo de un hueco: si no, alguien podría reservar a las 20:07.
     const minutos = aMinutos(hora);
-    const franja = (profesional.disponibilidad || []).find(f =>
+    const franja = (profesional.disponibilidad || []).find((f) =>
       f.dia === diaSemana(fecha) &&
       minutos >= aMinutos(f.desde) &&
       minutos + cfg.duracionMin <= aMinutos(f.hasta) &&
@@ -212,29 +220,31 @@ router.post('/', verificarToken, async (req, res) => {
     );
     if (!franja) return res.status(400).json({ mensaje: 'Ese horario no está disponible' });
 
-    const cita = await Cita.create({
-      gymId: req.gymId,
-      socioId,
-      profesionalId,
-      fecha, hora,
-      duracionMin: cfg.duracionMin,
-      precio: cfg.precio,
-      nota: (nota || '').slice(0, 300)
-    });
+    let cita;
+    try {
+      cita = await prisma.cita.create({
+        data: {
+          gymId: req.gymId, socioId, profesionalId, fecha, hora,
+          duracionMin: cfg.duracionMin, precio: cfg.precio, nota: (nota || '').slice(0, 300)
+        }
+      });
+    } catch (error) {
+      // Lo lanza el índice único parcial: alguien reservó ese hueco un instante antes.
+      if (error.code === 'P2002') {
+        return res.status(409).json({ mensaje: 'Ese horario acaba de ser reservado por otra persona' });
+      }
+      throw error;
+    }
 
-    await registrarAuditoria(req, 'AGENDAR_CITA', { recurso: 'Cita', recursoId: cita._id, detalle: { fecha, hora } });
+    await registrarAuditoria(req, 'AGENDAR_CITA', { recurso: 'Cita', recursoId: cita.id, detalle: { fecha, hora } });
 
     // Los dos se enteran al instante, sin recargar.
-    const aviso = { citaId: cita._id, fecha, hora, socio: socio.nombre, profesional: profesional.nombre };
+    const aviso = { citaId: cita.id, fecha, hora, socio: socio.nombre, profesional: profesional.nombre };
     emitirAUsuario(profesionalId, 'cita:nueva', aviso);
     emitirAUsuario(socioId, 'cita:nueva', aviso);
 
-    res.status(201).json({ mensaje: 'Cita agendada', cita });
+    res.status(201).json({ mensaje: 'Cita agendada', cita: conCita(cita) });
   } catch (error) {
-    // Lo lanza el índice único: alguien reservó ese hueco un instante antes.
-    if (error.code === 11000) {
-      return res.status(409).json({ mensaje: 'Ese horario acaba de ser reservado por otra persona' });
-    }
     res.status(500).json({ mensaje: 'Error al agendar la cita' });
   }
 });
@@ -245,16 +255,19 @@ router.post('/', verificarToken, async (req, res) => {
 router.get('/mias', verificarToken, async (req, res) => {
   try {
     const desde = FORMATO_FECHA.test(req.query.desde || '') ? req.query.desde : '0000-00-00';
-    const citas = await Cita.find({
-      gymId: req.gymId,
-      fecha: { $gte: desde },
-      $or: [{ socioId: req.userId }, { profesionalId: req.userId }]
-    })
-      .sort({ fecha: 1, hora: 1 })
-      .populate('socioId', 'nombre fotoUrl')
-      .populate('profesionalId', 'nombre fotoUrl')
-      .lean();
-    res.json(citas);
+    const citas = await prisma.cita.findMany({
+      where: {
+        gymId: req.gymId,
+        fecha: { gte: desde },
+        OR: [{ socioId: req.userId }, { profesionalId: req.userId }]
+      },
+      orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
+      include: {
+        socio: { select: { id: true, nombre: true, fotoUrl: true } },
+        profesional: { select: { id: true, nombre: true, fotoUrl: true } }
+      }
+    });
+    res.json(citas.map(conCita));
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al obtener las citas' });
   }
@@ -263,15 +276,18 @@ router.get('/mias', verificarToken, async (req, res) => {
 /** Todas las citas del gimnasio (admin). */
 router.get('/', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const filtro = { gymId: req.gymId };
-    if (FORMATO_FECHA.test(req.query.desde || '')) filtro.fecha = { $gte: req.query.desde };
-    const citas = await Cita.find(filtro)
-      .sort({ fecha: 1, hora: 1 })
-      .populate('socioId', 'nombre fotoUrl')
-      .populate('profesionalId', 'nombre fotoUrl')
-      .limit(300)
-      .lean();
-    res.json(citas);
+    const where = { gymId: req.gymId };
+    if (FORMATO_FECHA.test(req.query.desde || '')) where.fecha = { gte: req.query.desde };
+    const citas = await prisma.cita.findMany({
+      where,
+      orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
+      include: {
+        socio: { select: { id: true, nombre: true, fotoUrl: true } },
+        profesional: { select: { id: true, nombre: true, fotoUrl: true } }
+      },
+      take: 300
+    });
+    res.json(citas.map(conCita));
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al obtener las citas' });
   }
@@ -281,20 +297,17 @@ router.get('/', verificarToken, soloAdmin, async (req, res) => {
 
 router.patch('/:id/cancelar', verificarToken, async (req, res) => {
   try {
-    const cita = await Cita.findOne({ _id: req.params.id, gymId: req.gymId });
+    const cita = await prisma.cita.findFirst({ where: { id: req.params.id, gymId: req.gymId } });
     if (!cita) return res.status(404).json({ mensaje: 'Cita no encontrada' });
 
     // Solo los implicados o un admin.
-    const implicado = String(cita.socioId) === String(req.userId) ||
-                      String(cita.profesionalId) === String(req.userId);
+    const implicado = cita.socioId === req.userId || cita.profesionalId === req.userId;
     if (!implicado && !esAdmin(req)) return res.status(403).json({ mensaje: 'No autorizado' });
     if (cita.estado !== 'agendada') return res.status(400).json({ mensaje: 'Esta cita ya no se puede cancelar' });
 
-    cita.estado = 'cancelada';
-    cita.canceladaPor = req.userId;
-    await cita.save();
+    await prisma.cita.update({ where: { id: cita.id }, data: { estado: 'cancelada', canceladaPor: req.userId } });
 
-    const aviso = { citaId: cita._id, fecha: cita.fecha, hora: cita.hora };
+    const aviso = { citaId: cita.id, fecha: cita.fecha, hora: cita.hora };
     emitirAUsuario(cita.profesionalId, 'cita:cancelada', aviso);
     emitirAUsuario(cita.socioId, 'cita:cancelada', aviso);
 
@@ -311,14 +324,13 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
     if (!['cumplida', 'ausente'].includes(estado)) {
       return res.status(400).json({ mensaje: 'Estado inválido' });
     }
-    const cita = await Cita.findOne({ _id: req.params.id, gymId: req.gymId });
+    const cita = await prisma.cita.findFirst({ where: { id: req.params.id, gymId: req.gymId } });
     if (!cita) return res.status(404).json({ mensaje: 'Cita no encontrada' });
-    if (String(cita.profesionalId) !== String(req.userId) && !esAdmin(req)) {
+    if (cita.profesionalId !== req.userId && !esAdmin(req)) {
       return res.status(403).json({ mensaje: 'No autorizado' });
     }
-    cita.estado = estado;
-    await cita.save();
-    res.json({ mensaje: 'Cita actualizada', cita });
+    const actualizada = await prisma.cita.update({ where: { id: cita.id }, data: { estado } });
+    res.json({ mensaje: 'Cita actualizada', cita: conCita(actualizada) });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al actualizar la cita' });
   }
