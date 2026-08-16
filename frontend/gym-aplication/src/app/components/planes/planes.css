@@ -5,6 +5,20 @@
   padding: 20px;
 }
 
+.volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 0.9rem;
+  color: var(--txt-azul, #4f46e5);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
 .planes-header {
   display: flex;
   justify-content: space-between;

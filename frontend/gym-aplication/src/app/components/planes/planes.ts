@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
 import { PlanesService } from './../../services/planes.service';
@@ -28,8 +28,16 @@ export class Planes implements OnInit {
     private toast: ToastService,
     private confirm: ConfirmService,
     private userStateService: UserStateService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private location: Location
   ) {}
+
+  // Planes es una ruta compartida (llega desde el menú, o desde el enlace
+  // "Editar planes" del editor de página): volver por historial, no a una
+  // ruta fija, para que en cualquiera de los dos casos regrese a lo correcto.
+  volver(): void {
+    this.location.back();
+  }
 
   ngOnInit() {
     this.role = this.userStateService.getRole()?.toLowerCase().trim() || 'socio';

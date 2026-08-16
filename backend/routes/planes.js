@@ -15,7 +15,9 @@ function conId(p) {
 
 router.get('/', verificarToken, async (req, res) => {
   try {
-    const resultado = await paginar(req, prisma.plan, { where: { gymId: req.gymId }, orderBy: { createdAt: 'desc' } });
+    // Mismo orden que ve la landing pública (por precio, de menor a mayor): que la
+    // lista del admin no salga desordenada respecto a lo que el socio termina viendo.
+    const resultado = await paginar(req, prisma.plan, { where: { gymId: req.gymId }, orderBy: { precio: 'asc' } });
     if (Array.isArray(resultado)) return res.json(resultado.map(conId));
     res.json({ ...resultado, data: resultado.data.map(conId) });
   } catch (error) {
