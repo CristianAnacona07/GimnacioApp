@@ -233,43 +233,6 @@
   text-shadow: 0 1px 12px rgba(0,0,0,0.4);
 }
 
-.portada__botones {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.btn {
-  border: none;
-  border-radius: 999px;
-  padding: 0.9rem 1.9rem;
-  font-size: 0.95rem;
-  font-weight: 800;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-.btn:hover { transform: translateY(-2px); }
-.btn--acento {
-  background: var(--acento, #f97316);
-  color: #fff;
-  box-shadow: 0 8px 26px rgba(0,0,0,0.32);
-}
-.btn--claro {
-  background: rgba(255,255,255,0.16);
-  color: #fff;
-  border: 1.5px solid rgba(255,255,255,0.55);
-  backdrop-filter: blur(6px);
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
-}
-.btn--claro:hover {
-  background: var(--acento, #f97316);
-  border-color: var(--acento, #f97316);
-  color: #fff;
-}
-
 .portada__flecha {
   position: absolute;
   bottom: 1.5rem;

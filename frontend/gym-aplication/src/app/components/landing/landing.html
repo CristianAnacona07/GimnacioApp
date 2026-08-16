@@ -64,9 +64,6 @@
     <div class="portada__contenido">
       <h1 class="portada__titulo">{{ texto(l.portada.titulo, gym!.nombre) }}</h1>
       <p class="portada__sub">{{ texto(l.portada.subtitulo, gym!.slogan || 'Entrená con nosotros') }}</p>
-      <div class="portada__botones">
-        <button class="btn btn--claro" (click)="entrar()">Ya soy socio</button>
-      </div>
     </div>
     @if (haySecciones) {
       <button class="portada__flecha" (click)="irA(l.sobreNosotros.activo ? 'nosotros' : 'galeria')"

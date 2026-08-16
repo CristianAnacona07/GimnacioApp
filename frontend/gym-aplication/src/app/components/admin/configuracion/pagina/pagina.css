@@ -48,6 +48,17 @@
   border: 1.5px solid #c8dcff;
 }
 
+/* Enlace a la pantalla real donde se edita el contenido de una sección automática */
+.enlace-editar {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-secundario, var(--txt-azul, #1d4ed8));
+  text-decoration: none;
+  margin: 0 0 0.9rem;
+}
+.enlace-editar:hover { text-decoration: underline; }
+
 /* Zona de foto */
 .foto-zona {
   display: flex;
