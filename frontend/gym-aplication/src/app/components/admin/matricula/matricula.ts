@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
@@ -48,6 +49,7 @@ interface Confirmacion {
   diasRestantes: number;
   whatsapp: WhatsappInfo;
   passwordTemporal: string | null;
+  invitacionEnviada: boolean;
 }
 
 @Component({
@@ -65,6 +67,7 @@ export class Matricula implements OnInit {
   private confirm = inject(ConfirmService);
   private cdr = inject(ChangeDetectorRef);
   private destroyRef = inject(DestroyRef);
+  private route = inject(ActivatedRoute);
 
   // Tipo de socio
   tipoSocio: 'nuevo' | 'existente' = 'nuevo';
@@ -73,6 +76,7 @@ export class Matricula implements OnInit {
   nombre = '';
   telefono = '';
   correo = '';
+  identificacion = '';
 
   // Socio existente
   textoBusqueda = '';
@@ -85,6 +89,8 @@ export class Matricula implements OnInit {
   planes: Plan[] = [];
   metodosPago: MetodoPago[] = [];
   planId = '';
+  /** Lo que se ve/escribe en el campo; si coincide con un plan real, se autocompleta monto/días/concepto. */
+  planTexto = '';
   metodoId = '';
   concepto = '';
   monto: number | null = null;
@@ -127,6 +133,24 @@ export class Matricula implements OnInit {
 
     this.cargarPlanes();
     this.cargarMetodosPago();
+
+    // Viene de "Renovar" en recepción con un socio ya identificado: se salta
+    // la búsqueda y arranca directo en "Socio existente" con él seleccionado.
+    const params = this.route.snapshot.queryParamMap;
+    const usuarioId = params.get('usuarioId');
+    const nombre = params.get('nombre');
+    if (usuarioId && nombre) {
+      this.tipoSocio = 'existente';
+      this.textoBusqueda = nombre;
+      this.socioSeleccionado = {
+        _id: usuarioId,
+        nombre,
+        email: '',
+        codigoAcceso: '',
+        diasRestantes: 0
+      };
+      this.cdr.markForCheck();
+    }
   }
 
   // ---- Carga de catálogos ----
@@ -196,6 +220,17 @@ export class Matricula implements OnInit {
     this.textoBusqueda = '';
     this.resultados = [];
     this.cdr.markForCheck();
+  }
+
+  // ---- Plan: campo de texto con sugerencias (datalist), no un select cerrado ----
+  onPlanTextoChange(valor: string): void {
+    this.planTexto = valor;
+    // Si lo tecleado coincide con un plan real (elegido de la lista o escrito
+    // igual a mano), se autocompleta; si no, queda como texto libre y no toca
+    // lo que el admin ya haya puesto en monto/días/concepto.
+    const plan = this.planes.find((p) => p.nombre.trim().toLowerCase() === valor.trim().toLowerCase());
+    this.planId = plan ? plan._id : '';
+    if (plan) this.onPlanChange();
   }
 
   // ---- Plan → autocompleta monto, concepto y días ----
@@ -291,20 +326,22 @@ export class Matricula implements OnInit {
       .crearSocio({
         nombre: this.nombre.trim(),
         email: this.correo.trim() || undefined,
-        telefono: this.telefono.trim() || undefined
+        telefono: this.telefono.trim() || undefined,
+        identificacion: this.identificacion.trim() || undefined
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res: any) => {
           const socioId = res?.socio?._id;
           const passwordTemporal: string | null = res?.passwordTemporal ?? null;
+          const invitacionEnviada: boolean = !!res?.invitacionEnviada;
           if (!socioId) {
             this.registrando = false;
             this.toast.error('No se pudo crear el socio');
             this.cdr.markForCheck();
             return;
           }
-          this.registrarPago(socioId, monto, dias, passwordTemporal);
+          this.registrarPago(socioId, monto, dias, passwordTemporal, false, invitacionEnviada);
         },
         error: (err) => {
           this.registrando = false;
@@ -320,7 +357,8 @@ export class Matricula implements OnInit {
     monto: number,
     dias: number,
     passwordTemporal: string | null,
-    reemplazar = false
+    reemplazar = false,
+    invitacionEnviada = false
   ): void {
     const body: {
       usuarioId: string;
@@ -351,7 +389,8 @@ export class Matricula implements OnInit {
             fechaVencimiento: socio.fechaVencimiento ?? null,
             diasRestantes: socio.diasRestantes ?? 0,
             whatsapp: res?.whatsapp ?? { enviado: false, link: null },
-            passwordTemporal
+            passwordTemporal,
+            invitacionEnviada
           };
           this.toast.success('Pago registrado');
           this.resetFormulario();
@@ -370,10 +409,12 @@ export class Matricula implements OnInit {
     this.nombre = '';
     this.telefono = '';
     this.correo = '';
+    this.identificacion = '';
     this.textoBusqueda = '';
     this.resultados = [];
     this.socioSeleccionado = null;
     this.planId = '';
+    this.planTexto = '';
     this.metodoId = '';
     this.metodoTexto = '';
     this.concepto = '';

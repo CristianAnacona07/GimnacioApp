@@ -17,7 +17,7 @@ const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
 // de administradores) comparta exactamente la misma configuración.
 const { hashToken } = require('../helpers/tokens');
-const { transporter, emailConfigurado, remitente } = require('../helpers/email');
+const { transporter, emailConfigurado, remitente, enviarBienvenidaSocio } = require('../helpers/email');
 
 const SELECT_GYM_LOGIN = {
   id: true, nombre: true, slug: true, logo: true, slogan: true,
@@ -328,22 +328,33 @@ router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
 // ✅ CREAR SOCIO (SOLO ADMINS) — para matrícula desde recepción
 router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const { nombre, email, telefono, password } = req.body;
+        const { nombre, email, telefono, password, identificacion } = req.body;
         if (!nombre) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
 
-        // El correo es opcional; si no se da, se genera uno interno para cumplir el índice único.
-        const emailNorm = email
+        // El correo es opcional; si no se da, se genera uno interno para cumplir el índice único
+        // (esa cuenta queda solo para uso interno: nadie conoce ese correo para iniciar sesión).
+        const emailDado = !!(email && email.trim());
+        const emailNorm = emailDado
             ? email.toLowerCase().trim()
             : `socio_${Date.now()}${Math.floor(Math.random() * 1000)}@sin-correo.local`;
 
         const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
         if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
+        const passwordDada = typeof password === 'string' && password.length >= 8;
         // Contraseña: la dada (mín 8) o una temporal aleatoria si no la ponen.
-        const passPlano = (typeof password === 'string' && password.length >= 8)
-            ? password
-            : crypto.randomBytes(6).toString('hex');
+        const passPlano = passwordDada ? password : crypto.randomBytes(6).toString('hex');
         const salt = await bcrypt.genSalt(10);
+
+        // Con correo real y sin contraseña puesta a mano, se le manda un enlace para
+        // que el socio defina la suya — en vez de que recepción se la lea en voz alta.
+        const invitar = emailDado && !passwordDada;
+        let resetToken = null, resetTokenExpiry = null, tokenPlano = null;
+        if (invitar) {
+            tokenPlano = crypto.randomBytes(32).toString('hex');
+            resetToken = hashToken(tokenPlano);
+            resetTokenExpiry = new Date(Date.now() + 7 * 24 * 3600000); // 7 días
+        }
 
         const socio = await prisma.user.create({
             data: {
@@ -353,15 +364,28 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
                 password: await bcrypt.hash(passPlano, salt),
                 role: 'socio',
                 emailVerified: true,
-                telefono: telefono || ''
+                telefono: telefono || '',
+                identificacion: identificacion || '',
+                ...(invitar ? { resetToken, resetTokenExpiry } : {})
             }
         });
         await registrarAuditoria(req, 'CREAR_SOCIO', { recurso: 'User', recursoId: socio.id });
 
+        let invitacionEnviada = false;
+        if (invitar) {
+            const gym = await prisma.gym.findUnique({ where: { id: req.gymId }, select: { nombre: true } });
+            invitacionEnviada = await enviarBienvenidaSocio({
+                email: emailNorm, nombre: socio.nombre, gymNombre: gym?.nombre || 'tu gimnasio', token: tokenPlano
+            });
+        }
+
         res.status(201).json({
             mensaje: 'Socio creado',
             socio: { _id: socio.id, nombre: socio.nombre, email: socio.email },
-            passwordTemporal: (typeof password === 'string' && password.length >= 8) ? null : passPlano
+            invitacionEnviada,
+            // Si la invitación salió, el socio va a definir su propia contraseña: no
+            // hace falta mostrar la temporal. Si falló el envío, queda de respaldo.
+            passwordTemporal: (invitar && invitacionEnviada) || passwordDada ? null : passPlano
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al crear socio' });

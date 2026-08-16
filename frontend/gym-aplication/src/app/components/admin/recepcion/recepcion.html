@@ -41,7 +41,8 @@
     <ng-container *ngIf="c.acceso === 'denegado'; else permitidoTpl">
       <p class="tarjeta__dias dias--vencido">🚫 NO PUEDE INGRESAR</p>
       <p class="tarjeta__aviso tarjeta__aviso--fuerte">Membresía vencida. Renueva para poder ingresar.</p>
-      <a class="btn btn--primary" routerLink="/admin/matricula">💳 Renovar / Registrar pago</a>
+      <a class="btn btn--primary" routerLink="/admin/matricula"
+         [queryParams]="{ usuarioId: c.socio._id, nombre: c.socio.nombre }">💳 Renovar</a>
     </ng-container>
 
     <!-- ACCESO PERMITIDO -->

@@ -21,7 +21,11 @@
       Le quedan <strong>{{ c.diasRestantes }}</strong> día{{ c.diasRestantes === 1 ? '' : 's' }}
     </p>
 
-    <p *ngIf="c.passwordTemporal" class="tarjeta__password">
+    <p *ngIf="c.invitacionEnviada" class="tarjeta__password">
+      📧 Le mandamos un correo para que defina su propia contraseña.
+    </p>
+
+    <p *ngIf="!c.invitacionEnviada && c.passwordTemporal" class="tarjeta__password">
       Contraseña temporal: <strong>{{ c.passwordTemporal }}</strong>
       <span class="tarjeta__password-hint">Entrégasela al socio</span>
     </p>
@@ -69,6 +73,11 @@
       <label class="campo">
         <span class="campo__label">Nombre <span class="req">*</span></span>
         <input class="input" type="text" [(ngModel)]="nombre" placeholder="Nombre del socio" autocomplete="off" />
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Número de cédula</span>
+        <input class="input" type="text" [(ngModel)]="identificacion" placeholder="Ej: 1234567890" autocomplete="off" />
       </label>
 
       <label class="campo">
@@ -140,12 +149,20 @@
     <div class="campos">
       <label class="campo">
         <span class="campo__label">Plan (opcional)</span>
-        <select class="input" [(ngModel)]="planId" (ngModelChange)="onPlanChange()">
-          <option value="">— Sin plan —</option>
-          <option *ngFor="let p of planes" [value]="p._id">
-            {{ p.nombre }}{{ p.precio != null ? ' (' + (p.precio | number: '1.0-2') + ')' : '' }}
+        <input
+          class="input"
+          type="text"
+          list="planes-datalist"
+          [ngModel]="planTexto"
+          (ngModelChange)="onPlanTextoChange($event)"
+          placeholder="Elegí uno o escribí un plan libre"
+          autocomplete="off"
+        />
+        <datalist id="planes-datalist">
+          <option *ngFor="let p of planes" [value]="p.nombre">
+            {{ p.precio != null ? (p.precio | number: '1.0-2') : '' }}
           </option>
-        </select>
+        </datalist>
       </label>
 
       <label class="campo">

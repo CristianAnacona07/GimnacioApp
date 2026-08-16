@@ -12,6 +12,8 @@ export interface SocioCreado {
     email: string;
   };
   passwordTemporal: string | null;
+  /** true si se le mandó un correo para que el socio defina su propia contraseña. */
+  invitacionEnviada: boolean;
 }
 
 /** Estado del envío de WhatsApp tras registrar un pago. */
@@ -62,6 +64,7 @@ export class PagoService {
     email?: string;
     telefono?: string;
     password?: string;
+    identificacion?: string;
   }): Observable<SocioCreado> {
     return this.http.post<SocioCreado>(`${this.url}/api/auth/crear-socio`, datos);
   }
