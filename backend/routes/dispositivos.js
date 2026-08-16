@@ -1,21 +1,34 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { registrarIngreso } = require('../lib/checkin');
 
 const prisma = getPrismaClient();
 
 /**
- * Alta y gestión de lectores de huella / torniquetes por gimnasio.
+ * Alta y gestión de lectores de huella / torniquetes por gimnasio, más el
+ * control de acceso automático en sí.
  *
- * Todo aquí va filtrado por `req.gymId`: un admin solo ve y toca los equipos de
- * su propio gimnasio. La ruta que recibirá las marcaciones del aparato NO vive
- * en este archivo, porque el equipo no puede presentar un JWT: se identificará
- * por número de serie contra los registros que se dan de alta aquí.
+ * Todo lo que administra un humano (`/`, `/:id`, `/:id/huellas`) va filtrado
+ * por `req.gymId` y requiere JWT de admin. `/verificar` es la excepción: la
+ * llama el propio equipo (o el "conector" de su marca corriendo en la PC del
+ * gimnasio), que no puede presentar un JWT — se identifica por su número de
+ * serie más una clave propia (`apiKeyHash`, hasheada igual que una contraseña).
  */
 
 const MARCAS_VALIDAS = ['zkteco', 'hikvision', 'suprema', 'anviz', 'otro'];
+
+// Genera una clave de equipo y devuelve tanto el valor en claro (para
+// mostrarlo una sola vez) como su hash (para guardar).
+async function generarClaveDispositivo() {
+  const claveEnClaro = crypto.randomBytes(24).toString('hex');
+  const apiKeyHash = await bcrypt.hash(claveEnClaro, await bcrypt.genSalt(10));
+  return { claveEnClaro, apiKeyHash };
+}
 
 function conId(d) {
   if (!d) return d;
@@ -48,12 +61,14 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Marca inválida' });
     }
 
+    const { claveEnClaro, apiKeyHash } = await generarClaveDispositivo();
     const equipo = await prisma.dispositivo.create({
       data: {
         gymId: req.gymId,
         nombre: nombre.trim(),
         serie: serie.trim().toUpperCase(),
-        marca: marca || 'zkteco'
+        marca: marca || 'zkteco',
+        apiKeyHash
       }
     });
 
@@ -63,7 +78,9 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
       detalle: { serie: equipo.serie, marca: equipo.marca }
     });
 
-    res.status(201).json(conId(equipo));
+    // La clave en claro solo se muestra en esta respuesta: no queda guardada
+    // en ningún lado sin hashear. Si se pierde, hay que regenerarla.
+    res.status(201).json({ ...conId(equipo), apiKey: claveEnClaro });
   } catch (error) {
     // La serie es única a nivel global. No se dice en qué gimnasio está para
     // no filtrar datos de otro cliente; basta con que el admin sepa que choca.
@@ -121,6 +138,132 @@ router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
     res.json({ mensaje: 'Equipo eliminado correctamente' });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Regenerar la clave del equipo (si se perdió o se filtró). Invalida la
+// anterior de inmediato: el conector viejo dejará de poder verificar.
+router.post('/:id/regenerar-clave', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const actual = await prisma.dispositivo.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
+    if (!actual) return res.status(404).json({ error: 'Equipo no encontrado' });
+
+    const { claveEnClaro, apiKeyHash } = await generarClaveDispositivo();
+    await prisma.dispositivo.update({ where: { id: actual.id }, data: { apiKeyHash } });
+    await registrarAuditoria(req, 'REGENERAR_CLAVE_DISPOSITIVO', { recurso: 'Dispositivo', recursoId: actual.id });
+
+    res.json({ apiKey: claveEnClaro });
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ── Mapeo huella ↔ socio ─────────────────────────────────────────────────
+// El ID de huella lo asigna el propio equipo al enrolar (un número chico
+// interno suyo); acá solo se guarda a qué socio corresponde ese número EN
+// ESE equipo puntual.
+
+router.get('/:id/huellas', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const dispositivo = await prisma.dispositivo.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
+    if (!dispositivo) return res.status(404).json({ error: 'Equipo no encontrado' });
+
+    const huellas = await prisma.huella.findMany({
+      where: { dispositivoId: dispositivo.id },
+      include: { usuario: { select: { id: true, nombre: true, fotoUrl: true } } },
+      orderBy: { huellaId: 'asc' }
+    });
+
+    res.json(huellas.map((h) => ({
+      _id: h.id,
+      huellaId: h.huellaId,
+      socio: { _id: h.usuario.id, nombre: h.usuario.nombre, fotoUrl: h.usuario.fotoUrl || '' }
+    })));
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.post('/:id/huellas', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const huellaId = Number(req.body.huellaId);
+    if (!Number.isInteger(huellaId) || huellaId < 0) {
+      return res.status(400).json({ error: 'huellaId debe ser un número entero' });
+    }
+
+    const dispositivo = await prisma.dispositivo.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
+    if (!dispositivo) return res.status(404).json({ error: 'Equipo no encontrado' });
+
+    const socio = await prisma.user.findFirst({ where: { id: req.body.usuarioId, gymId: req.gymId }, select: { id: true } });
+    if (!socio) return res.status(404).json({ error: 'Socio no encontrado en este gimnasio' });
+
+    const huella = await prisma.huella.create({ data: { dispositivoId: dispositivo.id, huellaId, usuarioId: socio.id } });
+    await registrarAuditoria(req, 'ASOCIAR_HUELLA', {
+      recurso: 'Huella', recursoId: huella.id, detalle: { dispositivoId: dispositivo.id, huellaId, usuarioId: socio.id }
+    });
+
+    res.status(201).json({ mensaje: 'Huella asociada correctamente' });
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(409).json({ error: 'Esa huella ya está asociada a otro socio en este equipo' });
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.delete('/:id/huellas/:huellaId', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const dispositivo = await prisma.dispositivo.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
+    if (!dispositivo) return res.status(404).json({ error: 'Equipo no encontrado' });
+
+    const resultado = await prisma.huella.deleteMany({ where: { dispositivoId: dispositivo.id, huellaId: Number(req.params.huellaId) } });
+    if (!resultado.count) return res.status(404).json({ error: 'Esa huella no estaba asociada a este equipo' });
+
+    await registrarAuditoria(req, 'DESASOCIAR_HUELLA', { recurso: 'Dispositivo', recursoId: dispositivo.id, detalle: { huellaId: Number(req.params.huellaId) } });
+    res.json({ mensaje: 'Huella desasociada' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ── Control de acceso ────────────────────────────────────────────────────
+// La llama el conector de la marca, no una persona: sin verificarToken, sin
+// req.gymId. El equipo se autentica con su serie + clave, y el gimnasio sale
+// de ahí. Responde rápido a propósito — el torniquete está esperando en vivo.
+router.post('/verificar', async (req, res) => {
+  try {
+    const serie = String(req.body.serie || '').trim().toUpperCase();
+    const huellaId = Number(req.body.huellaId);
+    const clave = req.headers['x-device-key'];
+
+    if (!serie || !Number.isInteger(huellaId) || typeof clave !== 'string' || !clave) {
+      return res.status(400).json({ permitir: false, motivo: 'Datos incompletos' });
+    }
+
+    const dispositivo = await prisma.dispositivo.findFirst({
+      where: { serie, activo: true },
+      omit: { apiKeyHash: false }
+    });
+    if (!dispositivo || !(await bcrypt.compare(clave, dispositivo.apiKeyHash))) {
+      return res.status(401).json({ permitir: false, motivo: 'Equipo no autorizado' });
+    }
+    await prisma.dispositivo.update({ where: { id: dispositivo.id }, data: { ultimaConexion: new Date() } });
+
+    const huella = await prisma.huella.findFirst({
+      where: { dispositivoId: dispositivo.id, huellaId },
+      include: { usuario: true }
+    });
+    if (!huella) {
+      return res.status(404).json({ permitir: false, motivo: 'Esa huella no está asociada a ningún socio' });
+    }
+
+    const socio = huella.usuario;
+    const resultado = await registrarIngreso({ gymId: dispositivo.gymId, socio, metodo: 'huella' });
+
+    if (!resultado.permitido) {
+      return res.json({ permitir: false, motivo: 'Membresía vencida', socio: socio.nombre });
+    }
+    res.json({ permitir: true, socio: socio.nombre, diasRestantes: resultado.dias });
+  } catch (error) {
+    res.status(500).json({ permitir: false, motivo: 'Error del servidor' });
   }
 });
 

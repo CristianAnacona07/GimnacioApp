@@ -196,6 +196,7 @@ model User {
   citasCanceladas        Cita[] @relation("CitaCanceladaPor")
   invitacionesCreadas    Invitacion[] @relation("InvitacionCreadaPor")
   invitacionesUsadas     Invitacion[] @relation("InvitacionUsadaPor")
+  huellas                Huella[]
 
   @@unique([email, gymId])
   @@index([gymId])
@@ -254,11 +255,38 @@ model Dispositivo {
   activo         Boolean           @default(true)
   ultimaConexion DateTime?         @map("ultima_conexion")
 
+  // Credencial del equipo (torniquete/lector de huella) para llamar a
+  // /api/dispositivos/verificar sin JWT — hasheada igual que una contraseña,
+  // oculta por defecto (ver prisma/client.js). El valor en claro solo se
+  // muestra una vez, al crear el equipo o al regenerarla.
+  apiKeyHash String @map("api_key_hash")
+
+  huellas Huella[]
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([gymId, createdAt(sort: Desc)])
   @@map("dispositivos")
+}
+
+// Mapeo huella↔socio, por equipo: el ID de huella lo asigna el propio
+// lector al enrolar (un número chico interno suyo), así que dos equipos
+// pueden reusar el mismo número para personas distintas — de ahí que el
+// único sea compuesto con el dispositivo, no global.
+model Huella {
+  id            String      @id @db.Char(24)
+  dispositivoId String      @db.Char(24) @map("dispositivo_id")
+  dispositivo   Dispositivo @relation(fields: [dispositivoId], references: [id], onDelete: Cascade)
+  huellaId      Int         @map("huella_id")
+  usuarioId     String      @db.Char(24) @map("usuario_id")
+  usuario       User        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([dispositivoId, huellaId])
+  @@index([usuarioId])
+  @@map("huellas")
 }
 
 model Feedback {

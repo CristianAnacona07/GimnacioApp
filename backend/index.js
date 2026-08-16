@@ -111,6 +111,9 @@ app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth/reset-password', authLimiter);
 app.use('/api/auth/google', authLimiter);
 app.use('/api/2fa/verify', authLimiter);
+// Sin JWT: el equipo se autentica con serie+clave en cada llamada, así que
+// es superficie de fuerza bruta igual que un login.
+app.use('/api/dispositivos/verificar', authLimiter);
 
 // Límite general para el resto de la API (anti-abuso/DoS); más holgado que el de auth.
 const apiLimiter = rateLimit({

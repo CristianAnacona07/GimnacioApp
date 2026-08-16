@@ -7,7 +7,7 @@ const { verificarToken, soloRecepcion } = require('../middleware/auth');
 const { enviarRecibo, linkWhatsApp } = require('../helpers/whatsapp');
 const { ilikeContains } = require('../lib/searchFilters');
 const { paginar } = require('../lib/pagination');
-const { emitirAGym } = require('../helpers/tiempoReal');
+const { diasRestantes, registrarIngreso } = require('../lib/checkin');
 
 const prisma = getPrismaClient();
 
@@ -15,13 +15,6 @@ function conId(a) {
   if (!a) return a;
   const { id, ...rest } = a;
   return { ...rest, _id: id };
-}
-
-// Días restantes de membresía (0 si ya venció o no tiene fecha).
-function diasRestantes(fechaVencimiento) {
-  if (!fechaVencimiento) return 0;
-  const dias = Math.ceil((new Date(fechaVencimiento) - new Date()) / (1000 * 60 * 60 * 24));
-  return dias > 0 ? dias : 0;
 }
 
 // Genera un código de acceso único (6 dígitos) dentro del gym.
@@ -113,43 +106,24 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
     const socio = await prisma.user.findFirst({ where: { ...filtro, role: { in: ['socio', 'entrenador'] } } });
     if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
-    const dias = diasRestantes(socio.fechaVencimiento);
-    const estado = dias > 0 ? 'activo' : 'vencido';
+    const metodoValido = ['codigo', 'qr', 'huella', 'manual'].includes(metodo) ? metodo : 'codigo';
+    const resultado = await registrarIngreso({ gymId: req.gymId, socio, metodo: metodoValido, registradoPor: req.userId });
 
     // Membresía vencida → NO se permite el ingreso ni se registra asistencia.
-    if (estado === 'vencido') {
+    if (!resultado.permitido) {
       return res.json({
         acceso: 'denegado',
         mensaje: 'Membresía vencida. Renueva para poder ingresar.',
         socio: {
           _id: socio.id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '',
-          diasRestantes: 0, estado, asistenciasMes: socio.asistenciasMes || 0,
+          diasRestantes: 0, estado: resultado.estado, asistenciasMes: socio.asistenciasMes || 0,
         },
         yaRegistradoHoy: false,
         whatsapp: null,
       });
     }
 
-    // ¿Ya registró hoy? Evita contar dos veces la misma asistencia del día.
-    const inicioDia = new Date(); inicioDia.setHours(0, 0, 0, 0);
-    const yaHoy = await prisma.asistencia.findFirst({
-      where: { gymId: req.gymId, usuarioId: socio.id, fecha: { gte: inicioDia } },
-      select: { id: true },
-    });
-
-    let asistenciasMes = socio.asistenciasMes || 0;
-    if (!yaHoy) {
-      await prisma.asistencia.create({
-        data: {
-          gymId: req.gymId, usuarioId: socio.id,
-          metodo: ['codigo', 'qr', 'huella', 'manual'].includes(metodo) ? metodo : 'codigo',
-          registradoPor: req.userId,
-        }
-      });
-      asistenciasMes += 1;
-      await prisma.user.update({ where: { id: socio.id }, data: { asistenciasMes } });
-    }
-
+    const { dias, estado, yaHoy, asistenciasMes } = resultado;
     const fechaTxt = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
 
     // Recibo por WhatsApp: automático (plantilla) si está configurado, y siempre
@@ -160,16 +134,6 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
     const wa = await enviarRecibo(socio.telefono, [socio.nombre, fechaTxt, String(dias)]);
     const link = linkWhatsApp(socio.telefono, texto);
 
-    // Aviso en vivo a las pantallas de recepción del gimnasio: si hay una
-    // tablet en la entrada y el admin en la oficina, ambas ven el ingreso.
-    if (!yaHoy) {
-      emitirAGym(req.gymId, 'asistencia:nueva', {
-        socio: { _id: socio.id, nombre: socio.nombre, fotoUrl: socio.fotoUrl || '' },
-        fecha: new Date().toISOString(),
-        metodo: metodo || 'codigo',
-      });
-    }
-
     res.json({
       acceso: 'permitido',
       socio: {
@@ -177,7 +141,7 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
         diasRestantes: dias, estado,
         asistenciasMes,
       },
-      yaRegistradoHoy: !!yaHoy,
+      yaRegistradoHoy: yaHoy,
       whatsapp: { enviado: wa.enviado, motivo: wa.motivo || null, link },
     });
   } catch (error) {

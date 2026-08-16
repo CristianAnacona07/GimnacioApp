@@ -15,6 +15,9 @@ const OMIT_SENSIBLES = {
     twoFactorSecret: true,
     twoFactorBackupCodes: true,
   },
+  dispositivo: {
+    apiKeyHash: true,
+  },
 };
 
 let client = null;
