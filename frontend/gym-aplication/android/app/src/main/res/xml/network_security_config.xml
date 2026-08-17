@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SOLO para la rama de prueba test/apk-lan: permite HTTP sin cifrar hacia
+     la IP local del backend Docker durante las pruebas del APK debug. No
+     debe llegar a la rama real (producción usa HTTPS). -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.0.199</domain>
+    </domain-config>
+</network-security-config>
