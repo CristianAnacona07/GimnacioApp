@@ -1,13 +1,10 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://gimnacio-app-backend.vercel.app',
-  // Dominio raíz para subdominios por gimnasio: https://<slug>.gimnasios.co
-  // ⚠️ Actualizar con el dominio real cuando se compre (ver docs/SUBDOMINIOS.md).
-  // Mientras el dominio no exista, este valor no tiene ningún efecto:
-  // en gimnacio-app.vercel.app la app funciona igual que siempre (selector de gyms).
+  // TEMPORAL: apunta a la IP local de la PC para probar el APK debug contra
+  // el backend real corriendo en Docker. Esta rama es solo para ese build.
+  apiUrl: 'http://192.168.0.199:10000',
   tenantRootDomain: 'micro-gimnacios.com',
-  // Slug fijo para builds nativos (Capacitor) de un solo gimnasio: al no
-  // haber subdominio en la WebView, la ruta raíz abre su landing directo
-  // en vez del login universal. null = comportamiento normal (multi-tenant).
-  gymSlugNativo: null as string | null
+  // TEMPORAL: fija el slug de Kodiak Gym para que este APK de prueba abra
+  // directo su landing pública en vez del login universal.
+  gymSlugNativo: 'kodiak' as string | null
 };
