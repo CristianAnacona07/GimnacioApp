@@ -56,6 +56,14 @@
   z-index: 1;
 }
 
+/* En celulares la tarjeta debe llegar de borde a borde: el límite de arriba
+   es solo para que no quede absurdamente ancha en tablet/escritorio. */
+@media (max-width: 480px) {
+  .login-wrapper {
+    max-width: none;
+  }
+}
+
 /* ===== MARCA ===== */
 .login-brand {
   text-align: center;
