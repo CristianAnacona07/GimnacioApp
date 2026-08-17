@@ -6,6 +6,7 @@ import { noAuthGuard } from './guards/no-auth-guard';
 import { superAdminGuard } from './guards/superadmin.guard';
 import { tenantGuard } from './guards/tenant.guard';
 import { TenantService } from './services/tenant.service';
+import { environment } from '../environments/environment';
 
 // Rutas compartidas entre admin y socio
 const sharedRoutes: Routes = [
@@ -31,6 +32,12 @@ export const routes: Routes = [
     path: '',
     pathMatch: 'full',
     redirectTo: () => {
+      // La app nativa (Capacitor) carga desde https://localhost: no hay
+      // subdominio que resolver, así que un build por-gimnasio fija su
+      // slug acá (ver environment.gymSlugNativo) para abrir directo su
+      // página pública en vez del login universal.
+      const fijo = environment.gymSlugNativo;
+      if (fijo) return `/g/${fijo}`;
       const slug = inject(TenantService).slug;
       return slug ? `/g/${slug}` : '/login';
     }
