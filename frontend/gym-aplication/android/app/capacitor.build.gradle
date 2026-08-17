@@ -12,6 +12,7 @@ dependencies {
     implementation project(':capacitor-community-generic-oauth2')
     implementation project(':capacitor-app-launcher')
     implementation project(':capacitor-local-notifications')
+    implementation project(':capacitor-splash-screen')
     implementation project(':capgo-capacitor-social-login')
 
 }
