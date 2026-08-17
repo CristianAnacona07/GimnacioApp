@@ -1,12 +1,14 @@
 package com.kodiak.gym;
 
 import android.os.Bundle;
+import android.webkit.WebSettings;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WebSettings settings = this.bridge.getWebView().getSettings();
 
         // Android le pasa al WebView el ajuste de "tamaño de letra" del sistema
         // en forma de textZoom. En un celular con letra grande (1.3x, que es lo
@@ -21,6 +23,13 @@ public class MainActivity extends BridgeActivity {
         //
         // Con 100 el WebView respeta los tamaños que dice el CSS y la app se ve
         // igual en cualquier celular, como en la web.
-        this.bridge.getWebView().getSettings().setTextZoom(100);
+        settings.setTextZoom(100);
+
+        // SOLO para la rama de prueba test/apk-lan: el WebView carga desde
+        // https://localhost (origen "seguro"), así que por defecto bloquea las
+        // llamadas a un backend HTTP local sin cifrar (mixed content). Esto lo
+        // permite para poder probar contra el Docker local. No debe llegar a la
+        // rama real: producción usa HTTPS y no necesita esto.
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
     }
 }
