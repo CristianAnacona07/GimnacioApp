@@ -13,15 +13,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem 1rem;
+  padding: 1.25rem 0.85rem;
   position: relative;
   overflow: hidden;
-}
-
-@media (max-width: 420px) {
-  .login-bg {
-    padding: 1.25rem 0.85rem;
-  }
 }
 
 /* Círculos decorativos */
