@@ -18,6 +18,12 @@
   overflow: hidden;
 }
 
+@media (max-width: 420px) {
+  .login-bg {
+    padding: 1.25rem 0.85rem;
+  }
+}
+
 /* Círculos decorativos */
 .deco {
   position: absolute;
