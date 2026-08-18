@@ -12,13 +12,22 @@
    Se ve en el APK sobre WebViews sin actualizar (celulares Huawei sin servicios
    de Google no reciben actualizaciones de Android System WebView) y no se ve en
    un navegador de escritorio, así que es fácil confundirlo con un bug de layout.
+   Medido en el celular de prueba (Huawei Y7a / PPA-LX3, Android 10): el WebView
+   de la app reporta Chrome/92, y `@layer` recién existe desde Chrome 99.
 
-   Estas dos reglas van sin capa a propósito: es lo único que se ejecuta igual
-   con y sin soporte de `@layer`. En un navegador moderno no cambian nada —
-   repiten lo que el preflight ya hizo. Esto NO es aplanar capas (ver CLAUDE.md):
-   son dos reglas de specificity mínima, no el preflight entero reescrito. */
+   `text-size-adjust` es de la misma tanda y es el menos evidente: sin él Android
+   aplica "font boosting", o sea agranda el texto por su cuenta segun el ancho de
+   cada bloque. El resultado es que los tamaños no son los que dice el CSS y la
+   pantalla se descuadra sola — con el agravante de que cualquier cambio de
+   layout recalcula el inflado y mueve todo de nuevo.
+
+   Estas reglas van sin capa a propósito: es lo único que se ejecuta igual con y
+   sin soporte de `@layer`. En un navegador moderno no cambian nada — repiten lo
+   que el preflight ya hizo. Esto NO es aplanar capas (ver CLAUDE.md): son tres
+   reglas de specificity mínima, no el preflight entero reescrito. */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 /* ============================================
    VARIABLES DE TEMA POR GIMNASIO
