@@ -13,7 +13,15 @@
 module.exports = {
   content: ['./src/**/*.{html,ts}'],
   theme: {
-    extend: {},
+    extend: {
+      // `rounded-4xl` lo trae la v4 de fábrica, la v3 llega hasta `3xl`. Se
+      // repone con el mismo valor que tenía en v4 para que la tarjeta del
+      // perfil del socio conserve su curva, en vez de bajarla a `rounded-3xl`
+      // y cambiar el diseño de refilón.
+      borderRadius: {
+        '4xl': '2rem',
+      },
+    },
   },
   plugins: [],
 };
