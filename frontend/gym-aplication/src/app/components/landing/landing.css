@@ -183,6 +183,12 @@
 /* ===== PORTADA ===== */
 .portada {
   position: relative;
+  /* Las dos líneas hacen falta: `svh` es de Chrome 108+ y el WebView de un
+     celular sin actualizar no lo entiende. Si solo estuviera `svh`, la
+     declaración se descarta entera y la portada se encoge a la altura de su
+     texto en vez de llenar la pantalla. `vh` queda de reserva; donde `svh`
+     funcione, gana por ir después. */
+  min-height: 100vh;
   min-height: 100svh;
   display: flex;
   align-items: center;

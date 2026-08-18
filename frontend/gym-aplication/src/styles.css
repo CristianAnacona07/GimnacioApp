@@ -1,6 +1,26 @@
 @import "tailwindcss";
 
 /* ============================================
+   RESET BASE — A PROPÓSITO FUERA DE @layer
+   ============================================
+   Tailwind v4 mete su preflight (el que pone `margin: 0` y `box-sizing:
+   border-box`) dentro de `@layer base`. Un WebView viejo que no entiende
+   `@layer` no ignora solo la regla: descarta el bloque entero. Sin preflight
+   vuelve el `margin: 8px` que trae el navegador por defecto en el <body>, y la
+   app aparece con un marco gris de 8px por los cuatro lados.
+
+   Se ve en el APK sobre WebViews sin actualizar (celulares Huawei sin servicios
+   de Google no reciben actualizaciones de Android System WebView) y no se ve en
+   un navegador de escritorio, así que es fácil confundirlo con un bug de layout.
+
+   Estas dos reglas van sin capa a propósito: es lo único que se ejecuta igual
+   con y sin soporte de `@layer`. En un navegador moderno no cambian nada —
+   repiten lo que el preflight ya hizo. Esto NO es aplanar capas (ver CLAUDE.md):
+   son dos reglas de specificity mínima, no el preflight entero reescrito. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+/* ============================================
    VARIABLES DE TEMA POR GIMNASIO
    Sobreescritas por ThemeService en runtime
    ============================================ */
