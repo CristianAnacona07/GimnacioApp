@@ -143,6 +143,17 @@
       </div>
     </div>
 
+    <div class="campos" *ngIf="entrenadores.length">
+      <label class="campo">
+        <span class="campo__label">Entrenador (opcional)</span>
+        <select class="input" [(ngModel)]="entrenadorId" name="entrenadorId">
+          <option value="">Sin entrenador asignado</option>
+          <option *ngFor="let e of entrenadores" [value]="e._id">{{ e.nombre }}</option>
+        </select>
+      </label>
+      <p class="hint">Si le asignás uno, el socio le aparece en "Mis socios" y puede armarle la rutina.</p>
+    </div>
+
     <hr class="sep" />
 
     <!-- Datos del pago -->

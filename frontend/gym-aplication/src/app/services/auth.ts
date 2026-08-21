@@ -84,6 +84,11 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/crear-empleado`, datos);
   }
 
+  /** `entrenadorId` en null desasigna: el socio queda sin entrenador. */
+  asignarEntrenador(socioId: string, entrenadorId: string | null): Observable<any> {
+    return this.http.put(`${this.apiUrl}/asignar-entrenador/${socioId}`, { entrenadorId });
+  }
+
   guardarPermisos(id: string, permisos: Record<string, string>): Observable<any> {
     return this.http.put(`${this.apiUrl}/empleados/${id}/permisos`, { permisos });
   }

@@ -30,13 +30,14 @@
             <th>Socio</th>
             <th>Email</th>
             <th>Membresía</th>
+            <th>Entrenador</th>
             @if (puedeEditarMembresia) { <th class="text-center">Renovar días</th> }
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
           <ng-container
-            *ngTemplateOutlet="filasPersonas; context: { $implicit: socios, vacio: 'No hay socios registrados' }" />
+            *ngTemplateOutlet="filasPersonas; context: { $implicit: socios, vacio: 'No hay socios registrados', conEntrenador: true }" />
         </tbody>
       </table>
     </div>
@@ -122,7 +123,7 @@
 
 <!-- Filas de una tabla de personas. Socios y trabajadores comparten columnas y
      acciones, así que comparten también la plantilla. -->
-<ng-template #filasPersonas let-lista let-vacio="vacio">
+<ng-template #filasPersonas let-lista let-vacio="vacio" let-conEntrenador="conEntrenador">
   @for (u of lista; track u._id) {
   <tr [class.row-active]="u.fechaVencimiento && !esVencido(u.fechaVencimiento)"
       [class.row-expired]="u.fechaVencimiento && esVencido(u.fechaVencimiento)"
@@ -147,6 +148,24 @@
       }
     </td>
 
+    @if (conEntrenador) {
+      <td>
+        @if (puedeAsignarEntrenador) {
+          <select class="select-entrenador"
+                  [ngModel]="u.entrenadorId || ''"
+                  (ngModelChange)="cambiarEntrenador(u, $event)"
+                  [disabled]="loadingId === u._id"
+                  [attr.aria-label]="'Entrenador de ' + u.nombre">
+            <option value="">Sin asignar</option>
+            @for (e of entrenadores; track e._id) {
+              <option [value]="e._id">{{ e.nombre }}</option>
+            }
+          </select>
+        } @else {
+          <span class="entrenador-texto">{{ nombreEntrenador(u) }}</span>
+        }
+      </td>
+    }
     @if (puedeEditarMembresia) {
       <td>
         <div class="renew-group">
@@ -190,7 +209,7 @@
   </tr>
   } @empty {
   <tr>
-    <td colspan="5" class="empty-row">{{ vacio }}</td>
+    <td [attr.colspan]="columnas(conEntrenador)" class="empty-row">{{ vacio }}</td>
   </tr>
   }
 </ng-template>
