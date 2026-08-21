@@ -67,6 +67,14 @@ export class Navbar implements OnInit, OnDestroy {
     }
   }
 
+  /** A dónde lleva el avatar: cada rol tiene su propia pantalla de cuenta. */
+  get rutaPerfil(): string {
+    if (this.role === 'socio') return '/socio/perfil';
+    if (this.role === 'admin') return '/admin/configuracion';
+    if (this.role === 'entrenador') return '/entrenador/mis-socios';
+    return '/empleado/inicio';
+  }
+
   get menuLinks() {
     const m = (mod: Parameters<typeof this.gymService.moduloActivo>[0]) =>
       this.gymService.moduloActivo(mod);
