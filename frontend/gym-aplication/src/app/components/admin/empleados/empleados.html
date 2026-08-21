@@ -5,44 +5,103 @@
       <h2 class="page-title">🧑‍💼 Empleados</h2>
       <p class="page-sub">Recepcionistas, entrenadores y demás personal del gimnasio</p>
     </div>
-    <button class="btn-nuevo" (click)="mostrarForm = !mostrarForm">
-      {{ mostrarForm ? '✕ Cancelar' : '+ Nuevo empleado' }}
-    </button>
+    <button class="btn-nuevo" (click)="abrirForm()">+ Nuevo empleado</button>
   </div>
 
+  <!-- Ventana de alta: se superpone en vez de empujar la lista hacia abajo -->
   @if (mostrarForm) {
-    <div class="form-card">
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label">Nombre</label>
-          <input class="form-input" type="text" [(ngModel)]="nuevo.nombre" placeholder="ej: Laura Gómez">
+    <div class="modal-fondo" (click)="cerrarForm()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <button class="modal__cerrar" (click)="cerrarForm()" aria-label="Cerrar">✕</button>
+        <p class="modal__titulo">Nuevo empleado</p>
+        <p class="modal__sub">Completá los datos del nuevo empleado</p>
+
+        <label class="campo">
+          <span class="campo__label">Nombre completo *</span>
+          <span class="campo__caja">
+            <span class="campo__icono" aria-hidden="true">👤</span>
+            <input class="campo__input" type="text" maxlength="60" [(ngModel)]="nuevo.nombre" name="nombre">
+          </span>
+        </label>
+
+        <div class="campo-fila">
+          <label class="campo">
+            <span class="campo__label">Correo electrónico *</span>
+            <span class="campo__caja">
+              <span class="campo__icono" aria-hidden="true">✉️</span>
+              <input class="campo__input" type="email" maxlength="80" [(ngModel)]="nuevo.email" name="email">
+            </span>
+          </label>
+
+          <label class="campo">
+            <span class="campo__label">Cédula *</span>
+            <span class="campo__caja">
+              <span class="campo__icono" aria-hidden="true">🪪</span>
+              <input class="campo__input" type="text" maxlength="20" [(ngModel)]="nuevo.identificacion" name="cedula">
+            </span>
+          </label>
         </div>
-        <div class="form-field">
-          <label class="form-label">Cargo</label>
-          <select class="form-input" [(ngModel)]="nuevo.cargo">
-            @for (c of cargos; track c.valor) {
-              <option [value]="c.valor">{{ c.icono }} {{ c.etiqueta }}</option>
-            }
-          </select>
+
+        <label class="campo">
+          <span class="campo__label">Teléfono</span>
+          <span class="campo__caja">
+            <span class="campo__icono" aria-hidden="true">📞</span>
+            <input class="campo__input" type="tel" maxlength="20" [(ngModel)]="nuevo.telefono" name="telefono">
+          </span>
+        </label>
+
+        <div class="campo-fila">
+          <label class="campo">
+            <span class="campo__label">Rol *</span>
+            <span class="campo__caja">
+              <span class="campo__icono" aria-hidden="true">🧑‍💼</span>
+              <select class="campo__input" [(ngModel)]="nuevo.cargo" name="cargo">
+                <option value="" disabled>Seleccionar rol</option>
+                @for (c of cargos; track c.valor) {
+                  <option [value]="c.valor">{{ c.icono }} {{ c.etiqueta }}</option>
+                }
+              </select>
+            </span>
+          </label>
+
+          <label class="campo">
+            <span class="campo__label">Estado</span>
+            <span class="campo__caja campo__caja--fijo">
+              <span class="campo__icono" aria-hidden="true">🟢</span>
+              <span class="campo__texto">Activo</span>
+            </span>
+          </label>
+        </div>
+
+        <p class="modal__nota">
+          No hace falta inventarle una contraseña: el sistema genera una temporal
+          y se la envía por correo. En su primer ingreso deberá cambiarla.
+        </p>
+
+        <div class="modal__acciones">
+          <button class="btn-texto" (click)="cerrarForm()">Cancelar</button>
+          <button class="btn-crear" (click)="crear()" [disabled]="guardando || !formValido">
+            @if (guardando) { Creando… } @else { Crear empleado }
+          </button>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label">Correo</label>
-          <input class="form-input" type="email" [(ngModel)]="nuevo.email" placeholder="correo@ejemplo.com">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Contraseña (mín. 8)</label>
-          <input class="form-input" type="password" [(ngModel)]="nuevo.password" placeholder="********">
+    </div>
+  }
+
+  <!-- Solo si el correo no salió: la clave hay que entregarla a mano -->
+  @if (passwordParaEntregar) {
+    <div class="modal-fondo" (click)="passwordParaEntregar = null">
+      <div class="modal modal--aviso" (click)="$event.stopPropagation()">
+        <p class="modal__titulo">Entregale estos datos</p>
+        <p class="modal__sub">
+          No pudimos enviar el correo a {{ passwordParaEntregar.nombre }}. Pasale
+          la contraseña temporal por otro medio: al entrar tendrá que cambiarla.
+        </p>
+        <code class="clave">{{ passwordParaEntregar.password }}</code>
+        <div class="modal__acciones">
+          <button class="btn-crear" (click)="passwordParaEntregar = null">Entendido</button>
         </div>
       </div>
-      <p class="form-hint">
-        El empleado entra a la app con este correo y contraseña. El recepcionista
-        ve la pantalla de Recepción para registrar el ingreso de los socios.
-      </p>
-      <button class="btn-guardar" (click)="crear()" [disabled]="guardando || !formValido">
-        @if (guardando) { Creando... } @else { ✓ Crear empleado }
-      </button>
     </div>
   }
 
@@ -62,7 +121,13 @@
           <div class="fila-datos">
             <p class="fila-nombre">{{ e.nombre }}</p>
             <p class="fila-email">{{ e.email }}</p>
+            @if (e.identificacion) {
+              <p class="fila-email">CC {{ e.identificacion }}</p>
+            }
           </div>
+          @if (e.debeCambiarPassword) {
+            <span class="fila-pendiente" title="Todavía no entró por primera vez">Sin activar</span>
+          }
           <span class="fila-cargo">{{ infoCargo(e).etiqueta }}</span>
           <button class="btn-borrar" (click)="eliminar(e)" title="Eliminar">🗑️</button>
         </div>

@@ -13,6 +13,10 @@ interface Empleado {
   role: 'entrenador' | 'empleado';
   cargo: string | null;
   fotoUrl?: string;
+  telefono?: string;
+  identificacion?: string;
+  /** Sigue con la contraseña temporal: todavía no entró por primera vez. */
+  debeCambiarPassword?: boolean;
   createdAt?: string;
 }
 
@@ -41,10 +45,22 @@ export class Empleados implements OnInit {
 
   empleados: Empleado[] = [];
   cargando = false;
+  /** Solo si el correo no pudo enviarse: hay que dictarle la clave a mano. */
+  passwordParaEntregar: { nombre: string; password: string } | null = null;
 
   mostrarForm = false;
   guardando = false;
-  nuevo = { nombre: '', email: '', password: '', cargo: 'recepcionista' };
+  /** La contraseña no está: la genera el servidor y viaja por correo. */
+  nuevo = { nombre: '', email: '', identificacion: '', telefono: '', cargo: '' };
+
+  abrirForm(): void {
+    this.nuevo = { nombre: '', email: '', identificacion: '', telefono: '', cargo: '' };
+    this.mostrarForm = true;
+  }
+
+  cerrarForm(): void {
+    this.mostrarForm = false;
+  }
 
   ngOnInit() {
     this.cargar();
@@ -73,7 +89,9 @@ export class Empleados implements OnInit {
   }
 
   get formValido(): boolean {
-    return !!(this.nuevo.nombre.trim() && this.nuevo.email.trim() && this.nuevo.password.length >= 8);
+    const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.nuevo.email.trim());
+    return !!(this.nuevo.nombre.trim() && correoValido &&
+      this.nuevo.identificacion.trim() && this.nuevo.cargo);
   }
 
   crear() {
@@ -82,14 +100,21 @@ export class Empleados implements OnInit {
     this.authService.crearEmpleado({
       nombre: this.nuevo.nombre.trim(),
       email: this.nuevo.email.trim(),
-      password: this.nuevo.password,
+      identificacion: this.nuevo.identificacion.trim(),
+      telefono: this.nuevo.telefono.trim(),
       cargo: this.nuevo.cargo,
     }).subscribe({
-      next: () => {
+      next: (res: any) => {
         this.guardando = false;
         this.mostrarForm = false;
-        this.nuevo = { nombre: '', email: '', password: '', cargo: 'recepcionista' };
-        this.toast.success('Empleado creado');
+        if (res?.correoEnviado) {
+          this.toast.success('Empleado creado. Le enviamos sus datos de acceso por correo.');
+        } else {
+          // El correo no salió: la clave temporal se muestra para entregarla
+          // a mano, o el alta quedaría inservible.
+          this.passwordParaEntregar = { nombre: this.nuevo.nombre.trim(), password: res?.passwordTemporal || '' };
+          this.toast.info('Empleado creado, pero no se pudo enviar el correo.');
+        }
         this.cargar();
       },
       error: (err) => {

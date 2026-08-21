@@ -80,7 +80,7 @@ export class AuthService {
     return this.http.get<any[]>(`${this.apiUrl}/empleados`);
   }
 
-  crearEmpleado(datos: { nombre: string; email: string; password: string; cargo: string }): Observable<any> {
+  crearEmpleado(datos: { nombre: string; email: string; identificacion: string; telefono?: string; cargo: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/crear-empleado`, datos);
   }
 

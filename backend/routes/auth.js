@@ -433,14 +433,21 @@ router.post('/crear-entrenador', verificarToken, soloAdmin, async (req, res) => 
 const CARGOS_EMPLEADO = ['recepcionista', 'limpieza', 'nutricionista', 'entrenador'];
 
 // ✅ CREAR EMPLEADO (SOLO ADMINS) — recepcionista, entrenador, limpieza, nutricionista
+//
+// Mismo trato que un socio dado de alta en recepción: la contraseña la genera
+// el servidor y viaja por correo, nunca la teclea el admin. Así nadie más que
+// la persona conoce su clave, y el primer login la obliga a cambiarla.
 router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const { nombre, email, password, cargo } = req.body;
-        if (!nombre || !email || !password) {
-            return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
+        const { nombre, email, cargo, telefono, identificacion } = req.body;
+        if (!nombre || !email) {
+            return res.status(400).json({ mensaje: 'Nombre y correo son obligatorios' });
         }
-        if (typeof password !== 'string' || password.length < 8) {
-            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
+        if (!EMAIL_RX.test(String(email).trim())) {
+            return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
+        }
+        if (!identificacion || !String(identificacion).trim()) {
+            return res.status(400).json({ mensaje: 'La cédula es obligatoria' });
         }
         if (!CARGOS_EMPLEADO.includes(cargo)) {
             return res.status(400).json({ mensaje: 'Cargo inválido' });
@@ -449,23 +456,42 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
         const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
         if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
+        // Contraseña temporal generada por el servidor; el admin no la elige.
+        const passPlano = crypto.randomBytes(6).toString('hex');
         const salt = await bcrypt.genSalt(10);
         const empleado = await prisma.user.create({
             data: {
                 gymId: req.gymId,
                 nombre,
                 email: emailNorm,
-                password: await bcrypt.hash(password, salt),
+                password: await bcrypt.hash(passPlano, salt),
                 role: cargo === 'entrenador' ? 'entrenador' : 'empleado',
                 cargo: cargo === 'entrenador' ? null : cargo,
-                emailVerified: true
+                emailVerified: true,
+                // La puso otro: hay que cambiarla en el primer ingreso.
+                debeCambiarPassword: true,
+                telefono: telefono || '',
+                identificacion: String(identificacion).trim()
             }
         });
         await registrarAuditoria(req, 'CREAR_EMPLEADO', { recurso: 'User', recursoId: empleado.id, detalle: { cargo } });
 
+        const gym = await prisma.gym.findUnique({ where: { id: req.gymId }, select: { nombre: true } });
+        const correoEnviado = await enviarPasswordTemporal({
+            email: emailNorm, nombre: empleado.nombre, gymNombre: gym?.nombre || 'tu gimnasio', password: passPlano
+        });
+
         res.status(201).json({
             mensaje: 'Empleado creado',
-            empleado: { _id: empleado.id, nombre: empleado.nombre, email: empleado.email, role: empleado.role, cargo: empleado.cargo }
+            empleado: {
+                _id: empleado.id, nombre: empleado.nombre, email: empleado.email,
+                role: empleado.role, cargo: empleado.cargo
+            },
+            correoEnviado,
+            // Si el correo salió, la clave ya viaja hacia su dueño y no hace
+            // falta mostrarla. Si falló el envío, se devuelve para poder
+            // entregarla a mano y que el alta no quede inservible.
+            passwordTemporal: correoEnviado ? null : passPlano
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al crear empleado' });
@@ -477,7 +503,7 @@ router.get('/empleados', verificarToken, soloAdmin, async (req, res) => {
     try {
         const empleados = await prisma.user.findMany({
             where: { gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
-            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, createdAt: true },
+            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, telefono: true, identificacion: true, debeCambiarPassword: true, createdAt: true },
             orderBy: { createdAt: 'desc' }
         });
         res.json(empleados.map(({ id, ...e }) => ({ ...e, _id: id })));

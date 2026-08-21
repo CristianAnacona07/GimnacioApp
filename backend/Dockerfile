@@ -10,9 +10,10 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# El esquema se copia ANTES de instalar: `npm ci` dispara el postinstall
+# `prisma generate`, que sin el schema falla y tumba la construcción entera.
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN npm ci
 
 # ---- Etapa 2: imagen final ----
 FROM node:22-alpine
