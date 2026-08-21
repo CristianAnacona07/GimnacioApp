@@ -274,7 +274,7 @@ export const routes: Routes = [
         loadComponent: () => import('./components/entrenador/agenda/agenda').then(m => m.AgendaProfesional)
       },
       ...sharedRoutes,
-      { path: '', redirectTo: 'mis-socios', pathMatch: 'full' }
+      { path: '', redirectTo: 'noticias', pathMatch: 'full' }
     ]
   },
 

@@ -344,6 +344,7 @@ export class Login implements OnInit, AfterViewInit {
 
     if (role === 'superadmin') this.router.navigate(['/plataforma']);
     else if (role === 'admin') this.router.navigate(['admin/noticias']);
+    else if (role === 'entrenador') this.router.navigate(['/entrenador']);
     else if (role === 'empleado') this.router.navigate(['/empleado']);
     else this.router.navigate(['/socio']);
   }

@@ -95,10 +95,10 @@ export class Navbar implements OnInit, OnDestroy {
     } else if (this.role === 'entrenador') {
       const p = this.permisos;
       return [
+        { icon: '📰', name: 'noticias',      route: '/entrenador/noticias',   show: p.puede('noticias') && m('noticias') },
         { icon: '🎯', name: 'mis socios',    route: '/entrenador/mis-socios', show: true },
         { icon: '👥', name: 'socios',        route: '/entrenador/socios',     show: p.puede('socios') },
         { icon: '📋', name: 'rutinas',       route: '/entrenador/rutinas',    show: p.puede('rutinas') && m('rutinas') },
-        { icon: '📰', name: 'noticias',      route: '/entrenador/noticias',   show: p.puede('noticias') && m('noticias') },
         { icon: '🎫', name: 'Recepción',     route: '/entrenador/recepcion',  show: p.puede('recepcion') },
         { icon: '💳', name: 'planes',        route: '/entrenador/planes',     show: p.puede('planes') && m('pagos') },
         { icon: '💰', name: 'pagos',         route: '/entrenador/pagos',      show: p.puede('pagos') && m('pagos') },
