@@ -43,7 +43,6 @@ export class Login implements OnInit, AfterViewInit {
   private googlePendiente: { tipo: 'credential' | 'access_token'; valor: string } | null = null;
   readonly esNativo = Capacitor.isNativePlatform();
   /** Enlace de primer ingreso reusado con esa misma sesión todavía viva. */
-  yaActivada = false;
   private gsiCargando: Promise<void> | null = null;
 
   constructor(
@@ -71,13 +70,15 @@ export class Login implements OnInit, AfterViewInit {
     // Correo temporal por primer ingreso (enviarPasswordTemporal en el
     // backend): precarga el campo para que solo falte pegar la contraseña.
     const email = this.ruta.snapshot.queryParamMap.get('email');
-    if (email) this.usuario.email = email;
-
-    // Mismo enlace reusado con la sesión de esa activación todavía viva
-    // (noAuthGuard lo dejó pasar a propósito por traer ?email=) — no se
-    // vuelve a iniciar sesión en silencio, se avisa explícitamente.
-    if (email && this.storageService.getToken() && !this.storageService.isTokenExpired()) {
-      this.yaActivada = true;
+    if (email) {
+      this.usuario.email = email;
+      // El enlace suele abrirse con otra sesión viva: la de quien dio el
+      // alta, en el mismo navegador. Se cierra sin preguntar para dejar el
+      // formulario limpio — el enlace lleva al login, no al panel de quien
+      // ya estaba dentro (noAuthGuard deja pasar el ?email= a propósito).
+      if (this.storageService.getToken() && !this.storageService.isTokenExpired()) {
+        this.authService.logout();
+      }
     }
   }
 
@@ -373,15 +374,5 @@ export class Login implements OnInit, AfterViewInit {
   cancelarEleccion() {
     this.gimnasiosMultiples = null;
     this.googlePendiente = null;
-  }
-
-  // El enlace de primer ingreso es de un solo uso: acá no se ofrece un atajo
-  // directo al panel — cierra esa sesión y deja el login limpio de siempre,
-  // para que quien quiera entrar lo haga por el camino normal.
-  irALoginLimpio() {
-    this.authService.logout();
-    this.yaActivada = false;
-    this.usuario = { email: '', password: '' };
-    this.router.navigate(['/login']);
   }
 }

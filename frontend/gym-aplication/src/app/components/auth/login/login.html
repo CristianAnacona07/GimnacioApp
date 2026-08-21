@@ -34,13 +34,7 @@
 
       <div class="card-body">
 
-        @if (yaActivada) {
-          <p class="card-intro">
-            Ya activaste tu cuenta con este enlace — es de un solo uso. Iniciá
-            sesión de nuevo con tu contraseña.
-          </p>
-          <button type="button" (click)="irALoginLimpio()" class="btn-login">Ir al inicio de sesión</button>
-        } @else if (gimnasiosMultiples) {
+        @if (gimnasiosMultiples) {
           <div class="multi-gym">
             <p class="multi-gym__titulo">Tu cuenta existe en varios gimnasios</p>
             <p class="multi-gym__sub">¿A cuál querés entrar?</p>
