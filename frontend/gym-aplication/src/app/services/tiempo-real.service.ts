@@ -26,12 +26,21 @@ export class TiempoRealService {
   private readonly mensajes = new Subject<Mensaje>();
   /** Token con el que se abrió el socket: si cambia la sesión, se reconecta. */
   private tokenActual: string | null = null;
+  /**
+   * El servidor de este despliegue no admite el canal (funciones que se apagan
+   * entre peticiones). Se recuerda para el resto de la visita: cinco pantallas
+   * distintas piden conectar, y sin esto cada una arrancaría su propia tanda de
+   * intentos fallidos. Se olvida al recargar la página, que es cuando puede
+   * haber cambiado el servidor.
+   */
+  private canalDescartado = false;
 
   /** Eventos que el servidor puede enviar; se registran todos al conectar. */
   private static readonly EVENTOS = ['avisos:revisar', 'rutina:actualizada', 'asistencia:nueva'];
 
   /** Abre el canal si hay sesión. Llamarlo de más no duplica la conexión. */
   conectar(): void {
+    if (this.canalDescartado) return;
     const token = this.storage.getToken();
     if (!token || this.storage.isTokenExpired()) return;
     if (this.socket?.connected && this.tokenActual === token) return;
@@ -57,6 +66,7 @@ export class TiempoRealService {
     // para que no quede a medias ni vuelva a intentarlo por su cuenta.
     this.socket.io.on('reconnect_failed', () => {
       console.info('Tiempo real no disponible; la app sigue con consultas periódicas.');
+      this.canalDescartado = true;
       this.desconectar();
     });
 
