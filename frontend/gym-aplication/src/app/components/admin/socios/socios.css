@@ -147,10 +147,12 @@
   display: flex;
   gap: 6px;
   justify-content: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .btn-days {
+  white-space: nowrap;
   padding: 5px 12px;
   border-radius: 99px;
   font-size: 12px;
@@ -354,8 +356,8 @@
 /* Selector de entrenador de cada fila */
 .select-entrenador {
   width: 100%;
-  max-width: 11rem;
-  padding: 0.4rem 0.55rem;
+  max-width: 9rem;
+  padding: 0.4rem 0.5rem;
   font-size: 0.78rem;
   font-weight: 600;
   font-family: inherit;
