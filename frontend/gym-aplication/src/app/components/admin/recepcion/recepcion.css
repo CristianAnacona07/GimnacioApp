@@ -358,6 +358,12 @@
   gap: 1rem;
 }
 
+.recepcion__acciones-header {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .btn-invitar {
   background: var(--color-secundario, #1d4ed8);
   color: #fff;
@@ -374,6 +380,15 @@
 }
 .btn-invitar:hover:not(:disabled) { transform: scale(1.04); }
 .btn-invitar:disabled { opacity: 0.6; cursor: wait; }
+
+/* Alternativa a la principal: mismo tamaño, sin relleno, para no competir
+   visualmente con "+ Mandar link" (el camino de siempre). */
+.btn-invitar--secundario {
+  background: var(--sup-1, #fff);
+  color: var(--color-secundario, #1d4ed8);
+  border: 1.5px solid var(--bde, #c8dcff);
+  box-shadow: none;
+}
 
 .invitacion {
   position: relative;
@@ -422,6 +437,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.invitacion__form {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.invitacion__input {
+  border: 1.5px solid var(--bde, #c8dcff);
+  background: var(--sup-2, #f0f5ff);
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  color: var(--txt-1, #1e293b);
+}
+.invitacion__input:focus { outline: none; border-color: var(--color-secundario, #1d4ed8); }
+
 .invitacion__acciones { display: flex; gap: 0.5rem; margin-top: 0.35rem; }
 .invitacion__btn {
   border: 1.5px solid var(--bde, #c8dcff);
@@ -434,8 +466,27 @@
   cursor: pointer;
   text-decoration: none;
 }
+.invitacion__btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .invitacion__btn--wa {
   background: #25d366;
   border-color: #25d366;
   color: #fff;
+}
+
+/* Contraseña temporal a mostrar una sola vez (mismo patrón que matricula.css,
+   reusado tal cual para que se vea igual en las dos pantallas). */
+.tarjeta__password {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--tinte-ambar, #fff7ed);
+  border: 1px solid #fed7aa;
+  border-radius: 0.65rem;
+  color: var(--txt-rojo, #9a3412);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.tarjeta__password-hint {
+  font-size: 0.8rem;
+  color: var(--txt-ambar, #b45309);
 }

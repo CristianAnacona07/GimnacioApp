@@ -14,3 +14,8 @@ frontend/gym-aplication/android/.gradle/
 
 # Ajustes locales de Claude Code (no se comparten)
 .claude/settings.local.json
+
+# Herramientas de Android (adb) bajadas a mano para probar el APK por USB.
+# Son binarios de Google, no codigo del proyecto.
+platform-tools.zip
+ptools/

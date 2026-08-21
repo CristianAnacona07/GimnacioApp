@@ -168,6 +168,14 @@
   gap: 1rem;
 }
 
+.card-intro {
+  font-size: 0.85rem;
+  color: var(--txt-azul, #7a9bc0);
+  text-align: center;
+  line-height: 1.5;
+  margin: 0 0 0.25rem;
+}
+
 /* ===== CAMPOS ===== */
 .field-group {
   display: flex;

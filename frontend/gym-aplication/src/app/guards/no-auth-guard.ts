@@ -18,6 +18,13 @@ export const noAuthGuard: CanActivateFn = (route, state) => {
       storageService.clearSessionPreservingData();
       return true;
     }
+
+    // Enlace de "primera vez" (enviarPasswordTemporal en el backend) reusado
+    // con la sesión de esa misma activación todavía viva: no lo mandamos
+    // adentro en silencio — el propio Login lo dice explícitamente y ofrece
+    // ir al panel, en vez de que este guard lo redirija sin avisar.
+    if (route.queryParamMap.get('email')) return true;
+
     // Sesión activa → redirigir según rol del token (única fuente de verdad).
     // El superadmin puede quedarse en el login para entrar como miembro de un
     // gimnasio (al iniciar sesión se sobrescribe su sesión). No lo redirigimos.

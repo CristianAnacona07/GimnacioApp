@@ -25,24 +25,109 @@
   color: #fff;
 }
 
-.sa-badge {
-  background: #ef4444;
-  color: #fff;
-  border-radius: 999px;
-  font-size: 0.65rem;
-  font-weight: 900;
-  padding: 0.1rem 0.45rem;
-  min-width: 18px;
-  text-align: center;
-}
-
-/* ===== FEEDBACK LIST ===== */
-.fb-list {
-  padding: 0 1rem 4rem;
+/* ===== DASHBOARD ===== */
+.dash {
+  padding: 0 1.5rem 4rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-width: 700px;
+  gap: 1.25rem;
+  max-width: 900px;
+}
+
+.dash-cargando { color: var(--txt-3, #64748b); font-size: 0.85rem; }
+
+.dash-tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.dash-tarjeta {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+}
+.dash-tarjeta__label { display: block; font-size: 0.85rem; font-weight: 700; color: #94a3b8; margin: 0 0 0.4rem; }
+.dash-tarjeta__valor { display: block; font-size: 2.1rem; font-weight: 900; color: #e2e8f0; margin: 0; letter-spacing: -0.02em; }
+.dash-tarjeta__hint { font-size: 0.75rem; color: #64748b; margin: 0.3rem 0 0; }
+
+.dash-chart-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+}
+.dash-chart-titulo { font-size: 0.95rem; font-weight: 700; color: #e2e8f0; margin: 0; }
+.dash-chart-sub { font-size: 0.75rem; color: #64748b; margin: 0.2rem 0 1rem; }
+
+.dash-chart-wrap { display: flex; }
+.dash-yaxis { flex-shrink: 0; }
+.dash-chart-scroll { overflow-x: auto; }
+
+/* ===== PLANES DE PLATAFORMA ===== */
+.planes-gestion {
+  padding: 0 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 900px;
+}
+
+/* Nombre del plan, arriba de sus dos recuadros — no es una tarjeta en sí,
+   solo el rótulo que los agrupa cuando hay más de un plan en la lista. */
+.plan-nombre-titulo {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.plan-nombre-titulo__valor {
+  color: #60a5fa;
+  font-weight: 900;
+}
+
+/* Cada valor (mensual / por suscriptor) es su propio recuadro, independiente
+   — no hay botón de eliminar: un plan, una vez creado, siempre existe, solo
+   se editan sus valores. Es un <button> de verdad (se toca en cualquier
+   parte, no solo el lápiz), así que resetea los estilos nativos del navegador
+   antes de heredar el look de .dash-tarjeta. Al tocarlo, el recuadro se
+   reemplaza por el formulario de edición en su propio lugar (ver
+   .plan-edit-inline) — nunca están los dos a la vista a la vez, así que no
+   hace falta un estado "activo" separado. */
+.plan-valor-tarjeta {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+/* Ya no es un <button> propio (el recuadro entero lo es) — solo el ícono
+   visual en la esquina, decorativo. */
+.plan-valor-tarjeta__editar {
+  position: absolute;
+  top: 0.7rem; right: 0.7rem;
+  width: 30px; height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #334155;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+  transition: background 0.15s;
+}
+.plan-valor-tarjeta:hover .plan-valor-tarjeta__editar { background: #475569; }
+
+.hint-cuenta-original {
+  font-size: 0.75rem;
+  color: var(--txt-3, #64748b);
+  font-style: italic;
 }
 
 .fb-empty {
@@ -50,52 +135,6 @@
   font-size: 0.85rem;
   text-align: center;
   padding: 3rem;
-}
-
-.fb-item {
-  background: #1e293b;
-  border: 1.5px solid #334155;
-  border-radius: 1rem;
-  padding: 1rem 1.25rem;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-.fb-item:hover { border-color: #475569; }
-.fb-item.fb-no-leido {
-  border-color: #2563eb;
-  background: #1a2744;
-}
-
-.fb-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.fb-item-meta { display: flex; align-items: center; gap: 0.4rem; }
-.fb-usuario { font-size: 0.82rem; font-weight: 800; color: #e2e8f0; }
-.fb-gym { font-size: 0.75rem; color: var(--txt-3, #64748b); }
-
-.fb-item-right { display: flex; align-items: center; gap: 0.5rem; }
-
-.fb-nuevo-dot {
-  width: 8px; height: 8px;
-  background: #3b82f6;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.fb-fecha { font-size: 0.7rem; color: var(--txt-2, #475569); }
-
-.fb-mensaje {
-  font-size: 0.85rem;
-  color: #cbd5e1;
-  line-height: 1.55;
-  margin: 0;
-  white-space: pre-wrap;
 }
 
 .sa-page {
@@ -113,6 +152,29 @@
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: .75rem;
+}
+
+.sa-brand {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+
+.sa-brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.sa-brand-logo--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f97316;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.2rem;
 }
 
 .sa-title {
@@ -159,6 +221,37 @@
   transition: background .2s;
 }
 .btn-salir:hover { background: #334155; color: #fff; }
+
+/* Contraseña temporal del admin recién creado: no se autodesaparece como un
+   toast, porque hay que poder leerla/copiarla con calma antes de cerrarla. */
+.tarjeta-password {
+  position: relative;
+  background: #1e293b;
+  border: 1px solid #f59e0b;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.tarjeta-password__cerrar {
+  position: absolute;
+  top: 0.6rem; right: 0.6rem;
+  border: none;
+  background: #334155;
+  border-radius: 0.5rem;
+  width: 30px; height: 30px;
+  cursor: pointer;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+.tarjeta-password__titulo { font-size: 0.95rem; font-weight: 700; color: #e2e8f0; margin: 0 0 0.5rem; }
+.tarjeta-password__valor {
+  margin: 0;
+  color: #fcd34d;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.tarjeta-password__hint { font-size: 0.8rem; color: #d97706; font-weight: 600; }
 
 /* Form card */
 .form-card {
@@ -229,6 +322,11 @@
   font-size: .75rem;
   color: var(--txt-3, #94a3b8);
   font-weight: 600;
+}
+
+.flabel-obligatorio {
+  color: #ef4444;
+  font-weight: 800;
 }
 
 .finput {
@@ -319,8 +417,15 @@
 /* Grid de gyms */
 .gyms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  /* Tope duro de 320px por columna en vez de 1fr: con 1fr el ancho sale de un
+     reparto de fracciones que cambia si cambia el conteo de columnas, y al
+     abrir el panel de info las tarjetas se ensanchaban. Con un máximo fijo el
+     ancho no depende de cuántas columnas entren ni del contenido.
+     El min(280px, 100%) evita que desborde en pantallas más angostas que eso. */
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 320px));
+  justify-content: start;
   gap: 1rem;
+  align-items: start;
 }
 
 .gym-card {
@@ -329,6 +434,9 @@
   border-radius: 14px;
   padding: 1.1rem;
   transition: border-color .2s;
+  /* Defensivo: que un texto largo del panel de info no pueda empujar el ancho
+     de la tarjeta. El ancho lo manda la columna (ver .gyms-grid), no el texto. */
+  min-width: 0;
 }
 .gym-card:hover { border-color: #475569; }
 .gym-card.inactivo { opacity: .55; }
@@ -395,6 +503,71 @@
   font-size: .78rem;
   color: var(--txt-3, #64748b);
   margin-bottom: .75rem;
+}
+
+.gym-plan-linea { margin-bottom: .6rem; }
+
+.gym-plan-badge {
+  display: inline-block;
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .25rem .6rem;
+  border-radius: 20px;
+  background: rgba(37,99,235,.14);
+  color: #60a5fa;
+}
+.gym-plan-badge--sin {
+  background: rgba(100,116,139,.14);
+  color: var(--txt-3, #64748b);
+}
+
+.btn-info-toggle {
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: var(--txt-3, #94a3b8);
+  padding: .45rem;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: .5rem;
+}
+.btn-info-toggle:hover { border-color: #475569; color: #e2e8f0; }
+
+.gym-info-panel {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: .65rem .75rem;
+  margin-bottom: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+
+.gym-info-fila {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  font-size: .78rem;
+  /* Misma idea que .gym-card: la fila se acomoda al ancho disponible en vez de
+     empujarlo. Los hijos también, o el flex no los deja encoger. */
+  min-width: 0;
+}
+/* La etiqueta no se encoge (son cortas y fijas, partirlas se ve mal); el valor
+   toma el resto y envuelve por palabras. */
+.gym-info-fila span {
+  flex: 0 0 auto;
+  color: var(--txt-3, #64748b);
+}
+.gym-info-fila b {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+  color: #e2e8f0;
+  font-weight: 600;
+  text-align: right;
 }
 
 .gym-actions {

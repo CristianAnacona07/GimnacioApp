@@ -130,6 +130,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/rutinas', require('./routes/rutina'));
 app.use('/api/noticias', require('./routes/noticia'));
 app.use('/api/planes', require('./routes/planes'));
+app.use('/api/planes-plataforma', require('./routes/planesPlataforma'));
 app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/progreso', require('./routes/progreso'));
 app.use('/api/medidas', require('./routes/medidas'));

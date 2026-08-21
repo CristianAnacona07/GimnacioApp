@@ -86,6 +86,20 @@ model Gym {
   activo          Boolean @default(true)
   spotifyPlaylist String  @default("") @map("spotify_playlist")
 
+  // Plan de suscripción a LA PLATAFORMA (no confundir con `planes`, más
+  // abajo, que son los planes de membresía que este gimnasio le vende a
+  // sus propios socios). Opcional: un gimnasio puede no tener plan asignado.
+  //
+  // El gimnasio no queda asignado al plan ENTERO (los dos valores juntos):
+  // elige uno solo de los dos valores de un plan puntual — "el Mensual de
+  // Pro" o "el Por suscriptor de Super", nunca ambos a la vez. `campo` dice
+  // cuál de los dos es. Ver GET /api/gym/dashboard para cómo eso cambia el
+  // cálculo de ingresos: "mensual" suma un monto fijo, "porSuscriptor" suma
+  // ese monto multiplicado por los socios activos del gimnasio.
+  planPlataformaId    String?         @map("plan_plataforma_id")
+  planPlataforma      PlanPlataforma? @relation(fields: [planPlataformaId], references: [id], onDelete: SetNull)
+  planPlataformaCampo String?         @map("plan_plataforma_campo") // 'mensual' | 'porSuscriptor'
+
   // agenda{} aplanado — sesiones personalizadas (duración/precio los fija el
   // gimnasio; el horario lo publica cada profesional en User.disponibilidad).
   agendaActiva                  Boolean @default(false) @map("agenda_activa")
@@ -122,6 +136,7 @@ model Gym {
   invitaciones  Invitacion[]
 
   @@index([deletedAt])
+  @@index([planPlataformaId])
   @@map("gyms")
 }
 
@@ -167,6 +182,11 @@ model User {
 
   resetToken       String?   @map("reset_token")
   resetTokenExpiry DateTime? @map("reset_token_expiry")
+
+  // Cuenta creada con contraseña temporal (superadmin/recepción la generan y
+  // se la entregan en persona, sin correo de por medio): obliga a definir una
+  // propia en el primer login, antes de dejar entrar a ninguna otra pantalla.
+  debeCambiarPassword Boolean @default(false) @map("debe_cambiar_password")
 
   emailVerified     Boolean   @default(false) @map("email_verified")
   verifyToken       String?   @map("verify_token")
@@ -404,6 +424,26 @@ model Plan {
   @@index([gymId])
   @@index([deletedAt])
   @@map("planes")
+}
+
+// Plan de SUSCRIPCIÓN A LA PLATAFORMA: lo que el superadmin le cobra a un
+// gimnasio por usar la app. No confundir con `Plan` (arriba), que es lo que
+// CADA gimnasio le cobra a SUS socios — son dos cosas de dinero distintas
+// que solo suenan parecido.
+model PlanPlataforma {
+  id                  String    @id @db.Char(24)
+  nombre              String
+  precioMensual       Decimal   @db.Decimal(10, 2) @map("precio_mensual")
+  precioPorSuscriptor Decimal   @db.Decimal(10, 2) @map("precio_por_suscriptor")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  gyms Gym[]
+
+  @@index([deletedAt])
+  @@map("planes_plataforma")
 }
 
 // ── Rutina + tabla hija ──────────────────────────────────────────────

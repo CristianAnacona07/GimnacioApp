@@ -35,6 +35,7 @@ export class Cronometro implements OnInit, OnDestroy {
     { label: '90s', segundos: 90 },
     { label: '2min', segundos: 120 },
     { label: '3min', segundos: 180 },
+    { label: '5min', segundos: 300 },
   ];
 
   tiempoTotal = 60;

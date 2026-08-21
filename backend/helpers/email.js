@@ -51,109 +51,72 @@ const remitente = () => `"Kodiak Gym" <${process.env.EMAIL_FROM || process.env.E
 
 const urlFrontend = () => process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app';
 
-const plantillaInvitacionAdmin = (nombre, gymNombre, url, dias) => `
-<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12)">
-  <div style="background:linear-gradient(160deg,#1e3a8a,#0f172a);padding:28px;text-align:center">
-    <h1 style="color:#ffffff;font-size:22px;margin:0;letter-spacing:-0.5px">${gymNombre}</h1>
-    <p style="color:#93c5fd;font-size:11px;margin:4px 0 0;letter-spacing:2px">PANEL DE ADMINISTRACIÓN</p>
-  </div>
-  <div style="background:#f8fbff;padding:32px">
-    <h2 style="color:#1e293b;font-size:18px;margin:0 0 12px">Ya puedes activar tu cuenta</h2>
-    <p style="color:#475569;font-size:14px;margin:0 0 8px">Hola <strong>${nombre}</strong>,</p>
-    <p style="color:#475569;font-size:14px;margin:0 0 24px">
-      Te han asignado como administrador de <strong>${gymNombre}</strong>. Para entrar por primera vez,
-      define tu contraseña con el siguiente botón. El enlace caduca en <strong>${dias} días</strong>.
-    </p>
-    <div style="text-align:center;margin:24px 0">
-      <a href="${url}" style="background:#1d4ed8;color:#ffffff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block">
-        Definir mi contraseña
-      </a>
-    </div>
-    <p style="color:#94a3b8;font-size:12px;text-align:center;margin:20px 0 0">
-      Si no esperabas este correo, ignóralo: sin definir la contraseña, la cuenta no se puede usar.
-    </p>
-  </div>
-</div>`;
-
-/**
- * Invita a un administrador a activar su cuenta.
- * @returns {Promise<boolean>} true si el correo salió; false si no hay
- *          configuración de correo o si el envío falló (queda en el log).
- */
-async function enviarInvitacionAdmin({ email, nombre, gymNombre, token, dias }) {
-  if (!emailConfigurado()) {
-    console.error('Sin configuración de correo (SMTP_HOST o EMAIL_USER/EMAIL_PASS): no se envía la invitación de administrador');
-    return false;
-  }
-
-  // `bienvenida=1` hace que la pantalla hable de "definir" y no de "restablecer".
-  const url = `${urlFrontend()}/reset-password?token=${token}&bienvenida=1`;
-
-  try {
-    await transporter.sendMail({
-      from: remitente(),
-      to: email,
-      subject: `Activa tu cuenta de administrador — ${gymNombre}`,
-      html: plantillaInvitacionAdmin(nombre, gymNombre, url, dias),
-    });
-    return true;
-  } catch (err) {
-    console.error('No se pudo enviar la invitación de administrador:', err.message);
-    return false;
-  }
-}
-
-const plantillaBienvenidaSocio = (nombre, gymNombre, url) => `
+const plantillaPasswordTemporal = (nombre, gymNombre, email, password, url) => `
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12)">
   <div style="background:linear-gradient(160deg,#1e3a8a,#0f172a);padding:28px;text-align:center">
     <h1 style="color:#ffffff;font-size:22px;margin:0;letter-spacing:-0.5px">${gymNombre}</h1>
     <p style="color:#93c5fd;font-size:11px;margin:4px 0 0;letter-spacing:2px">¡BIENVENIDO!</p>
   </div>
   <div style="background:#f8fbff;padding:32px">
-    <h2 style="color:#1e293b;font-size:18px;margin:0 0 12px">Ya sos parte de ${gymNombre}</h2>
+    <h2 style="color:#1e293b;font-size:18px;margin:0 0 12px">Ya tenés cuenta en ${gymNombre}</h2>
     <p style="color:#475569;font-size:14px;margin:0 0 8px">Hola <strong>${nombre}</strong>,</p>
-    <p style="color:#475569;font-size:14px;margin:0 0 24px">
-      Recepción ya registró tu inscripción. Para entrar a la app y ver tu rutina,
-      tu membresía y más, definí tu contraseña con el siguiente botón.
+    <p style="color:#475569;font-size:14px;margin:0 0 16px">
+      Se creó tu cuenta en ${gymNombre}. Usá estas credenciales para entrar:
+    </p>
+    <div style="background:#eef3ff;border-radius:10px;padding:16px">
+      <p style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px">
+        Tus credenciales temporales
+      </p>
+      <p style="font-size:14px;color:#1e293b;margin:0 0 6px">
+        <strong>Correo:</strong> ${email}
+      </p>
+      <p style="font-size:14px;color:#1e293b;margin:0">
+        <strong>Contraseña temporal:</strong> ${password}
+      </p>
+    </div>
+    <p style="color:#dc2626;font-size:13px;font-weight:600;margin:16px 0 0">
+      Al entrar la primera vez vas a tener que cambiar esta contraseña por una propia.
     </p>
     <div style="text-align:center;margin:24px 0">
       <a href="${url}" style="background:#1d4ed8;color:#ffffff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block">
-        Definir mi contraseña
+        Ingresar por primera vez
       </a>
     </div>
     <p style="color:#94a3b8;font-size:12px;text-align:center;margin:20px 0 0">
-      Si no esperabas este correo, ignoralo: sin definir la contraseña, la cuenta no se puede usar.
+      Si no esperabas este correo, ignoralo.
     </p>
   </div>
 </div>`;
 
 /**
- * Da la bienvenida a un socio recién matriculado y lo invita a definir su
- * propia contraseña, en vez de que recepción tenga que comunicarle una
- * temporal generada al azar.
+ * Le manda a una cuenta recién creada (socio o admin) su contraseña temporal
+ * ya generada por el sistema — no un enlace para elegir la suya — y la dirige
+ * al login normal (con el correo precargado). El guard de rutas ya se encarga
+ * de forzar el cambio de contraseña en el primer ingreso, así que no hace
+ * falta una pantalla aparte para este primer login.
  * @returns {Promise<boolean>} true si el correo salió; false si no hay
  *          configuración de correo o si el envío falló (queda en el log).
  */
-async function enviarBienvenidaSocio({ email, nombre, gymNombre, token }) {
+async function enviarPasswordTemporal({ email, nombre, gymNombre, password }) {
   if (!emailConfigurado()) {
-    console.error('Sin configuración de correo (SMTP_HOST o EMAIL_USER/EMAIL_PASS): no se envía la bienvenida al socio');
+    console.error('Sin configuración de correo (SMTP_HOST o EMAIL_USER/EMAIL_PASS): no se envía la contraseña temporal');
     return false;
   }
 
-  const url = `${urlFrontend()}/reset-password?token=${token}&bienvenida=1`;
+  const url = `${urlFrontend()}/login?email=${encodeURIComponent(email)}`;
 
   try {
     await transporter.sendMail({
       from: remitente(),
       to: email,
-      subject: `¡Bienvenido a ${gymNombre}!`,
-      html: plantillaBienvenidaSocio(nombre, gymNombre, url),
+      subject: `Tu contraseña temporal en ${gymNombre}`,
+      html: plantillaPasswordTemporal(nombre, gymNombre, email, password, url),
     });
     return true;
   } catch (err) {
-    console.error('No se pudo enviar la bienvenida al socio:', err.message);
+    console.error('No se pudo enviar la contraseña temporal:', err.message);
     return false;
   }
 }
 
-module.exports = { transporter, emailConfigurado, remitente, enviarInvitacionAdmin, enviarBienvenidaSocio };
+module.exports = { transporter, emailConfigurado, remitente, enviarPasswordTemporal };

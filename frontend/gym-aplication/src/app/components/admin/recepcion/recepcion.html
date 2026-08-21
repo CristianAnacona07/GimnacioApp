@@ -4,9 +4,14 @@
       <h1 class="recepcion__titulo">🎫 Recepción</h1>
       <p class="recepcion__subtitulo">Registra las entradas de los socios</p>
     </div>
-    <button type="button" class="btn-invitar" (click)="invitarSocio()" [disabled]="invitandoSocio">
-      {{ invitandoSocio ? 'Creando…' : '+ Invitar socio' }}
-    </button>
+    <div class="recepcion__acciones-header">
+      <button type="button" class="btn-invitar" (click)="invitarSocio()" [disabled]="invitandoSocio">
+        {{ invitandoSocio ? 'Creando…' : '+ Mandar link' }}
+      </button>
+      <button type="button" class="btn-invitar btn-invitar--secundario" (click)="abrirFormSocioApp()">
+        + Crear ahora
+      </button>
+    </div>
   </header>
 
   <!-- Invitación de registro: link + QR de un solo uso -->
@@ -20,6 +25,34 @@
       <button type="button" class="invitacion__btn" (click)="copiarInvitacion()">Copiar</button>
       <a class="invitacion__btn invitacion__btn--wa" [href]="whatsappInvitacion" target="_blank" rel="noopener">WhatsApp</a>
     </div>
+  </div>
+
+  <!-- Alta instantánea: recepción carga nombre + correo, ya no manda nada -->
+  <div class="invitacion" *ngIf="mostrarFormSocioApp">
+    <button type="button" class="invitacion__cerrar" (click)="cancelarFormSocioApp()" aria-label="Cerrar">✕</button>
+    <p class="invitacion__titulo">Crear socio con la app</p>
+    <p class="invitacion__sub">Le entregás la contraseña temporal en el momento; el socio la cambia al entrar.</p>
+    <div class="invitacion__form">
+      <input type="text" class="invitacion__input" placeholder="Nombre" [(ngModel)]="nuevoSocioNombre">
+      <input type="email" class="invitacion__input" placeholder="Correo" [(ngModel)]="nuevoSocioEmail">
+    </div>
+    <div class="invitacion__acciones">
+      <button type="button" class="invitacion__btn"
+              [disabled]="creandoSocioApp || !nuevoSocioNombre.trim() || !nuevoSocioEmail.trim()"
+              (click)="crearSocioConApp()">
+        {{ creandoSocioApp ? 'Creando…' : 'Crear socio' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Resultado de la alta instantánea: contraseña temporal, una sola vez -->
+  <div class="tarjeta tarjeta--activo" *ngIf="socioAppCreado">
+    <button type="button" class="tarjeta__cerrar" (click)="cerrarSocioAppCreado()" aria-label="Cerrar">✕</button>
+    <p class="tarjeta__nombre">Socio creado: {{ socioAppCreado.email }}</p>
+    <p class="tarjeta__password">
+      Contraseña temporal: <strong>{{ socioAppCreado.passwordTemporal }}</strong>
+      <span class="tarjeta__password-hint">Entrégasela al socio — no se puede volver a ver</span>
+    </p>
   </div>
 
   <!-- Tarjeta de resultado del check-in -->

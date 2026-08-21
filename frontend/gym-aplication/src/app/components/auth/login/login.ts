@@ -1,7 +1,7 @@
 import { Component, AfterViewInit, NgZone, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
@@ -42,9 +42,12 @@ export class Login implements OnInit, AfterViewInit {
   /** Token de Google a la espera de que el usuario elija gimnasio. */
   private googlePendiente: { tipo: 'credential' | 'access_token'; valor: string } | null = null;
   readonly esNativo = Capacitor.isNativePlatform();
+  /** Enlace de primer ingreso reusado con esa misma sesión todavía viva. */
+  yaActivada = false;
   private gsiCargando: Promise<void> | null = null;
 
   constructor(
+    private ruta: ActivatedRoute,
     private router: Router,
     private authService: AuthService,
     private toast: ToastService,
@@ -64,6 +67,18 @@ export class Login implements OnInit, AfterViewInit {
     // pública) se muestra su logo, pero no hace falta ninguno para entrar.
     this.gym = this.gymService.getGym();
     this.gymFijado = this.tenant.esSubdominio;
+
+    // Correo temporal por primer ingreso (enviarPasswordTemporal en el
+    // backend): precarga el campo para que solo falte pegar la contraseña.
+    const email = this.ruta.snapshot.queryParamMap.get('email');
+    if (email) this.usuario.email = email;
+
+    // Mismo enlace reusado con la sesión de esa activación todavía viva
+    // (noAuthGuard lo dejó pasar a propósito por traer ?email=) — no se
+    // vuelve a iniciar sesión en silencio, se avisa explícitamente.
+    if (email && this.storageService.getToken() && !this.storageService.isTokenExpired()) {
+      this.yaActivada = true;
+    }
   }
 
   async ngAfterViewInit() {
@@ -317,6 +332,15 @@ export class Login implements OnInit, AfterViewInit {
     // 4) Sincronizar estado reactivo (escribe 'usuario' y notifica al navbar)
     this.userStateService.updateUser(res.usuario);
 
+    // 5) Contraseña temporal sin cambiar: nada de navbar/paneles hasta que la
+    // defina — el guard también lo exige, pero evita el parpadeo de entrar
+    // un instante al panel normal antes de que la ruta rebote.
+    this.storageService.setDebeCambiarPassword(!!res.usuario.debeCambiarPassword);
+    if (res.usuario.debeCambiarPassword) {
+      this.router.navigate(['/cambiar-password-inicial']);
+      return;
+    }
+
     if (role === 'superadmin') this.router.navigate(['/plataforma']);
     else if (role === 'admin') this.router.navigate(['admin/noticias']);
     else if (role === 'empleado') this.router.navigate(['/empleado']);
@@ -349,5 +373,15 @@ export class Login implements OnInit, AfterViewInit {
   cancelarEleccion() {
     this.gimnasiosMultiples = null;
     this.googlePendiente = null;
+  }
+
+  // El enlace de primer ingreso es de un solo uso: acá no se ofrece un atajo
+  // directo al panel — cierra esa sesión y deja el login limpio de siempre,
+  // para que quien quiera entrar lo haga por el camino normal.
+  irALoginLimpio() {
+    this.authService.logout();
+    this.yaActivada = false;
+    this.usuario = { email: '', password: '' };
+    this.router.navigate(['/login']);
   }
 }

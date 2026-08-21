@@ -34,7 +34,13 @@
 
       <div class="card-body">
 
-        @if (gimnasiosMultiples) {
+        @if (yaActivada) {
+          <p class="card-intro">
+            Ya activaste tu cuenta con este enlace — es de un solo uso. Iniciá
+            sesión de nuevo con tu contraseña.
+          </p>
+          <button type="button" (click)="irALoginLimpio()" class="btn-login">Ir al inicio de sesión</button>
+        } @else if (gimnasiosMultiples) {
           <div class="multi-gym">
             <p class="multi-gym__titulo">Tu cuenta existe en varios gimnasios</p>
             <p class="multi-gym__sub">¿A cuál querés entrar?</p>
@@ -57,7 +63,7 @@
           <label class="field-label" for="login-email">Correo electrónico</label>
           <div class="field-wrap">
             <span class="field-icon" aria-hidden="true">✉️</span>
-            <input id="login-email" type="email" name="email" [(ngModel)]="usuario.email" required
+            <input id="login-email" type="email" name="email" autocomplete="off" [(ngModel)]="usuario.email" required
               class="field-input" placeholder="ejemplo@kodiak.com">
           </div>
         </div>
@@ -66,7 +72,7 @@
           <label class="field-label" for="login-password">Contraseña</label>
           <div class="field-wrap">
             <span class="field-icon" aria-hidden="true">🔒</span>
-            <input id="login-password" #passInput [type]="verPass ? 'text' : 'password'" name="password"
+            <input id="login-password" #passInput [type]="verPass ? 'text' : 'password'" name="password" autocomplete="off"
               [(ngModel)]="usuario.password" required
               class="field-input" placeholder="••••••••">
             <button type="button" class="toggle-pass" [attr.aria-label]="verPass ? 'Ocultar contraseña' : 'Mostrar contraseña'" (click)="verPass = !verPass; passInput.focus()">

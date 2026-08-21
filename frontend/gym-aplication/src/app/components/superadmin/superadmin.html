@@ -1,14 +1,31 @@
 <div class="sa-page">
 
   <header class="sa-header">
-    <div>
-      <h1 class="sa-title">⚡ Panel Central</h1>
-      <p class="sa-sub">Super Administrador</p>
+    <div class="sa-brand">
+      @if (logoKodiak) {
+        <img [src]="logoKodiak" class="sa-brand-logo" alt="Kodiak Gym">
+      } @else {
+        <div class="sa-brand-logo sa-brand-logo--fallback">K</div>
+      }
+      <div>
+        <h1 class="sa-title">Kodiak Gym ⚡</h1>
+        <p class="sa-sub">Super Administrador</p>
+      </div>
     </div>
     <div class="sa-header-actions">
       @if (tabActiva === 'gyms') {
         <button class="btn-nuevo" (click)="mostrarForm = !mostrarForm; editando = null">
           {{ mostrarForm ? '✕ Cancelar' : '+ Nuevo Gym' }}
+        </button>
+      }
+      @if (tabActiva === 'planes') {
+        <button class="btn-nuevo" (click)="mostrarFormPlan = !mostrarFormPlan; editandoPlan = null">
+          {{ mostrarFormPlan ? '✕ Cancelar' : '+ Nuevo Plan' }}
+        </button>
+      }
+      @if (tabActiva === 'superadmins') {
+        <button class="btn-nuevo" (click)="mostrarFormSuperadmin = !mostrarFormSuperadmin">
+          {{ mostrarFormSuperadmin ? '✕ Cancelar' : '+ Nuevo Superadmin' }}
         </button>
       }
       <button class="btn-salir" (click)="cerrarSesion()">Salir</button>
@@ -17,37 +34,263 @@
 
   <!-- Tabs -->
   <div class="sa-tabs">
+    <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'dashboard'" (click)="tabActiva = 'dashboard'">
+      📊 Dashboard
+    </button>
     <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'gyms'" (click)="tabActiva = 'gyms'">
       🏋️ Gimnasios
     </button>
-    <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'feedback'" (click)="tabActiva = 'feedback'">
-      💬 Sugerencias
-      @if (feedbacksNoLeidos > 0) {
-        <span class="sa-badge">{{ feedbacksNoLeidos }}</span>
-      }
+    <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'planes'" (click)="tabActiva = 'planes'">
+      💰 Planes
+    </button>
+    <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'superadmins'" (click)="tabActiva = 'superadmins'">
+      🛡️ Superadmins
     </button>
   </div>
 
-  <!-- Tab Sugerencias -->
-  @if (tabActiva === 'feedback') {
-    <div class="fb-list">
-      @if (!feedbacks.length) {
-        <p class="fb-empty">Aún no hay sugerencias recibidas.</p>
-      }
-      @for (fb of feedbacks; track fb._id) {
-        <div class="fb-item" [class.fb-no-leido]="!fb.leido" (click)="marcarLeido(fb)">
-          <div class="fb-item-header">
-            <div class="fb-item-meta">
-              <span class="fb-usuario">{{ fb.nombreUsuario }}</span>
-              @if (fb.gymNombre) { <span class="fb-gym">· {{ fb.gymNombre }}</span> }
-            </div>
-            <div class="fb-item-right">
-              @if (!fb.leido) { <span class="fb-nuevo-dot"></span> }
-              <span class="fb-fecha">{{ formatFecha(fb.createdAt!) }}</span>
+  <!-- Tab Dashboard -->
+  @if (tabActiva === 'dashboard') {
+    <div class="dash">
+      @if (!dashboard) {
+        <p class="dash-cargando">Cargando métricas…</p>
+      } @else {
+        <div class="dash-tarjetas">
+          <div class="dash-tarjeta">
+            <p class="dash-tarjeta__label">👥 Socios activos</p>
+            <p class="dash-tarjeta__valor">{{ dashboard.sociosActivos }}</p>
+            <p class="dash-tarjeta__hint">Membresía vigente, en gimnasios activos</p>
+          </div>
+          <div class="dash-tarjeta">
+            <p class="dash-tarjeta__label">🧑‍💼 Administradores</p>
+            <p class="dash-tarjeta__valor">{{ dashboard.adminTotal }}</p>
+            <p class="dash-tarjeta__hint">En gimnasios activos</p>
+          </div>
+          <div class="dash-tarjeta">
+            <p class="dash-tarjeta__label">🏋️ Total de Gimnasios</p>
+            <p class="dash-tarjeta__valor">{{ dashboard.gimnasiosActivos }}</p>
+            <p class="dash-tarjeta__hint">Solo activos</p>
+          </div>
+          <div class="dash-tarjeta">
+            <p class="dash-tarjeta__label">💰 Ingresos estimados</p>
+            <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosEstimados) }}</p>
+            <p class="dash-tarjeta__hint">Según el plan asignado a cada gym</p>
+          </div>
+        </div>
+
+        <div class="dash-chart-card">
+          <p class="dash-chart-titulo">Socios nuevos por mes</p>
+          <p class="dash-chart-sub">Últimos 6 meses, en gimnasios activos</p>
+          <div class="dash-chart-wrap">
+            <svg class="dash-yaxis" [attr.height]="DASH_H" [attr.width]="DASH_PAD.left">
+              @for (label of dashYLabels(); track label.val) {
+                <line [attr.x1]="DASH_PAD.left - 4" [attr.x2]="DASH_PAD.left"
+                      [attr.y1]="label.y" [attr.y2]="label.y"
+                      stroke="#334155" stroke-width="1"/>
+                <text [attr.x]="DASH_PAD.left - 6" [attr.y]="label.y + 4"
+                      text-anchor="end" font-size="9" fill="#94a3b8">{{ label.val }}</text>
+              }
+            </svg>
+            <div class="dash-chart-scroll">
+              <svg [attr.width]="dashDataW" [attr.height]="DASH_H">
+                @for (label of dashYLabels(); track label.val) {
+                  <line x1="0" [attr.x2]="dashDataW"
+                        [attr.y1]="label.y" [attr.y2]="label.y"
+                        stroke="#1e293b" stroke-width="1"/>
+                }
+                @for (m of dashboard.nuevosSociosPorMes; track m.mes) {
+                  @let x = dashXBarra($index);
+                  <rect [attr.x]="x - 16" [attr.y]="dashYBarra(m.cantidad)"
+                        width="32" [attr.height]="dashAlturaBarra(m.cantidad)"
+                        rx="4" fill="#3b82f6"/>
+                  <text [attr.x]="x" [attr.y]="DASH_PAD.top + dashInnerH + 16"
+                        text-anchor="middle" font-size="10" fill="#94a3b8">{{ dashMesCorto(m.mes) }}</text>
+                  <text [attr.x]="x" [attr.y]="dashYBarra(m.cantidad) - 6"
+                        text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">{{ m.cantidad }}</text>
+                }
+              </svg>
             </div>
           </div>
-          <p class="fb-mensaje">{{ fb.mensaje }}</p>
         </div>
+      }
+    </div>
+  }
+
+  <!-- Tab Planes de plataforma -->
+  @if (tabActiva === 'planes') {
+    <div class="planes-gestion">
+
+      <!-- Formulario nuevo plan -->
+      @if (mostrarFormPlan) {
+        <div class="form-card">
+          <p class="form-titulo">Nuevo plan</p>
+          <div class="field">
+            <label class="flabel">Plan</label>
+            <select [(ngModel)]="nuevoPlan.nombre" class="finput">
+              <option value="" disabled>Elegí un plan</option>
+              <option value="Pro">Pro</option>
+              <option value="Super">Super</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="flabel">Valor mensual</label>
+            <input [(ngModel)]="nuevoPlan.precioMensual" type="number" min="0" placeholder="200000" class="finput">
+          </div>
+          <div class="field">
+            <label class="flabel">Valor por suscriptor</label>
+            <input [(ngModel)]="nuevoPlan.precioPorSuscriptor" type="number" min="0" placeholder="5000" class="finput">
+          </div>
+          <button class="btn-crear" (click)="crearPlanPlataforma()"
+                  [disabled]="!nuevoPlan.nombre || nuevoPlan.precioMensual === null || nuevoPlan.precioPorSuscriptor === null || guardandoPlan">
+            {{ guardandoPlan ? 'Creando...' : '🚀 Crear plan' }}
+          </button>
+        </div>
+      }
+
+      @if (cargandoPlanes) {
+        <p class="dash-cargando">Cargando planes…</p>
+      } @else if (!planesPlataforma.length) {
+        <p class="fb-empty">Todavía no hay planes de plataforma creados.</p>
+      } @else {
+        <!-- Un plan, una vez creado, no se elimina (siempre tiene que haber
+             un plan válido para todo gimnasio que lo tenga asignado) — solo
+             se editan sus dos valores, cada uno en su propio recuadro. -->
+        @for (plan of planesPlataforma; track plan._id) {
+          <p class="plan-nombre-titulo">Plan: <span class="plan-nombre-titulo__valor">{{ plan.nombre }}</span></p>
+
+          @if (editandoPlan?._id === plan._id) {
+            <!-- Reemplaza los dos recuadros en su propio lugar — nada de
+                 formulario arriba empujándolos, ni recuadros escondidos
+                 abajo: mientras se edita, solo se ve el formulario. -->
+            <div class="form-card plan-edit-inline">
+              <!-- Sin campo "Plan" acá: el nombre se elige una sola vez, al
+                   crear el plan (+ Nuevo Plan). Cambiarlo desde acá haría
+                   parecer que se creó un plan nuevo cuando en realidad
+                   renombra el mismo — el mismo lío que ya pasó una vez. -->
+              <p class="form-titulo">
+                Editar: {{ editandoPlan.nombre }} · {{ editandoPlanCampo === 'mensual' ? 'Mensual' : 'Por suscriptor' }}
+              </p>
+              <div class="field">
+                <label class="flabel">Valor</label>
+                <input [(ngModel)]="editandoValor" type="number" min="0" class="finput">
+              </div>
+              <div class="edit-actions">
+                <button class="btn-crear" (click)="guardarEdicionPlan()" [disabled]="guardandoPlan">
+                  {{ guardandoPlan ? 'Guardando...' : '💾 Guardar cambios' }}
+                </button>
+                <button class="btn-cancelar" (click)="cerrarEditarPlan()">Cancelar</button>
+              </div>
+            </div>
+          } @else {
+            <div class="dash-tarjetas">
+              <button type="button" class="dash-tarjeta plan-valor-tarjeta"
+                      (click)="abrirEditarPlan(plan, 'mensual')">
+                <span class="plan-valor-tarjeta__editar" aria-hidden="true">✏️</span>
+                <span class="dash-tarjeta__label">Mensual</span>
+                <span class="dash-tarjeta__valor">{{ formatMoneda(plan.precioMensual) }}</span>
+              </button>
+              <button type="button" class="dash-tarjeta plan-valor-tarjeta"
+                      (click)="abrirEditarPlan(plan, 'porSuscriptor')">
+                <span class="plan-valor-tarjeta__editar" aria-hidden="true">✏️</span>
+                <span class="dash-tarjeta__label">Por suscriptor</span>
+                <span class="dash-tarjeta__valor">{{ formatMoneda(plan.precioPorSuscriptor) }}</span>
+              </button>
+            </div>
+          }
+        }
+      }
+    </div>
+  }
+
+  <!-- Tab Superadmins -->
+  @if (tabActiva === 'superadmins') {
+    <div class="planes-gestion">
+
+      @if (mostrarFormSuperadmin) {
+        <div class="form-card">
+          <p class="form-titulo">Nuevo superadmin</p>
+          <div class="field">
+            <label class="flabel">Nombre</label>
+            <input [(ngModel)]="nuevoSuperadmin.nombre" type="text" placeholder="Nombre completo" class="finput">
+          </div>
+          <div class="field">
+            <label class="flabel">Correo</label>
+            <input [(ngModel)]="nuevoSuperadmin.email" type="email" placeholder="correo@dominio.com" class="finput">
+          </div>
+          <button class="btn-crear" (click)="crearSuperadmin()"
+                  [disabled]="!nuevoSuperadmin.nombre || !nuevoSuperadmin.email || guardandoSuperadmin">
+            {{ guardandoSuperadmin ? 'Creando...' : '🚀 Crear superadmin' }}
+          </button>
+        </div>
+      }
+
+      @if (passwordTemporalSuperadmin) {
+        <div class="tarjeta-password">
+          <p><strong>{{ passwordTemporalSuperadmin.email }}</strong> se creó con esta contraseña temporal — copiala y entregásela, no se vuelve a mostrar:</p>
+          <p class="tarjeta-password__valor">{{ passwordTemporalSuperadmin.password }}</p>
+          <button class="btn-cancelar" (click)="passwordTemporalSuperadmin = null">Entendido</button>
+        </div>
+      }
+
+      <!-- Con el formulario de "Nuevo Superadmin" abierto, la lista de abajo
+           queda oculta del todo (no solo empujada) — mismo criterio que el
+           resto de las pestañas: mientras se crea algo, solo se ve el form. -->
+      @if (!mostrarFormSuperadmin) {
+      @if (cargandoSuperadmins) {
+        <p class="dash-cargando">Cargando superadmins…</p>
+      } @else if (!superadmins.length) {
+        <p class="fb-empty">No hay superadmins registrados.</p>
+      } @else {
+        <!-- El backend siempre devuelve esta lista ordenada por createdAt asc,
+             así que el primer elemento es la cuenta fundadora — la única que
+             el DELETE rechaza sin importar cuántas otras existan. -->
+        @for (s of superadmins; track s._id; let primero = $first) {
+          @if (editandoSuperadmin?._id === s._id) {
+            <div class="form-card plan-edit-inline">
+              <p class="form-titulo">Editar superadmin</p>
+              <div class="field">
+                <label class="flabel">Nombre</label>
+                <input [(ngModel)]="editandoSuperadmin.nombre" type="text" class="finput">
+              </div>
+              <div class="field">
+                <label class="flabel">Correo</label>
+                <input [(ngModel)]="editandoSuperadmin.email" type="email" class="finput">
+              </div>
+              <div class="edit-actions">
+                <button class="btn-crear" (click)="guardarEdicionSuperadmin()"
+                        [disabled]="!editandoSuperadmin.nombre || !editandoSuperadmin.email || guardandoSuperadmin">
+                  {{ guardandoSuperadmin ? 'Guardando...' : '💾 Guardar cambios' }}
+                </button>
+                <button class="btn-cancelar" (click)="cerrarEditarSuperadmin()">Cancelar</button>
+              </div>
+            </div>
+          } @else {
+            <div class="gym-card">
+              <div class="gym-top">
+                <div class="gym-inicial" style="background:#2563eb">{{ s.nombre[0] }}</div>
+                <div class="gym-info">
+                  <p class="gym-nombre">{{ s.nombre }}</p>
+                  <p class="gym-slug">{{ s.email }}</p>
+                </div>
+                @if (primero) {
+                  <span class="gym-badge badge-on">Cuenta original</span>
+                }
+              </div>
+              <div class="gym-stats">
+                <span>📅 Desde {{ s.createdAt | date:'dd/MM/yy' }}</span>
+              </div>
+              @if (primero) {
+                <p class="hint-cuenta-original">No se puede eliminar la cuenta original</p>
+              }
+              <div class="gym-actions">
+                <button class="btn-editar" (click)="abrirEditarSuperadmin(s)">✏️ Editar</button>
+                @if (!primero) {
+                  <button class="btn-eliminar" (click)="eliminarSuperadmin(s)">🗑 Eliminar</button>
+                }
+              </div>
+            </div>
+          }
+        }
+      }
       }
     </div>
   }
@@ -75,7 +318,7 @@
 
       <div class="form-grid">
         <div class="field">
-          <label class="flabel">Nombre *</label>
+          <label class="flabel">Nombre <span class="flabel-obligatorio">*</span></label>
           <input [(ngModel)]="nuevo.nombre" (input)="generarSlug()" placeholder="Ej: Leones Gym" class="finput">
         </div>
         <div class="field">
@@ -86,7 +329,7 @@
 
       <!-- Subdominio (multi-tenant) -->
       <div class="field" style="margin-top:.75rem">
-        <label class="flabel">Subdominio *</label>
+        <label class="flabel">Subdominio <span class="flabel-obligatorio">*</span></label>
         <div class="subdominio-group">
           <input [ngModel]="nuevo.slug" (ngModelChange)="nuevo.slug = sanitizarSlug($event)"
                  placeholder="leones-gym" class="finput subdominio-input">
@@ -98,97 +341,72 @@
         </p>
       </div>
 
-      <p class="form-titulo" style="margin-top:.75rem">Colores</p>
-      <p class="colores-nota">El <strong>color principal</strong> se aplica a la barra, los botones, el menú y los días de rutina.</p>
-      <div class="colores-row">
-        <div class="color-item">
-          <label class="flabel">Principal</label>
-          <input type="color" [ngModel]="nuevo.colores['navbar']" (ngModelChange)="aplicarPrincipal(nuevo, $event)" class="cpicker">
-        </div>
-        <div class="color-item">
-          <label class="flabel">Fondo</label>
-          <input type="color" [(ngModel)]="nuevo.colores['fondo']" class="cpicker">
-        </div>
-        <div class="color-item">
-          <label class="flabel">Secundario</label>
-          <input type="color" [(ngModel)]="nuevo.colores['secundario']" class="cpicker">
-        </div>
-      </div>
-
-      <!-- Vista previa en vivo -->
-      <p class="form-titulo" style="margin-top:.75rem">Vista previa</p>
-      <div class="preview-box" [style.background]="nuevo.colores['fondo']">
-        <div class="preview-navbar" [style.background]="nuevo.colores['navbar']">
-          @if (nuevo.logo) {
-            <img [src]="nuevo.logo" class="preview-logo" alt="Logo">
-          } @else {
-            <div class="preview-logo preview-logo-empty" [style.background]="nuevo.colores['primario']">
-              {{ (nuevo.nombre || 'G').charAt(0) }}
-            </div>
-          }
-          <div class="preview-nav-text">
-            <span class="preview-nav-name">{{ nuevo.nombre || 'Nombre del gimnasio' }}</span>
-            @if (nuevo.slogan) { <span class="preview-nav-slogan">{{ nuevo.slogan }}</span> }
-          </div>
-        </div>
-        <div class="preview-body">
-          <div class="preview-menu" [style.background]="nuevo.colores['menu']">Menú lateral</div>
-          <div class="preview-dias">
-            @for (d of ['L','M','X','J','V']; track d) {
-              <span class="preview-dia" [style.background]="nuevo.colores['dias']">{{ d }}</span>
-            }
-          </div>
-          <div class="preview-row">
-            <button class="preview-btn" [style.background]="nuevo.colores['primario']" type="button">Botón</button>
-            <span class="preview-link" [style.color]="nuevo.colores['secundario']">Enlace secundario</span>
-          </div>
-        </div>
-      </div>
-
-      <p class="form-titulo" style="margin-top:.75rem">Módulos</p>
-      <div class="modulos-row">
-        @for (m of [
-          {key:'rutinas',label:'Rutinas'},
-          {key:'progreso',label:'Progreso'},
-          {key:'medidas',label:'Medidas'},
-          {key:'pagos',label:'Pagos'},
-          {key:'noticias',label:'Noticias'},
-          {key:'cronometro',label:'Cronómetro'}
-        ]; track m.key) {
-          <label class="modulo-toggle" [class.activo]="nuevo.modulos[m.key]">
-            <input type="checkbox" [(ngModel)]="nuevo.modulos[m.key]" style="display:none">
-            {{ m.label }}
-          </label>
-        }
-      </div>
-
-      <!-- Playlist de Spotify (opcional) -->
-      <div class="field" style="margin-top:.75rem">
-        <label class="flabel">🎵 Playlist de Spotify (opcional)</label>
-        <input [ngModel]="nuevo.spotifyPlaylist" (ngModelChange)="nuevo.spotifyPlaylist = extraerPlaylistId($event)"
-               placeholder="Pega el enlace de la playlist" class="finput">
-        <p class="subdominio-hint">En Spotify: Compartir → Copiar enlace. Vacío = música por defecto.</p>
-      </div>
-
       <!-- Administrador del gimnasio (opcional) -->
       <p class="form-titulo" style="margin-top:.75rem">Administrador del gimnasio</p>
       <div class="field">
-        <label class="flabel">📧 Correo del administrador (opcional)</label>
+        <label class="flabel">👤 Correo de acceso del administrador (opcional)</label>
         <input [(ngModel)]="nuevo.adminEmail" type="email" inputmode="email"
                placeholder="admin@sugimnasio.com" class="finput">
         <p class="subdominio-hint">
-          Recibirá un correo para definir su propia contraseña. No se le asigna ninguna
-          contraseña temporal: hasta que abra el enlace, la cuenta no se puede usar.
+          Se crea con una contraseña temporal que aparece acá al terminar (nada de correos):
+          entregásela vos, y la cambia en su primer login.
         </p>
       </div>
       <div class="field">
         <label class="flabel">Nombre del administrador (opcional)</label>
         <input [(ngModel)]="nuevo.adminNombre" placeholder="Ej: María Gómez" class="finput">
       </div>
+      <div class="form-grid">
+        <div class="field">
+          <label class="flabel">Cédula (opcional)</label>
+          <input [(ngModel)]="nuevo.adminIdentificacion" placeholder="Ej: 1234567890" class="finput">
+        </div>
+        <div class="field">
+          <label class="flabel">Contacto (opcional)</label>
+          <input [(ngModel)]="nuevo.adminTelefono" type="tel" placeholder="Ej: 3001234567" class="finput">
+        </div>
+      </div>
+
+      <!-- Plan de plataforma (opcional): lo que LE cobramos a este gimnasio.
+           No se elige un plan entero — se elige UN valor puntual (el mensual
+           de un plan, o el por-suscriptor de otro), por eso son 2 opciones
+           por cada plan que exista en la pestaña "💰 Planes". -->
+      <p class="form-titulo" style="margin-top:.75rem">Plan de plataforma (opcional)</p>
+      @if (!planesPlataforma.length) {
+        <p class="subdominio-hint">Todavía no hay planes creados — armá uno en la pestaña "💰 Planes".</p>
+      } @else {
+        <div class="field">
+          <select class="finput" [ngModel]="claveOpcionPlan(nuevo)" (ngModelChange)="elegirOpcionPlan(nuevo, $event)">
+            <option [ngValue]="null">Sin plan</option>
+            @for (plan of planesPlataforma; track plan._id) {
+              <option [ngValue]="plan._id + ':mensual'">Mensual {{ plan.nombre }} — {{ formatMoneda(plan.precioMensual) }}</option>
+              <option [ngValue]="plan._id + ':porSuscriptor'">Por suscriptor {{ plan.nombre }} — {{ formatMoneda(plan.precioPorSuscriptor) }}</option>
+            }
+          </select>
+        </div>
+      }
 
       <button class="btn-crear" (click)="crear()" [disabled]="!nuevo.nombre || !nuevo.slug || guardando">
         {{ guardando ? 'Creando...' : '🚀 Crear Gimnasio' }}
       </button>
+    </div>
+  }
+
+  <!-- Contraseña temporal del admin recién creado: una sola vez, no se autodesaparece -->
+  @if (adminCreado) {
+    <div class="tarjeta-password">
+      <button type="button" class="tarjeta-password__cerrar" (click)="cerrarAdminCreado()" aria-label="Cerrar">✕</button>
+      <p class="tarjeta-password__titulo">Administrador creado: {{ adminCreado.email }}</p>
+      @if (adminCreado.invitacionEnviada) {
+        <p class="tarjeta-password__valor">
+          📧 Le mandamos un correo con su contraseña temporal para que entre por primera vez.
+        </p>
+      } @else {
+        <p class="tarjeta-password__valor">
+          Contraseña temporal: <strong>{{ adminCreado.passwordTemporal }}</strong>
+          <span class="tarjeta-password__hint">No se pudo mandar por correo — entregásela vos, no se puede volver a ver</span>
+        </p>
+      }
     </div>
   }
 
@@ -234,77 +452,75 @@
         </p>
       </div>
 
-      <p class="form-titulo" style="margin-top:.75rem">Colores</p>
-      <p class="colores-nota">El <strong>color principal</strong> se aplica a la barra, los botones, el menú y los días de rutina.</p>
-      <div class="colores-row">
-        <div class="color-item">
-          <label class="flabel">Principal</label>
-          <input type="color" [ngModel]="editando.colores['navbar']" (ngModelChange)="aplicarPrincipal(editando, $event)" class="cpicker">
+      <!-- Administrador del gimnasio: todo gym debe tener uno. Sin ninguno
+           todavía, se muestra el mini-form para crearlo; con uno o más, cada
+           uno queda editable (nombre/cédula/contacto) en el momento. -->
+      <p class="form-titulo" style="margin-top:.75rem">Administrador del gimnasio</p>
+      @if (editandoAdmins === null) {
+        <p class="dash-cargando">Cargando administrador…</p>
+      } @else if (!editandoAdmins.length) {
+        <p class="subdominio-hint">Este gimnasio todavía no tiene administrador.</p>
+        <div class="field">
+          <label class="flabel">👤 Correo de acceso *</label>
+          <input [(ngModel)]="nuevoAdminGym.email" type="email" inputmode="email"
+                 placeholder="admin@sugimnasio.com" class="finput">
         </div>
-        <div class="color-item">
-          <label class="flabel">Fondo</label>
-          <input type="color" [(ngModel)]="editando.colores['fondo']" class="cpicker">
+        <div class="field">
+          <label class="flabel">Nombre</label>
+          <input [(ngModel)]="nuevoAdminGym.nombre" placeholder="Ej: María Gómez" class="finput">
         </div>
-        <div class="color-item">
-          <label class="flabel">Secundario</label>
-          <input type="color" [(ngModel)]="editando.colores['secundario']" class="cpicker">
+        <div class="form-grid">
+          <div class="field">
+            <label class="flabel">Cédula (opcional)</label>
+            <input [(ngModel)]="nuevoAdminGym.identificacion" placeholder="Ej: 1234567890" class="finput">
+          </div>
+          <div class="field">
+            <label class="flabel">Contacto (opcional)</label>
+            <input [(ngModel)]="nuevoAdminGym.telefono" type="tel" placeholder="Ej: 3001234567" class="finput">
+          </div>
         </div>
-      </div>
-
-      <!-- Vista previa en vivo de cómo se ve el gimnasio -->
-      <p class="form-titulo" style="margin-top:.75rem">Vista previa</p>
-      <div class="preview-box" [style.background]="editando.colores.fondo">
-        <div class="preview-navbar" [style.background]="editando.colores.navbar">
-          @if (editando.logo) {
-            <img [src]="editando.logo" class="preview-logo" alt="Logo">
-          } @else {
-            <div class="preview-logo preview-logo-empty" [style.background]="editando.colores.primario">
-              {{ (editando.nombre || 'G').charAt(0) }}
+        <button class="btn-crear" (click)="crearAdminGym()" [disabled]="!nuevoAdminGym.email || guardandoAdminGym">
+          {{ guardandoAdminGym ? 'Creando...' : '🚀 Crear administrador' }}
+        </button>
+      } @else {
+        @for (a of editandoAdmins; track a._id) {
+          <div class="field">
+            <label class="flabel">Nombre</label>
+            <input [(ngModel)]="a.nombre" class="finput">
+          </div>
+          <p class="subdominio-hint">{{ a.email }}</p>
+          <div class="form-grid">
+            <div class="field">
+              <label class="flabel">Cédula</label>
+              <input [(ngModel)]="a.identificacion" placeholder="Ej: 1234567890" class="finput">
             </div>
-          }
-          <div class="preview-nav-text">
-            <span class="preview-nav-name">{{ editando.nombre || 'Nombre del gimnasio' }}</span>
-            @if (editando.slogan) { <span class="preview-nav-slogan">{{ editando.slogan }}</span> }
+            <div class="field">
+              <label class="flabel">Contacto</label>
+              <input [(ngModel)]="a.telefono" type="tel" placeholder="Ej: 3001234567" class="finput">
+            </div>
           </div>
-        </div>
-        <div class="preview-body">
-          <div class="preview-menu" [style.background]="editando.colores.menu">Menú lateral</div>
-          <div class="preview-dias">
-            @for (d of ['L','M','X','J','V']; track d) {
-              <span class="preview-dia" [style.background]="editando.colores.dias">{{ d }}</span>
-            }
-          </div>
-          <div class="preview-row">
-            <button class="preview-btn" [style.background]="editando.colores.primario" type="button">Botón</button>
-            <span class="preview-link" [style.color]="editando.colores.secundario">Enlace secundario</span>
-          </div>
-        </div>
-      </div>
-
-      <p class="form-titulo" style="margin-top:.75rem">Módulos</p>
-      <div class="modulos-row">
-        @for (m of [
-          {key:'rutinas',label:'Rutinas'},
-          {key:'progreso',label:'Progreso'},
-          {key:'medidas',label:'Medidas'},
-          {key:'pagos',label:'Pagos'},
-          {key:'noticias',label:'Noticias'},
-          {key:'cronometro',label:'Cronómetro'}
-        ]; track m.key) {
-          <label class="modulo-toggle" [class.activo]="editando.modulos[m.key]">
-            <input type="checkbox" [(ngModel)]="editando.modulos[m.key]" style="display:none">
-            {{ m.label }}
-          </label>
+          <button class="btn-crear" (click)="guardarAdminGym(a)" [disabled]="guardandoAdminGym">
+            {{ guardandoAdminGym ? 'Guardando...' : '💾 Guardar administrador' }}
+          </button>
         }
-      </div>
+      }
 
-      <!-- Playlist de Spotify (opcional) -->
-      <div class="field" style="margin-top:.75rem">
-        <label class="flabel">🎵 Playlist de Spotify (opcional)</label>
-        <input [ngModel]="editando.spotifyPlaylist" (ngModelChange)="editando.spotifyPlaylist = extraerPlaylistId($event)"
-               placeholder="Pega el enlace de la playlist" class="finput">
-        <p class="subdominio-hint">En Spotify: Compartir → Copiar enlace. Vacío = música por defecto.</p>
-      </div>
+      <!-- Plan de plataforma: lo que LE cobramos a este gimnasio. Un valor
+           puntual, no el plan entero — mismo criterio que en "Nuevo Gym". -->
+      <p class="form-titulo" style="margin-top:.75rem">Plan de plataforma</p>
+      @if (!planesPlataforma.length) {
+        <p class="subdominio-hint">Todavía no hay planes creados — armá uno en la pestaña "💰 Planes".</p>
+      } @else {
+        <div class="field">
+          <select class="finput" [ngModel]="claveOpcionPlan(editando)" (ngModelChange)="elegirOpcionPlan(editando, $event)">
+            <option [ngValue]="null">Sin plan</option>
+            @for (plan of planesPlataforma; track plan._id) {
+              <option [ngValue]="plan._id + ':mensual'">Mensual {{ plan.nombre }} — {{ formatMoneda(plan.precioMensual) }}</option>
+              <option [ngValue]="plan._id + ':porSuscriptor'">Por suscriptor {{ plan.nombre }} — {{ formatMoneda(plan.precioPorSuscriptor) }}</option>
+            }
+          </select>
+        </div>
+      }
 
       <div class="edit-actions">
         <button class="btn-crear" (click)="guardarEdicion()" [disabled]="guardando">
@@ -315,6 +531,9 @@
     </div>
   }
 
+  <!-- Con el formulario de crear o editar abierto, la lista de abajo queda
+       oculta del todo (no solo empujada) — mismo criterio que Superadmins. -->
+  @if (!mostrarForm && !editando) {
   @if (cargando) {
     <div class="cargando">Cargando...</div>
   }
@@ -345,6 +564,52 @@
           <span>📅 {{ g.createdAt | date:'dd/MM/yy' }}</span>
         </div>
 
+        <div class="gym-plan-linea">
+          @if (g.planPlataforma) {
+            <span class="gym-plan-badge">
+              💳 {{ g.planPlataforma.nombre }}
+              {{ g.planPlataformaCampo === 'mensual'
+                ? '· ' + formatMoneda(g.planPlataforma.precioMensual) + '/mes'
+                : '· ' + formatMoneda(g.planPlataforma.precioPorSuscriptor) + '/socio' }}
+            </span>
+          } @else {
+            <span class="gym-plan-badge gym-plan-badge--sin">💳 Sin plan asignado</span>
+          }
+        </div>
+
+        <button class="btn-info-toggle" (click)="toggleInfo(g)">
+          {{ g.infoAbierta ? '▲ Ocultar información' : 'ℹ️ Información' }}
+        </button>
+
+        @if (g.infoAbierta) {
+          <div class="gym-info-panel">
+            <div class="gym-info-fila"><span>Socios activos</span><b>{{ g.sociosActivos }}</b></div>
+            <div class="gym-info-fila"><span>Staff</span><b>{{ g.staffTotal }}</b></div>
+            <div class="gym-info-fila">
+              <span>Módulos activos</span>
+              <b>{{ modulosActivos(g).length ? modulosActivos(g).join(', ') : 'Ninguno' }}</b>
+            </div>
+            <div class="gym-info-fila">
+              <span>Administrador{{ g.admins?.length === 1 ? '' : 'es' }}</span>
+              <b>
+                @if (!g.admins) {
+                  Cargando...
+                } @else if (g.admins.length === 0) {
+                  Sin administrador asignado
+                } @else {
+                  {{ g.admins[0].nombre }}{{ g.admins.length > 1 ? ' (+' + (g.admins.length - 1) + ')' : '' }}
+                }
+              </b>
+            </div>
+            @if (g.admins?.length && (g.admins[0].identificacion || g.admins[0].telefono)) {
+              <div class="gym-info-fila">
+                <span>Cédula / Contacto</span>
+                <b>{{ g.admins[0].identificacion || '—' }} / {{ g.admins[0].telefono || '—' }}</b>
+              </div>
+            }
+          </div>
+        }
+
         <div class="gym-actions">
           <button class="btn-editar" (click)="abrirEditar(g); mostrarForm = false">✏️</button>
           <button class="btn-toggle" (click)="toggleActivo(g)">
@@ -356,6 +621,7 @@
       </div>
     }
   </div>
+  }
 
   } <!-- fin @if tabActiva gyms -->
 

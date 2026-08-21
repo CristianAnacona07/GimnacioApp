@@ -9,7 +9,6 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmService } from '../../services/confirm.service';
-import { FeedbackService, Feedback } from '../../services/feedback.service';
 
 @Component({
   selector: 'app-superadmin',
@@ -22,11 +21,112 @@ export class SuperAdmin implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   gyms: any[] = [];
   cargando = false;
-  feedbacks: Feedback[] = [];
-  tabActiva: 'gyms' | 'feedback' = 'gyms';
+  // Dashboard es la puerta de entrada del panel; Gimnasios queda como
+  // pestaña de siempre para administrar cada gym individualmente.
+  tabActiva: 'dashboard' | 'gyms' | 'planes' | 'superadmins' = 'dashboard';
   mostrarForm = false;
   guardando = false;
   editando: any = null; // gym que se está editando
+
+  // --- Superadmins: cuentas globales (gymId null), solo gestionables por
+  // otro superadmin — ver feedback_superadmin_privilegios_exclusivos ---
+  superadmins: any[] = [];
+  cargandoSuperadmins = false;
+  mostrarFormSuperadmin = false;
+  guardandoSuperadmin = false;
+  nuevoSuperadmin = { nombre: '', email: '' };
+  passwordTemporalSuperadmin: { email: string; password: string } | null = null;
+  editandoSuperadmin: any = null; // superadmin que se está editando (nombre/email)
+
+  // --- Dashboard: métricas globales de la plataforma ---
+  dashboard: {
+    sociosActivos: number;
+    adminTotal: number;
+    gimnasiosActivos: number;
+    ingresosEstimados: number;
+    nuevosSociosPorMes: { mes: string; cantidad: number }[];
+  } | null = null;
+
+  // --- Planes de plataforma (lo que le cobramos a cada gimnasio; no
+  // confundir con los planes de membresía que cada gimnasio le vende a sus
+  // propios socios, esos viven en otra pantalla) ---
+  planesPlataforma: any[] = [];
+  cargandoPlanes = false;
+  mostrarFormPlan = false;
+  guardandoPlan = false;
+  editandoPlan: any = null;
+  // Qué recuadro (mensual / por suscriptor) se tocó: decide qué campo edita
+  // el único input "Valor" del formulario inline, ver abrirEditarPlan().
+  editandoPlanCampo: 'mensual' | 'porSuscriptor' | null = null;
+  editandoValor: number | null = null;
+  nuevoPlan = { nombre: '', precioMensual: null as number | null, precioPorSuscriptor: null as number | null };
+
+  // Geometría del gráfico de barras "socios nuevos por mes" — mismo espíritu
+  // que los getters de xPos/yPos/yLabels en components/socio/progreso/progreso.ts,
+  // simplificado porque acá son barras de altura fija, no una polilínea.
+  readonly DASH_BARRA_ANCHO = 52;
+  readonly DASH_H = 160;
+  readonly DASH_PAD = { top: 12, right: 16, bottom: 28, left: 36 };
+
+  get dashInnerH(): number {
+    return this.DASH_H - this.DASH_PAD.top - this.DASH_PAD.bottom;
+  }
+
+  get dashMaxCantidad(): number {
+    const valores = this.dashboard?.nuevosSociosPorMes.map(m => m.cantidad) || [];
+    return Math.max(1, ...valores); // mínimo 1 para no dividir por cero con todo en 0
+  }
+
+  get dashDataW(): number {
+    const n = this.dashboard?.nuevosSociosPorMes.length || 0;
+    return this.DASH_PAD.right + Math.max(1, n) * this.DASH_BARRA_ANCHO;
+  }
+
+  dashXBarra(i: number): number {
+    return i * this.DASH_BARRA_ANCHO + this.DASH_BARRA_ANCHO / 2;
+  }
+
+  dashAlturaBarra(cantidad: number): number {
+    return (cantidad / this.dashMaxCantidad) * this.dashInnerH;
+  }
+
+  dashYBarra(cantidad: number): number {
+    return this.DASH_PAD.top + this.dashInnerH - this.dashAlturaBarra(cantidad);
+  }
+
+  dashYLabels(): { val: string; y: number }[] {
+    return [0, 0.5, 1].map(f => ({
+      val: (this.dashMaxCantidad * f).toFixed(0),
+      y: this.DASH_PAD.top + this.dashInnerH - f * this.dashInnerH
+    }));
+  }
+
+  // Enero → "ene", igual que formatFecha en progreso.ts pero con mes solo.
+  dashMesCorto(mes: string): string {
+    const [y, m] = mes.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('es', { month: 'short' });
+  }
+
+  // `ingresosEstimados` del dashboard ya es number (el backend suma con
+  // Number()); `precioMensual`/`precioPorSuscriptor` de un plan llegan como
+  // string (Prisma serializa Decimal así) — acepta las dos formas.
+  formatMoneda(n: number | string): string {
+    return '$' + Math.round(Number(n)).toLocaleString('es');
+  }
+
+  // Contraseña temporal del admin recién creado: se muestra una sola vez,
+  // en una tarjeta persistente (un toast se autodesaparece antes de poder
+  // copiarla o dictarla).
+  adminCreado: { email: string; passwordTemporal: string | null; invitacionEnviada?: boolean } | null = null;
+
+  cerrarAdminCreado(): void {
+    this.adminCreado = null;
+  }
+
+  // --- Administrador(es) del gym que se está editando ---
+  editandoAdmins: any[] | null = null;
+  nuevoAdminGym = { email: '', nombre: '', identificacion: '', telefono: '' };
+  guardandoAdminGym = false;
 
   // Dominio raíz de la plataforma para los subdominios por gimnasio.
   // Ej: slug "sogafit" → sogafit.micro-gimnacios.com (al desplegar en el VPS).
@@ -62,9 +162,14 @@ export class SuperAdmin implements OnInit, OnDestroy {
   nuevo = {
     nombre: '', slug: '', slogan: '', spotifyPlaylist: '',
     // Administrador del gimnasio: opcional. Si se indica, el backend crea la
-    // cuenta y le envía el enlace para definir su propia contraseña.
-    adminEmail: '', adminNombre: '',
+    // cuenta con una contraseña temporal (se muestra acá, no se manda por correo).
+    adminEmail: '', adminNombre: '', adminIdentificacion: '', adminTelefono: '',
     logo: null as string | null,
+    // Plan de suscripción a la plataforma (lo que le cobramos a este
+    // gimnasio) — un valor puntual de un plan, no el plan entero.
+    // null = sin asignar, válido al crear.
+    planPlataformaId: null as string | null,
+    planPlataformaCampo: null as string | null,
     colores: { primario: '#0f172a', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#0f172a', dias: '#0f172a' } as Record<string, string>,
     modulos: { rutinas: true, progreso: true, medidas: true, pagos: true, noticias: true, cronometro: true } as Record<string, boolean>
   };
@@ -79,13 +184,14 @@ export class SuperAdmin implements OnInit, OnDestroy {
     private toast: ToastService,
     private confirm: ConfirmService,
     private cdr: ChangeDetectorRef,
-    private router: Router,
-    private feedbackService: FeedbackService
+    private router: Router
   ) {}
 
   ngOnInit() {
     this.cargar();
-    this.cargarFeedbacks();
+    this.cargarSuperadmins();
+    this.cargarDashboard();
+    this.cargarPlanesPlataforma();
   }
 
   ngOnDestroy() {
@@ -93,29 +199,65 @@ export class SuperAdmin implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  cargarFeedbacks() {
-    this.feedbackService.getAll().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (data) => { this.feedbacks = data; this.cdr.detectChanges(); },
-      error: (err) => {
-        console.error('Error al cargar feedbacks:', err);
-        this.toast.error('Error al cargar feedbacks');
-      }
+  cargarSuperadmins() {
+    this.cargandoSuperadmins = true;
+    this.http.get<any[]>(`${environment.apiUrl}/api/auth/superadmins`, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (data) => { this.superadmins = data; this.cargandoSuperadmins = false; this.cdr.detectChanges(); },
+        error: () => { this.cargandoSuperadmins = false; this.toast.error('Error al cargar superadmins'); }
+      });
+  }
+
+  crearSuperadmin() {
+    if (!this.nuevoSuperadmin.nombre || !this.nuevoSuperadmin.email || this.guardandoSuperadmin) return;
+    this.guardandoSuperadmin = true;
+    this.http.post<any>(`${environment.apiUrl}/api/auth/superadmins`, this.nuevoSuperadmin, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (res) => {
+          this.guardandoSuperadmin = false;
+          this.mostrarFormSuperadmin = false;
+          this.passwordTemporalSuperadmin = { email: res.superadmin.email, password: res.passwordTemporal };
+          this.nuevoSuperadmin = { nombre: '', email: '' };
+          this.toast.success('Superadmin creado');
+          this.cargarSuperadmins();
+        },
+        error: (err) => { this.guardandoSuperadmin = false; this.toast.error(err?.error?.mensaje || 'Error al crear superadmin'); }
+      });
+  }
+
+  abrirEditarSuperadmin(s: any) {
+    this.editandoSuperadmin = { _id: s._id, nombre: s.nombre, email: s.email };
+  }
+
+  cerrarEditarSuperadmin() {
+    this.editandoSuperadmin = null;
+  }
+
+  guardarEdicionSuperadmin() {
+    if (!this.editandoSuperadmin || this.guardandoSuperadmin) return;
+    this.guardandoSuperadmin = true;
+    this.http.put<any>(`${environment.apiUrl}/api/auth/superadmins/${this.editandoSuperadmin._id}`, {
+      nombre: this.editandoSuperadmin.nombre,
+      email: this.editandoSuperadmin.email
+    }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.guardandoSuperadmin = false;
+        this.editandoSuperadmin = null;
+        this.toast.success('Superadmin actualizado');
+        this.cargarSuperadmins();
+      },
+      error: (err) => { this.guardandoSuperadmin = false; this.toast.error(err?.error?.mensaje || 'Error al editar superadmin'); }
     });
   }
 
-  marcarLeido(fb: Feedback) {
-    if (!fb._id || fb.leido) return;
-    this.feedbackService.marcarLeido(fb._id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { fb.leido = true; this.cdr.detectChanges(); }
-    });
-  }
-
-  get feedbacksNoLeidos(): number {
-    return this.feedbacks.filter(f => !f.leido).length;
-  }
-
-  formatFecha(iso: string): string {
-    return new Date(iso).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  async eliminarSuperadmin(s: any) {
+    const ok = await this.confirm.confirm(`¿Eliminar a "${s.nombre}" como superadmin? Esta acción no se puede deshacer.`);
+    if (!ok) return;
+    this.http.delete(`${environment.apiUrl}/api/auth/superadmins/${s._id}`, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: () => { this.toast.success('Superadmin eliminado'); this.cargarSuperadmins(); },
+        error: (err) => this.toast.error(err?.error?.mensaje || 'Error al eliminar')
+      });
   }
 
   cargar() {
@@ -124,6 +266,99 @@ export class SuperAdmin implements OnInit, OnDestroy {
       next: (data) => { this.gyms = data; this.cargando = false; this.cdr.detectChanges(); },
       error: () => { this.cargando = false; this.toast.error('Error al cargar gimnasios'); }
     });
+  }
+
+  cargarDashboard() {
+    this.http.get<typeof this.dashboard>(`${environment.apiUrl}/api/gym/dashboard`, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (data) => { this.dashboard = data; this.cdr.detectChanges(); },
+        error: () => this.toast.error('Error al cargar el dashboard')
+      });
+  }
+
+  cargarPlanesPlataforma() {
+    this.cargandoPlanes = true;
+    this.http.get<any[]>(`${environment.apiUrl}/api/planes-plataforma`, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (data) => { this.planesPlataforma = data; this.cargandoPlanes = false; this.cdr.detectChanges(); },
+        error: () => { this.cargandoPlanes = false; this.toast.error('Error al cargar los planes'); }
+      });
+  }
+
+  crearPlanPlataforma() {
+    if (!this.nuevoPlan.nombre || this.nuevoPlan.precioMensual == null || this.nuevoPlan.precioPorSuscriptor == null || this.guardandoPlan) return;
+    this.guardandoPlan = true;
+    this.http.post(`${environment.apiUrl}/api/planes-plataforma`, this.nuevoPlan, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: () => {
+          this.toast.success('Plan creado');
+          this.nuevoPlan = { nombre: '', precioMensual: null, precioPorSuscriptor: null };
+          this.mostrarFormPlan = false;
+          this.guardandoPlan = false;
+          this.cargarPlanesPlataforma();
+        },
+        error: (err) => { this.guardandoPlan = false; this.toast.error(err.error?.error || 'Error al crear el plan'); }
+      });
+  }
+
+  // `campo` decide qué valor se edita: el formulario inline muestra un solo
+  // input "Valor" en vez de los dos precios juntos, para que quede claro cuál
+  // de los dos se está tocando.
+  abrirEditarPlan(plan: any, campo: 'mensual' | 'porSuscriptor') {
+    this.editandoPlan = { ...plan };
+    this.editandoPlanCampo = campo;
+    this.editandoValor = Number(campo === 'mensual' ? plan.precioMensual : plan.precioPorSuscriptor);
+    this.mostrarFormPlan = false;
+  }
+
+  cerrarEditarPlan() {
+    this.editandoPlan = null;
+    this.editandoPlanCampo = null;
+    this.editandoValor = null;
+  }
+
+  guardarEdicionPlan() {
+    if (!this.editandoPlan || !this.editandoPlanCampo || this.guardandoPlan) return;
+    this.guardandoPlan = true;
+    // Solo se manda el campo tocado (más el nombre): el otro precio queda
+    // intacto, no hace falta reenviarlo.
+    const campoPrecio = this.editandoPlanCampo === 'mensual' ? 'precioMensual' : 'precioPorSuscriptor';
+    this.http.put(`${environment.apiUrl}/api/planes-plataforma/${this.editandoPlan._id}`, {
+      nombre: this.editandoPlan.nombre,
+      [campoPrecio]: this.editandoValor
+    }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.toast.success('Plan actualizado');
+        this.editandoPlan = null;
+        this.editandoPlanCampo = null;
+        this.editandoValor = null;
+        this.guardandoPlan = false;
+        this.cargarPlanesPlataforma();
+        this.cargar(); // el nombre/precio del plan puede mostrarse en las tarjetas de gym
+      },
+      error: (err) => { this.guardandoPlan = false; this.toast.error(err.error?.error || 'Error al actualizar el plan'); }
+    });
+  }
+
+  // Asignar/desasignar plan a un gimnasio, desde el selector de tarjetas
+  // (crear o editar). Un segundo click sobre la misma tarjeta desasigna.
+  // El <select> de plan trabaja con una clave combinada "{id}:{campo}" (un
+  // valor puntual, no el plan entero — ver comentario en el schema). Estos
+  // dos métodos arman/desarman esa clave para cualquiera de los dos objetos
+  // (nuevo o editando), en vez de duplicar la lógica dos veces.
+  claveOpcionPlan(obj: { planPlataformaId: string | null; planPlataformaCampo?: string | null }): string | null {
+    return obj.planPlataformaId ? `${obj.planPlataformaId}:${obj.planPlataformaCampo}` : null;
+  }
+
+  elegirOpcionPlan(obj: { planPlataformaId: string | null; planPlataformaCampo?: string | null }, clave: string | null) {
+    if (!clave) {
+      obj.planPlataformaId = null;
+      obj.planPlataformaCampo = null;
+      return;
+    }
+    const [id, campo] = clave.split(':');
+    obj.planPlataformaId = id;
+    obj.planPlataformaCampo = campo;
   }
 
   generarSlug() {
@@ -180,10 +415,51 @@ export class SuperAdmin implements OnInit, OnDestroy {
     // Simplificación: botones/menú/días siguen al color principal (navbar).
     this.aplicarPrincipal(this.editando, this.editando.colores['navbar'] || '#0f172a');
     this.mostrarForm = false;
+    this.cargarAdminsEditando(gym._id);
   }
 
   cerrarEditar() {
     this.editando = null;
+    this.editandoAdmins = null;
+    this.nuevoAdminGym = { email: '', nombre: '', identificacion: '', telefono: '' };
+  }
+
+  cargarAdminsEditando(gymId: string) {
+    this.editandoAdmins = null;
+    this.http.get<any[]>(`${environment.apiUrl}/api/gym/${gymId}/admins`, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (admins) => { this.editandoAdmins = admins; this.cdr.detectChanges(); },
+        error: () => { this.editandoAdmins = []; this.cdr.detectChanges(); }
+      });
+  }
+
+  crearAdminGym() {
+    if (!this.editando || !this.nuevoAdminGym.email || this.guardandoAdminGym) return;
+    this.guardandoAdminGym = true;
+    const gymId = this.editando._id;
+    this.http.post<any>(`${environment.apiUrl}/api/gym/${gymId}/admin`, this.nuevoAdminGym, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (admin) => {
+          this.guardandoAdminGym = false;
+          this.adminCreado = { email: admin.email, passwordTemporal: admin.passwordTemporal, invitacionEnviada: !!admin.invitacionEnviada };
+          this.nuevoAdminGym = { email: '', nombre: '', identificacion: '', telefono: '' };
+          this.cargarAdminsEditando(gymId);
+          // Refresca la lista de fondo (totalUsuarios, panel de Información).
+          this.cargar();
+        },
+        error: (err) => { this.guardandoAdminGym = false; this.toast.error(err?.error?.error || 'Error al crear administrador'); }
+      });
+  }
+
+  guardarAdminGym(admin: any) {
+    if (!this.editando || this.guardandoAdminGym) return;
+    this.guardandoAdminGym = true;
+    this.http.put<any>(`${environment.apiUrl}/api/gym/${this.editando._id}/admin/${admin._id}`, {
+      nombre: admin.nombre, identificacion: admin.identificacion, telefono: admin.telefono
+    }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => { this.guardandoAdminGym = false; this.toast.success('Administrador actualizado'); this.cargar(); },
+      error: (err) => { this.guardandoAdminGym = false; this.toast.error(err?.error?.error || 'Error al guardar'); }
+    });
   }
 
   guardarEdicion() {
@@ -196,7 +472,9 @@ export class SuperAdmin implements OnInit, OnDestroy {
       slogan: this.editando.slogan,
       colores: this.editando.colores,
       modulos: this.editando.modulos,
-      spotifyPlaylist: this.editando.spotifyPlaylist
+      spotifyPlaylist: this.editando.spotifyPlaylist,
+      planPlataformaId: this.editando.planPlataformaId,
+      planPlataformaCampo: this.editando.planPlataformaCampo
     }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.toast.success('Gimnasio actualizado');
@@ -216,20 +494,22 @@ export class SuperAdmin implements OnInit, OnDestroy {
     this.guardando = true;
     this.http.post(`${environment.apiUrl}/api/gym/crear`, this.nuevo, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: any) => {
-        // El gimnasio se crea aunque la invitación falle: hay que distinguirlo,
-        // o el superadmin creería que el admin ya tiene acceso.
+        // El gimnasio se crea aunque el admin falle: hay que distinguirlo, o
+        // el superadmin creería que ya tiene acceso.
         const admin = res?.admin;
         if (!admin) {
           this.toast.success('Gimnasio creado');
         } else if (admin.error) {
           this.toast.error(`Gimnasio creado, pero el administrador no: ${admin.error}`);
-        } else if (admin.invitacionEnviada) {
-          this.toast.success(`Gimnasio creado. Invitación enviada a ${admin.email}`);
         } else {
-          this.toast.error(`Gimnasio y administrador creados, pero el correo no salió. Reenvía la invitación a ${admin.email}`);
+          // La contraseña temporal se muestra una sola vez: toast no alcanza
+          // (se autodesaparece), hace falta una tarjeta que quede a la vista.
+          this.toast.success('Gimnasio creado');
+          this.adminCreado = { email: admin.email, passwordTemporal: admin.passwordTemporal, invitacionEnviada: !!admin.invitacionEnviada };
         }
         this.mostrarForm = false;
-        this.nuevo = { nombre: '', slug: '', slogan: '', spotifyPlaylist: '', adminEmail: '', adminNombre: '', logo: null,
+        this.nuevo = { nombre: '', slug: '', slogan: '', spotifyPlaylist: '', adminEmail: '', adminNombre: '', adminIdentificacion: '', adminTelefono: '', logo: null,
+          planPlataformaId: null, planPlataformaCampo: null,
           colores: { primario: '#0f172a', secundario: '#1d4ed8', fondo: '#eef3ff', navbar: '#0f172a', menu: '#0f172a', dias: '#0f172a' } as Record<string, string>,
           modulos: { rutinas: true, progreso: true, medidas: true, pagos: true, noticias: true, cronometro: true } as Record<string, boolean>
         };
@@ -245,12 +525,13 @@ export class SuperAdmin implements OnInit, OnDestroy {
 
   async toggleActivo(gym: any) {
     const accion = gym.activo ? 'desactivar' : 'activar';
+    const participio = gym.activo ? 'desactivado' : 'activado';
     const ok = await this.confirm.confirm(`¿${accion} "${gym.nombre}"?`);
     if (!ok) return;
     this.http.patch(`${environment.apiUrl}/api/gym/${gym._id}/estado`,
       { activo: !gym.activo }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.toast.success(`Gimnasio ${accion}do`); this.cargar(); },
-      error: () => this.toast.error('Error al cambiar estado')
+      next: () => { this.toast.success(`Gimnasio ${participio}`); this.cargar(); },
+      error: (err) => this.toast.error(err?.error?.error || 'Error al cambiar estado')
     });
   }
 
@@ -259,8 +540,40 @@ export class SuperAdmin implements OnInit, OnDestroy {
     if (!ok) return;
     this.http.delete(`${environment.apiUrl}/api/gym/${gym._id}`, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.toast.success('Gimnasio eliminado'); this.cargar(); },
-      error: () => this.toast.error('Error al eliminar')
+      // El backend explica el motivo real (p. ej. "tiene usuarios activos");
+      // mostrarlo evita el genérico que no dice nada.
+      error: (err) => this.toast.error(err?.error?.error || 'Error al eliminar')
     });
+  }
+
+  // Logo del encabezado — Kodiak Gym es el gimnasio piloto, así que el panel
+  // central se marca con su logo en vez de un ícono genérico.
+  get logoKodiak(): string | null {
+    return this.gyms.find(g => g.slug === 'kodiak')?.logo || null;
+  }
+
+  // --- Panel "Información" de cada tarjeta de gimnasio ---
+  moduloLabels: Record<string, string> = {
+    rutinas: 'Rutinas', progreso: 'Progreso', medidas: 'Medidas',
+    pagos: 'Pagos', noticias: 'Noticias', cronometro: 'Cronómetro'
+  };
+
+  modulosActivos(gym: any): string[] {
+    if (!gym?.modulos) return [];
+    return Object.keys(gym.modulos)
+      .filter(k => gym.modulos[k])
+      .map(k => this.moduloLabels[k] || k);
+  }
+
+  toggleInfo(gym: any) {
+    gym.infoAbierta = !gym.infoAbierta;
+    if (gym.infoAbierta && !gym.admins) {
+      this.http.get<any[]>(`${environment.apiUrl}/api/gym/${gym._id}/admins`, { headers: this.headers })
+        .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (admins) => { gym.admins = admins; this.cdr.detectChanges(); },
+        error: () => { gym.admins = []; this.cdr.detectChanges(); }
+      });
+    }
   }
 
   cerrarSesion() {

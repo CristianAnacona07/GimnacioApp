@@ -7,7 +7,7 @@ const { OAuth2Client } = require('google-auth-library');
 const { getPrismaClient } = require('../prisma/client');
 const { toApiUser, fromApiDatosPersonales } = require('../lib/userMapper');
 const { toApiGym } = require('../lib/gymMapper');
-const { verificarToken, soloAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
+const { verificarToken, soloAdmin, soloSuperAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
 
@@ -18,7 +18,7 @@ const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
 // de administradores) comparta exactamente la misma configuración.
 const { hashToken } = require('../helpers/tokens');
-const { transporter, emailConfigurado, remitente, enviarBienvenidaSocio } = require('../helpers/email');
+const { transporter, emailConfigurado, remitente, enviarPasswordTemporal } = require('../helpers/email');
 
 const SELECT_GYM_LOGIN = {
   id: true, nombre: true, slug: true, logo: true, slogan: true,
@@ -152,7 +152,7 @@ router.post('/reset-password', async (req, res) => {
             where: { id: usuario.id },
             // Completar el enlace demuestra el control del buzón: sirve como
             // verificación del correo (es el único paso que da un admin invitado).
-            data: { password, resetToken: null, resetTokenExpiry: null, emailVerified: true }
+            data: { password, resetToken: null, resetTokenExpiry: null, emailVerified: true, debeCambiarPassword: false }
         });
 
         res.json({ mensaje: 'Contraseña actualizada correctamente' });
@@ -175,7 +175,7 @@ async function responderLogin(res, usuario) {
     res.json({
         mensaje: 'Login exitoso',
         token,
-        usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
+        usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null, debeCambiarPassword: !!usuario.debeCambiarPassword },
         gym: gym ? toApiGym(gym) : null
     });
 }
@@ -330,6 +330,10 @@ router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
 router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
     try {
         const { nombre, email, telefono, password, identificacion } = req.body;
+        // Recepción crea la cuenta ahí mismo, con contraseña temporal a la
+        // vista, en vez de mandar un enlace por correo: la persona la recibe
+        // en el momento y queda obligada a cambiarla en su primer login.
+        const conApp = req.body.conApp === true;
         if (!nombre) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
         if (!EMAIL_RX.test((email || '').trim())) {
             return res.status(400).json({ mensaje: 'El correo es obligatorio y debe ser válido' });
@@ -339,20 +343,17 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
         const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
         if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
 
-        const passwordDada = typeof password === 'string' && password.length >= 8;
+        // Con conApp la contraseña siempre es la aleatoria (aunque llegue una
+        // en el body, se ignora): la persona que la crea es quien la entrega.
+        const passwordDada = !conApp && typeof password === 'string' && password.length >= 8;
         // Contraseña: la dada (mín 8) o una temporal aleatoria si no la ponen.
         const passPlano = passwordDada ? password : crypto.randomBytes(6).toString('hex');
         const salt = await bcrypt.genSalt(10);
 
-        // Sin contraseña puesta a mano, se le manda un enlace para que el socio
-        // defina la suya — en vez de que recepción se la lea en voz alta.
-        const invitar = !passwordDada;
-        let resetToken = null, resetTokenExpiry = null, tokenPlano = null;
-        if (invitar) {
-            tokenPlano = crypto.randomBytes(32).toString('hex');
-            resetToken = hashToken(tokenPlano);
-            resetTokenExpiry = new Date(Date.now() + 7 * 24 * 3600000); // 7 días
-        }
+        // Sin contraseña puesta a mano y sin pedir cuenta instantánea, se le
+        // manda la contraseña temporal por correo (no un enlace para elegir la
+        // suya) — entra por /registro, y ese primer login la obliga a cambiarla.
+        const invitar = !conApp && !passwordDada;
 
         const socio = await prisma.user.create({
             data: {
@@ -362,9 +363,12 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
                 password: await bcrypt.hash(passPlano, salt),
                 role: 'socio',
                 emailVerified: true,
+                // Contraseña puesta por otro (temporal o autogenerada): hay
+                // que forzar el cambio. Si la eligió el propio socio en algún
+                // flujo futuro, `passwordDada` la exime.
+                debeCambiarPassword: !passwordDada,
                 telefono: telefono || '',
-                identificacion: identificacion || '',
-                ...(invitar ? { resetToken, resetTokenExpiry } : {})
+                identificacion: identificacion || ''
             }
         });
         await registrarAuditoria(req, 'CREAR_SOCIO', { recurso: 'User', recursoId: socio.id });
@@ -372,8 +376,8 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
         let invitacionEnviada = false;
         if (invitar) {
             const gym = await prisma.gym.findUnique({ where: { id: req.gymId }, select: { nombre: true } });
-            invitacionEnviada = await enviarBienvenidaSocio({
-                email: emailNorm, nombre: socio.nombre, gymNombre: gym?.nombre || 'tu gimnasio', token: tokenPlano
+            invitacionEnviada = await enviarPasswordTemporal({
+                email: emailNorm, nombre: socio.nombre, gymNombre: gym?.nombre || 'tu gimnasio', password: passPlano
             });
         }
 
@@ -599,7 +603,7 @@ router.put('/cambiar-password', verificarToken, async (req, res) => {
 
         const salt = await bcrypt.genSalt(10);
         const nuevoHash = await bcrypt.hash(nueva, salt);
-        await prisma.user.update({ where: { id: usuario.id }, data: { password: nuevoHash } });
+        await prisma.user.update({ where: { id: usuario.id }, data: { password: nuevoHash, debeCambiarPassword: false } });
 
         await registrarAuditoria(req, 'CAMBIAR_PASSWORD', { recurso: 'User', recursoId: usuario.id });
 
@@ -876,6 +880,124 @@ router.post('/refresh-token', verificarToken, async (req, res) => {
     } catch (error) {
         console.error('Error al renovar token:', error.message);
         res.status(500).json({ mensaje: 'Error al renovar token' });
+    }
+});
+
+// ✅ LISTAR SUPERADMINS (solo superadmin — cuentas globales, gymId null)
+router.get('/superadmins', verificarToken, soloSuperAdmin, async (req, res) => {
+    try {
+        const superadmins = await prisma.user.findMany({
+            where: { role: 'superadmin', gymId: null },
+            select: { id: true, nombre: true, email: true, createdAt: true },
+            orderBy: { createdAt: 'asc' }
+        });
+        res.json(superadmins.map(({ id, ...s }) => ({ ...s, _id: id })));
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al listar superadmins' });
+    }
+});
+
+// ✅ CREAR SUPERADMIN (solo superadmin — nadie más puede crear otra cuenta de este nivel)
+router.post('/superadmins', verificarToken, soloSuperAdmin, async (req, res) => {
+    try {
+        const { nombre, email } = req.body;
+        if (!nombre) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
+        if (!EMAIL_RX.test((email || '').trim())) {
+            return res.status(400).json({ mensaje: 'El correo es obligatorio y debe ser válido' });
+        }
+        const emailNorm = email.toLowerCase().trim();
+
+        // Superadmin vive con gymId null; el índice único parcial
+        // (users_superadmin_email_key) es el que de verdad impide duplicados acá.
+        const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: null }, select: { id: true } });
+        if (existe) return res.status(400).json({ mensaje: 'Ya existe una cuenta con ese correo' });
+
+        // Contraseña temporal a la vista, igual que crear-socio: quien la crea
+        // se la entrega en persona, y queda obligada a cambiarla en el primer login.
+        const passPlano = crypto.randomBytes(6).toString('hex');
+        const salt = await bcrypt.genSalt(10);
+
+        const nuevo = await prisma.user.create({
+            data: {
+                gymId: null,
+                nombre,
+                email: emailNorm,
+                password: await bcrypt.hash(passPlano, salt),
+                role: 'superadmin',
+                emailVerified: true,
+                debeCambiarPassword: true
+            }
+        });
+        await registrarAuditoria(req, 'CREAR_SUPERADMIN', { recurso: 'User', recursoId: nuevo.id });
+
+        res.status(201).json({
+            mensaje: 'Superadmin creado',
+            superadmin: { _id: nuevo.id, nombre: nuevo.nombre, email: nuevo.email },
+            passwordTemporal: passPlano
+        });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al crear superadmin' });
+    }
+});
+
+// ✅ EDITAR SUPERADMIN (nombre/email — la cuenta original también se puede
+// editar, solo no eliminar)
+router.put('/superadmins/:id', verificarToken, soloSuperAdmin, async (req, res) => {
+    try {
+        const { nombre, email } = req.body;
+        if (!nombre) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
+        if (!EMAIL_RX.test((email || '').trim())) {
+            return res.status(400).json({ mensaje: 'El correo es obligatorio y debe ser válido' });
+        }
+        const emailNorm = email.toLowerCase().trim();
+
+        const objetivo = await prisma.user.findFirst({ where: { id: req.params.id, role: 'superadmin', gymId: null } });
+        if (!objetivo) return res.status(404).json({ mensaje: 'Superadmin no encontrado' });
+
+        const enUso = await prisma.user.findFirst({
+            where: { email: emailNorm, gymId: null, NOT: { id: req.params.id } },
+            select: { id: true }
+        });
+        if (enUso) return res.status(400).json({ mensaje: 'Ya existe una cuenta con ese correo' });
+
+        const actualizado = await prisma.user.update({
+            where: { id: req.params.id },
+            data: { nombre, email: emailNorm }
+        });
+        await registrarAuditoria(req, 'EDITAR_SUPERADMIN', { recurso: 'User', recursoId: req.params.id });
+
+        res.json({ mensaje: 'Superadmin actualizado', superadmin: { _id: actualizado.id, nombre: actualizado.nombre, email: actualizado.email } });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al editar superadmin' });
+    }
+});
+
+// ✅ ELIMINAR SUPERADMIN (solo superadmin; nunca a uno mismo ni al último que queda)
+router.delete('/superadmins/:id', verificarToken, soloSuperAdmin, async (req, res) => {
+    try {
+        if (req.params.id === req.userId) {
+            return res.status(400).json({ mensaje: 'No podés eliminar tu propia cuenta' });
+        }
+        const objetivo = await prisma.user.findFirst({ where: { id: req.params.id, role: 'superadmin', gymId: null } });
+        if (!objetivo) return res.status(404).json({ mensaje: 'Superadmin no encontrado' });
+
+        // La cuenta fundadora (la más antigua) nunca se puede eliminar, exista
+        // o no otra — así siempre queda una cuenta raíz, sin depender de que
+        // nadie se acuerde de dejar "al menos una" antes de borrar la original.
+        const fundadora = await prisma.user.findFirst({
+            where: { role: 'superadmin', gymId: null },
+            orderBy: { createdAt: 'asc' },
+            select: { id: true }
+        });
+        if (fundadora?.id === req.params.id) {
+            return res.status(400).json({ mensaje: 'Esta es la cuenta superadmin original: no se puede eliminar' });
+        }
+
+        await prisma.user.softDelete({ id: req.params.id });
+        await registrarAuditoria(req, 'ELIMINAR_SUPERADMIN', { recurso: 'User', recursoId: req.params.id });
+        res.json({ mensaje: 'Superadmin eliminado' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al eliminar superadmin' });
     }
 });
 

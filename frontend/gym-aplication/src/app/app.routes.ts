@@ -69,8 +69,8 @@ export const routes: Routes = [
     canActivate: [noAuthGuard],
     loadComponent: () => import('./components/auth/login/login').then(m => m.Login)
   },
-  
-  {
+
+{
     path: 'register',
     canActivate: [noAuthGuard],
     loadComponent: () => import('./components/auth/register/register').then(m => m.Register)
@@ -83,6 +83,14 @@ export const routes: Routes = [
   {
     path: 'reset-password',
     loadComponent: () => import('./components/auth/reset-password/reset-password').then(m => m.ResetPassword)
+  },
+  {
+    // Cuenta creada con contraseña temporal (ver guards/auth.ts): requiere
+    // sesión iniciada, así que usa authGuard como cualquier zona de rol — el
+    // guard sabe dejarla pasar aunque el flag siga activo.
+    path: 'cambiar-password-inicial',
+    canActivate: [authGuard],
+    loadComponent: () => import('./components/auth/cambiar-password-inicial/cambiar-password-inicial').then(m => m.CambiarPasswordInicial)
   },
 
   // ADMIN

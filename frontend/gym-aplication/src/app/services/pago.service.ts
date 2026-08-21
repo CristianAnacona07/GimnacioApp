@@ -65,6 +65,9 @@ export class PagoService {
     telefono?: string;
     password?: string;
     identificacion?: string;
+    /** true = cuenta instantánea con contraseña temporal a la vista, sin
+     *  correo. Ignora `password` si viene junto (siempre se genera al azar). */
+    conApp?: boolean;
   }): Observable<SocioCreado> {
     return this.http.post<SocioCreado>(`${this.url}/api/auth/crear-socio`, datos);
   }

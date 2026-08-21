@@ -104,6 +104,19 @@ export class StorageService {
   }
 
   /**
+   * La cuenta arrancó con contraseña temporal (superadmin/recepción la
+   * generaron) y todavía no la cambió: el guard usa esto para no dejarla
+   * entrar a ninguna otra pantalla hasta que lo haga.
+   */
+  getDebeCambiarPassword(): boolean {
+    return localStorage.getItem('debeCambiarPassword') === '1';
+  }
+
+  setDebeCambiarPassword(valor: boolean): void {
+    localStorage.setItem('debeCambiarPassword', valor ? '1' : '0');
+  }
+
+  /**
    * Verifica si el token está expirado
    */
   isTokenExpired(): boolean {

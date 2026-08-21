@@ -1,13 +1,13 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const router = express.Router();
 const { getPrismaClient } = require('../prisma/client');
 const { esIdValido } = require('../lib/ids');
 const { toApiGym, fromApiGymConfig } = require('../lib/gymMapper');
 const { verificarToken, soloAdmin, soloSuperAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
-const { generarToken, hashToken } = require('../helpers/tokens');
-const { enviarInvitacionAdmin } = require('../helpers/email');
+const { enviarPasswordTemporal } = require('../helpers/email');
 
 const prisma = getPrismaClient();
 
@@ -34,12 +34,12 @@ function conId(p) {
 }
 
 // ── ALTA DEL ADMINISTRADOR DE UN GIMNASIO ────────────────────────
-// La cuenta se crea sin contraseña utilizable: se guarda un hash de un valor
-// aleatorio que nadie conoce, y la única forma de entrar es el enlace que llega
-// por correo. Así no hay que inventar (ni transmitir) una contraseña temporal.
+// La cuenta se crea con una contraseña temporal real (no un hash inservible):
+// el superadmin la ve una sola vez en pantalla y se la entrega al admin en
+// persona, sin depender de que le llegue un correo. Queda obligado a
+// cambiarla en su primer login (User.debeCambiarPassword).
 
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const INVITACION_DIAS = 7;
 
 const normalizarEmail = (valor) => String(valor || '').toLowerCase().trim();
 
@@ -51,10 +51,11 @@ function errorHttp(mensaje, status) {
 }
 
 /**
- * Crea el administrador del gimnasio (o reenvía la invitación si ya existe) y
- * le envía el enlace para definir su contraseña.
+ * Crea el administrador del gimnasio (o le genera una contraseña temporal
+ * nueva si ya existe) y devuelve esa contraseña en texto plano — se muestra
+ * una sola vez a quien la crea, nunca se guarda en ningún otro lado.
  */
-async function invitarAdmin({ gym, email, nombre, req }) {
+async function invitarAdmin({ gym, email, nombre, identificacion, telefono, req }) {
   const emailNorm = normalizarEmail(email);
   if (!EMAIL_RX.test(emailNorm)) throw errorHttp('El correo del administrador no es válido', 400);
 
@@ -68,42 +69,46 @@ async function invitarAdmin({ gym, email, nombre, req }) {
     }
   }
 
-  const token = generarToken();
-  const resetToken = hashToken(token);
-  const resetTokenExpiry = new Date(Date.now() + INVITACION_DIAS * 24 * 3600 * 1000);
+  const passPlano = crypto.randomBytes(6).toString('hex');
+  const password = await bcrypt.hash(passPlano, await bcrypt.genSalt(10));
 
   if (usuario) {
-    usuario = await prisma.user.update({ where: { id: usuario.id }, data: { resetToken, resetTokenExpiry } });
+    usuario = await prisma.user.update({ where: { id: usuario.id }, data: { password, debeCambiarPassword: true } });
   } else {
-    const passwordInutilizable = await bcrypt.hash(generarToken(), await bcrypt.genSalt(10));
     usuario = await prisma.user.create({
       data: {
         gymId: gym.id,
         nombre: (nombre || '').trim() || emailNorm.split('@')[0],
         email: emailNorm,
-        password: passwordInutilizable,
+        password,
         role: 'admin',
-        resetToken,
-        resetTokenExpiry
+        debeCambiarPassword: true,
+        // No-nulleables con default "" (mismo patrón que en el resto del
+        // User: nunca guardan null, solo string vacío cuando no se completan).
+        identificacion: (identificacion || '').trim(),
+        telefono: (telefono || '').trim()
       }
     });
   }
 
-  const invitacionEnviada = await enviarInvitacionAdmin({
-    email: emailNorm,
-    nombre: usuario.nombre,
-    gymNombre: gym.nombre,
-    token,
-    dias: INVITACION_DIAS,
-  });
-
   await registrarAuditoria(req, creado ? 'CREAR_ADMIN_GYM' : 'REINVITAR_ADMIN_GYM', {
     recurso: 'User',
     recursoId: usuario.id,
-    detalle: { gymId: gym.id, email: emailNorm, invitacionEnviada },
+    detalle: { gymId: gym.id, email: emailNorm },
   });
 
-  return { _id: usuario.id, email: emailNorm, nombre: usuario.nombre, creado, invitacionEnviada };
+  // Igual que con los socios: se manda la contraseña ya generada por correo
+  // (entra por /registro), y solo se muestra en pantalla si el envío falló
+  // o no hay correo configurado — nunca las dos cosas a la vez.
+  const invitacionEnviada = await enviarPasswordTemporal({
+    email: emailNorm, nombre: usuario.nombre, gymNombre: gym.nombre, password: passPlano
+  });
+
+  return {
+    _id: usuario.id, email: emailNorm, nombre: usuario.nombre, creado,
+    invitacionEnviada,
+    passwordTemporal: invitacionEnviada ? null : passPlano
+  };
 }
 
 // ── PÚBLICAS ────────────────────────────────────────────────────
@@ -192,6 +197,87 @@ router.get('/:slug/landing', async (req, res) => {
   }
 });
 
+// Métricas globales para el Dashboard del superadmin: solo gimnasios activos
+// cuentan (uno desactivado no debería inflar los números de la plataforma).
+// Va antes de /:slug: ese wildcard atraparía "/dashboard" como si fuera un
+// slug (mismo motivo por el que /buscar y /dominio-permitido van antes).
+router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
+  try {
+    const ahora = new Date();
+    const seisMesesAtras = new Date(ahora.getFullYear(), ahora.getMonth() - 5, 1);
+
+    // A diferencia de groupBy (usado más abajo, en GET /), count()/findMany()
+    // SÍ pasan por la extensión de soft-delete: no hace falta agregar
+    // deletedAt: null a mano. `gym: { activo: true }` es un filtro por
+    // relación anidada, que groupBy no soporta — por eso esta ruta no reusa
+    // ese helper.
+    const [sociosActivos, adminTotal, gimnasiosActivos, sociosNuevos, gymsConPlan, planes, sociosPorGym] = await Promise.all([
+      prisma.user.count({
+        where: { gym: { activo: true }, role: 'socio', fechaVencimiento: { gt: ahora } }
+      }),
+      prisma.user.count({
+        where: { gym: { activo: true }, role: 'admin' }
+      }),
+      prisma.gym.count({ where: { activo: true } }),
+      prisma.user.findMany({
+        where: { gym: { activo: true }, role: 'socio', createdAt: { gte: seisMesesAtras } },
+        select: { createdAt: true }
+      }),
+      // Ingresos estimados: solo gimnasios activos con un plan asignado.
+      prisma.gym.findMany({
+        where: { activo: true, planPlataformaId: { not: null } },
+        select: { id: true, planPlataformaId: true, planPlataformaCampo: true }
+      }),
+      // findMany SÍ filtra deletedAt sola (a diferencia de groupBy): un plan
+      // "eliminado" (soft-delete) no aparece acá, así que un gimnasio que lo
+      // tenía asignado simplemente no suma nada — igual que sin plan.
+      prisma.planPlataforma.findMany(),
+      prisma.user.groupBy({
+        by: ['gymId'],
+        where: { role: 'socio', deletedAt: null, fechaVencimiento: { gt: ahora } },
+        _count: { _all: true }
+      })
+    ]);
+
+    const planPorId = new Map(planes.map(p => [p.id, p]));
+    const sociosPorGymId = new Map(sociosPorGym.map(g => [String(g.gymId), g._count._all]));
+    let ingresosEstimados = 0;
+    for (const g of gymsConPlan) {
+      const plan = planPorId.get(g.planPlataformaId);
+      if (!plan) continue; // plan eliminado: no inventa ingreso
+      // El gimnasio eligió UN solo valor del plan, no los dos juntos: el
+      // mensual suma fijo; el "por suscriptor" escala con sus socios activos.
+      // Sin campo guardado (asignación de antes de este cambio) no se sabe
+      // cuál de los dos quiso decir, así que no suma nada — mejor un número
+      // de menos que uno inventado.
+      if (g.planPlataformaCampo === 'mensual') {
+        ingresosEstimados += Number(plan.precioMensual);
+      } else if (g.planPlataformaCampo === 'porSuscriptor') {
+        const socios = sociosPorGymId.get(g.id) || 0;
+        ingresosEstimados += Number(plan.precioPorSuscriptor) * socios;
+      }
+    }
+
+    // Bucketing en JS: no hay precedente de date_trunc/$queryRaw en el
+    // backend y el volumen de filas es chico, así que alcanza con esto en
+    // vez de meter SQL crudo por primera vez.
+    const meses = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+      meses.push({ mes: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, cantidad: 0 });
+    }
+    for (const s of sociosNuevos) {
+      const clave = `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, '0')}`;
+      const bucket = meses.find(m => m.mes === clave);
+      if (bucket) bucket.cantidad++;
+    }
+
+    res.json({ sociosActivos, adminTotal, gimnasiosActivos, ingresosEstimados, nuevosSociosPorMes: meses });
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // Obtener gym por slug
 router.get('/:slug', async (req, res) => {
   try {
@@ -211,14 +297,47 @@ router.get('/:slug', async (req, res) => {
 router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
   try {
     const gyms = await prisma.gym.findMany({ orderBy: { createdAt: 'desc' } });
-    // Contar socios por gym
-    const counts = await prisma.user.groupBy({
-      by: ['gymId'],
-      where: { role: { in: ['socio', 'admin'] } },
-      _count: { _all: true }
-    });
-    const countMap = Object.fromEntries(counts.map(c => [String(c.gymId), c._count._all]));
-    res.json(gyms.map(g => ({ ...toApiGym(g), totalUsuarios: countMap[String(g.id)] || 0 })));
+
+    // "Usuarios" por gym, para la tarjeta del panel: un socio cuenta si su
+    // membresía está vigente (no vencida, no nula); el staff (admin,
+    // entrenador, empleado) no tiene membresía, así que cuenta con solo
+    // existir. `groupBy` no pasa por la extensión de soft-delete (solo
+    // intercepta find*/count/update — ver softDelete.js), así que
+    // `deletedAt: null` se agrega a mano en las dos consultas.
+    const ahora = new Date();
+    const [socios, staff, planes] = await Promise.all([
+      prisma.user.groupBy({
+        by: ['gymId'],
+        where: { role: 'socio', deletedAt: null, fechaVencimiento: { gt: ahora } },
+        _count: { _all: true }
+      }),
+      prisma.user.groupBy({
+        by: ['gymId'],
+        where: { role: { in: ['admin', 'entrenador', 'empleado'] }, deletedAt: null },
+        _count: { _all: true }
+      }),
+      // Se manda el nombre y los precios, no solo el id: la ficha del
+      // gimnasio y el selector de plan los necesitan sin otro viaje al
+      // servidor.
+      prisma.planPlataforma.findMany()
+    ]);
+    const sociosMap = Object.fromEntries(socios.map(c => [String(c.gymId), c._count._all]));
+    const staffMap = Object.fromEntries(staff.map(c => [String(c.gymId), c._count._all]));
+    const countMap = {};
+    for (const c of [...socios, ...staff]) {
+      const id = String(c.gymId);
+      countMap[id] = (countMap[id] || 0) + c._count._all;
+    }
+    const planPorId = new Map(planes.map(p => [p.id, conId(p)]));
+    res.json(gyms.map(g => ({
+      ...toApiGym(g),
+      totalUsuarios: countMap[String(g.id)] || 0,
+      // Desglose para el panel de "Información" de cada tarjeta — el número
+      // combinado de arriba se deja igual para no tocar lo que ya se ve.
+      sociosActivos: sociosMap[String(g.id)] || 0,
+      staffTotal: staffMap[String(g.id)] || 0,
+      planPlataforma: g.planPlataformaId ? planPorId.get(g.planPlataformaId) || null : null
+    })));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -227,7 +346,7 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
 // Crear gym (solo superadmin)
 router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
   try {
-    const { nombre, slug, logo, slogan, colores, modulos, spotifyPlaylist, adminEmail, adminNombre } = req.body;
+    const { nombre, slug, logo, slogan, colores, modulos, spotifyPlaylist, adminEmail, adminNombre, adminIdentificacion, adminTelefono, planPlataformaId, planPlataformaCampo } = req.body;
     const existe = await prisma.gym.findFirst({ where: { slug }, select: { id: true } });
     if (existe) return res.status(400).json({ error: 'Ya existe un gimnasio con ese código' });
 
@@ -239,7 +358,14 @@ router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
     }
 
     const gym = await prisma.gym.create({
-      data: { nombre, slug, logo, slogan, spotifyPlaylist, ...fromApiGymConfig({ colores, modulos }) }
+      data: {
+        nombre, slug, logo, slogan, spotifyPlaylist,
+        planPlataformaId: planPlataformaId || null,
+        // Sin plan, el campo tampoco tiene sentido — que no quede un campo
+        // "huérfano" sin id asociado.
+        planPlataformaCampo: planPlataformaId ? (planPlataformaCampo || null) : null,
+        ...fromApiGymConfig({ colores, modulos })
+      }
     });
     await registrarAuditoria(req, 'CREAR_GYM', { recurso: 'Gym', recursoId: gym.id });
 
@@ -248,7 +374,7 @@ router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
     let admin = null;
     if (quiereAdmin) {
       try {
-        admin = await invitarAdmin({ gym, email: adminEmail, nombre: adminNombre, req });
+        admin = await invitarAdmin({ gym, email: adminEmail, nombre: adminNombre, identificacion: adminIdentificacion, telefono: adminTelefono, req });
       } catch (err) {
         admin = { error: err.message };
       }
@@ -269,7 +395,7 @@ router.get('/:id/admins', verificarToken, soloSuperAdmin, async (req, res) => {
     }
     const admins = await prisma.user.findMany({
       where: { gymId: req.params.id, role: 'admin' },
-      select: { id: true, nombre: true, email: true, emailVerified: true, createdAt: true }
+      select: { id: true, nombre: true, email: true, emailVerified: true, createdAt: true, identificacion: true, telefono: true }
     });
     res.json(admins.map(({ id, ...a }) => ({ ...a, _id: id })));
   } catch (error) {
@@ -286,11 +412,47 @@ router.post('/:id/admin', verificarToken, soloSuperAdmin, async (req, res) => {
     const gym = await prisma.gym.findUnique({ where: { id: req.params.id } });
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
 
-    const admin = await invitarAdmin({ gym, email: req.body.email, nombre: req.body.nombre, req });
+    const admin = await invitarAdmin({
+      gym, email: req.body.email, nombre: req.body.nombre,
+      identificacion: req.body.identificacion, telefono: req.body.telefono, req
+    });
     res.status(201).json(admin);
   } catch (error) {
     if (error.status) return res.status(error.status).json({ error: error.message });
     if (error.code === 'P2002') return res.status(400).json({ error: 'Ese correo ya está registrado en el gimnasio' });
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Editar los datos de un administrador ya existente (nombre, cédula, contacto)
+// — el correo no se toca acá: cambiarlo es un cambio de identidad de login,
+// no un dato de contacto, y no forma parte de este flujo.
+router.put('/:id/admin/:adminId', verificarToken, soloSuperAdmin, async (req, res) => {
+  try {
+    if (!esIdValido(req.params.id) || !esIdValido(req.params.adminId)) {
+      return res.status(400).json({ error: 'Identificador inválido' });
+    }
+    const admin = await prisma.user.findFirst({
+      where: { id: req.params.adminId, gymId: req.params.id, role: 'admin' }
+    });
+    if (!admin) return res.status(404).json({ error: 'Administrador no encontrado en este gimnasio' });
+
+    const { nombre, identificacion, telefono } = req.body;
+    const actualizado = await prisma.user.update({
+      where: { id: req.params.adminId },
+      data: {
+        nombre: (nombre || '').trim() || admin.nombre,
+        identificacion: (identificacion || '').trim(),
+        telefono: (telefono || '').trim()
+      }
+    });
+    await registrarAuditoria(req, 'EDITAR_ADMIN_GYM', { recurso: 'User', recursoId: admin.id, detalle: { gymId: req.params.id } });
+
+    res.json({
+      _id: actualizado.id, nombre: actualizado.nombre, email: actualizado.email,
+      identificacion: actualizado.identificacion, telefono: actualizado.telefono
+    });
+  } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -361,6 +523,15 @@ router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => 
         return res.status(400).json({ error: 'Subdominio inválido (usa minúsculas, números y guiones)' });
       }
       cambios.slug = slug;
+    }
+
+    // El plan de plataforma (lo que le cobramos al gimnasio) tampoco lo puede
+    // tocar el admin del propio gimnasio, por el mismo motivo que el slug.
+    // Se elige UN valor puntual del plan (mensual o por suscriptor, no los
+    // dos juntos) — sin id no tiene sentido guardar cuál de los dos.
+    if (req.userRole === 'superadmin' && 'planPlataformaId' in req.body) {
+      cambios.planPlataformaId = req.body.planPlataformaId || null;
+      cambios.planPlataformaCampo = req.body.planPlataformaId ? (req.body.planPlataformaCampo || null) : null;
     }
 
     const existe = await prisma.gym.findUnique({ where: { id: req.params.id }, select: { id: true } });

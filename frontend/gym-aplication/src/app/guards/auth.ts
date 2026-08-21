@@ -37,6 +37,13 @@ export const authGuard: CanActivateFn = (route, state) => {
     return salir();
   }
 
+  // Cuenta creada con contraseña temporal: no se deja pasar a ninguna otra
+  // pantalla hasta que la cambie por una propia.
+  if (storageService.getDebeCambiarPassword() && !state.url.startsWith('/cambiar-password-inicial')) {
+    router.navigate(['/cambiar-password-inicial']);
+    return false;
+  }
+
   const role = payload.role?.toLowerCase().trim();
 
   // Root del panel según rol: se usa para redirigir cuando alguien entra

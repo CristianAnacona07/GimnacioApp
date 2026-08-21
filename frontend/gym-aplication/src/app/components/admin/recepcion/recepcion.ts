@@ -20,6 +20,7 @@ import { environment } from '../../../../environments/environment';
 import { AsistenciaService } from '../../../services/asistencia.service';
 import { ToastService } from '../../../services/toast.service';
 import { TiempoRealService } from '../../../services/tiempo-real.service';
+import { PagoService } from '../../../services/pago.service';
 
 interface SocioBusqueda {
   _id: string;
@@ -77,11 +78,19 @@ export class Recepcion implements OnInit, OnDestroy {
   private destroyRef = inject(DestroyRef);
   private tiempoReal = inject(TiempoRealService);
   private http = inject(HttpClient);
+  private pagoService = inject(PagoService);
 
   // --- Invitación de registro (link/QR de un solo uso) ---
   invitandoSocio = false;
   invitacionUrl: string | null = null;
   invitacionQr: string | null = null;
+
+  // --- Alta instantánea (contraseña temporal a la vista, sin correo) ---
+  mostrarFormSocioApp = false;
+  creandoSocioApp = false;
+  nuevoSocioNombre = '';
+  nuevoSocioEmail = '';
+  socioAppCreado: { email: string; passwordTemporal: string } | null = null;
 
   // Buscador
   textoBusqueda = '';
@@ -184,6 +193,51 @@ export class Recepcion implements OnInit, OnDestroy {
   cerrarInvitacion(): void {
     this.invitacionUrl = null;
     this.invitacionQr = null;
+    this.cdr.markForCheck();
+  }
+
+  // ---- Crear socio con contraseña temporal (sin correo) ----
+  // Alternativa a invitarSocio(): en vez de un link para que se registre
+  // solo, la cuenta queda lista al toque, con una contraseña temporal que
+  // recepción entrega en persona. El socio la cambia en su primer login.
+  abrirFormSocioApp(): void {
+    this.mostrarFormSocioApp = true;
+    this.cdr.markForCheck();
+  }
+
+  cancelarFormSocioApp(): void {
+    this.mostrarFormSocioApp = false;
+    this.nuevoSocioNombre = '';
+    this.nuevoSocioEmail = '';
+    this.cdr.markForCheck();
+  }
+
+  crearSocioConApp(): void {
+    const nombre = this.nuevoSocioNombre.trim();
+    const email = this.nuevoSocioEmail.trim();
+    if (!nombre || !email || this.creandoSocioApp) return;
+
+    this.creandoSocioApp = true;
+    this.cdr.markForCheck();
+    this.pagoService.crearSocio({ nombre, email, conApp: true }).subscribe({
+      next: (res) => {
+        this.socioAppCreado = { email: res.socio.email, passwordTemporal: res.passwordTemporal || '' };
+        this.mostrarFormSocioApp = false;
+        this.nuevoSocioNombre = '';
+        this.nuevoSocioEmail = '';
+        this.creandoSocioApp = false;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.creandoSocioApp = false;
+        this.toast.error(err.error?.mensaje || 'No se pudo crear el socio');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  cerrarSocioAppCreado(): void {
+    this.socioAppCreado = null;
     this.cdr.markForCheck();
   }
 
