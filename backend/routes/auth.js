@@ -599,7 +599,7 @@ router.put('/asignar-entrenador/:socioId', verificarToken, soloAdmin, async (req
 });
 
 // ✅ RENOVAR MEMBRESÍA (SOLO ADMINS)
-router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
+router.put('/renovar/:id', verificarToken, requierePermiso('socios', 'edicion'), async (req, res) => {
     try {
         const dias = Number.parseInt(req.body.dias, 10);
         if (!Number.isInteger(dias) || dias <= 0) {
@@ -636,7 +636,7 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
 });
 
 // ✅ LIMPIAR MEMBRESÍA (SOLO ADMINS)
-router.put('/limpiar-membresia/:id', verificarToken, soloAdmin, async (req, res) => {
+router.put('/limpiar-membresia/:id', verificarToken, requierePermiso('socios', 'edicion'), async (req, res) => {
     try {
         const usuarioActual = await prisma.user.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
         if (!usuarioActual) return res.status(404).json({ mensaje: 'Usuario no encontrado' });

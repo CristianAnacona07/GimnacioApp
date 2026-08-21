@@ -84,6 +84,10 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/crear-empleado`, datos);
   }
 
+  guardarPermisos(id: string, permisos: Record<string, string>): Observable<any> {
+    return this.http.put(`${this.apiUrl}/empleados/${id}/permisos`, { permisos });
+  }
+
   eliminarEmpleado(id: string): Observable<any> {
     return this.http.delete(`${this.apiUrl}/empleados/${id}`);
   }

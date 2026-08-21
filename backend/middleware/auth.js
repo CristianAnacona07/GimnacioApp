@@ -39,16 +39,6 @@ const soloSuperAdmin = (req, res, next) => {
 
 const esAdmin = (req) => req.userRole === 'admin' || req.userRole === 'superadmin';
 
-// Recepción (check-in, búsqueda de socios, historial de asistencia): el admin
-// o un empleado con cargo de recepcionista.
-const soloRecepcion = (req, res, next) => {
-    const esRecepcionista = req.userRole === 'empleado' && req.userCargo === 'recepcionista';
-    if (!esAdmin(req) && !esRecepcionista) {
-        return res.status(403).json({ mensaje: 'Acceso denegado.' });
-    }
-    next();
-};
-
 // Exige un nivel de permiso en una sección. El admin y el superadmin pasan
 // sin consultar nada: mandan sobre todo su gimnasio.
 //
@@ -90,6 +80,12 @@ const requierePermiso = (seccion, nivel = 'lectura') => async (req, res, next) =
         res.status(500).json({ mensaje: 'Error al comprobar permisos' });
     }
 };
+
+// Recepción (check-in, búsqueda de socios, historial de asistencia). Delega en
+// el permiso de sección: el cargo 'recepcionista' lo trae de fábrica, así que
+// quien entraba antes sigue entrando, pero ahora el admin puede dárselo a
+// cualquier otra cuenta sin cambiarle el cargo.
+const soloRecepcion = (req, res, next) => requierePermiso('recepcion', 'edicion')(req, res, next);
 
 // Resuelve el usuarioId que el solicitante puede consultar/escribir.
 // Admin/superadmin: el solicitado (param/body) o el propio si no se indica.

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +7,7 @@ import { takeUntil } from 'rxjs/operators';
 
 import { AuthService } from '../../../services/auth';
 import { UserStateService } from '../../../services/user-state.service';
+import { PermisosService } from '../../../services/permisos.service';
 import { ToastService } from '../../../services/toast.service';
 import { ConfirmService } from '../../../services/confirm.service';
 
@@ -38,6 +39,25 @@ export class Socios implements OnInit, OnDestroy {
   get admins() { return this.filtrar(this.usuarios.filter(u => u.role === 'admin')); }
 
   private destroy$ = new Subject<void>();
+  private permisos = inject(PermisosService);
+
+  /**
+   * Renovar días y limpiar la membresía tocan la plata del socio, así que
+   * piden edición sobre la sección. Un entrenador con lectura ve la tabla
+   * entera pero sin esos controles.
+   */
+  get puedeEditarMembresia(): boolean {
+    return this.permisos.puede('socios', 'edicion');
+  }
+
+  /**
+   * Esta pantalla la comparten el admin y el entrenador, y cada uno vive en su
+   * propia zona de rutas: enlazar a /admin fijo mandaría al entrenador contra
+   * el guard, que lo devolvería a su panel.
+   */
+  get zona(): string {
+    return this.permisos.esAdmin ? '/admin' : '/entrenador';
+  }
 
   constructor(
     private authService: AuthService,

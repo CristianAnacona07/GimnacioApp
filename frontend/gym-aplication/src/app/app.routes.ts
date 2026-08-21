@@ -238,6 +238,11 @@ export const routes: Routes = [
     children: [
       {
         path: 'socios',
+        loadComponent: () => import('./components/admin/socios/socios').then(m => m.Socios)
+      },
+      // Los suyos, con la agenda y el seguimiento propios del entrenador.
+      {
+        path: 'mis-socios',
         loadComponent: () => import('./components/entrenador/mis-socios/mis-socios').then(m => m.MisSocios)
       },
       {
@@ -245,10 +250,27 @@ export const routes: Routes = [
         loadComponent: () => import('./components/entrenador/socio-detalle/socio-detalle').then(m => m.SocioDetalle)
       },
       {
+        path: 'rutinas',
+        loadComponent: () => import('./components/admin/rutinas/rutinas').then(m => m.Rutinas)
+      },
+      {
+        path: 'rutinas/:id',
+        loadComponent: () => import('./components/admin/rutinas/rutinas').then(m => m.Rutinas)
+      },
+      {
+        path: 'detalle-rutina/:id',
+        loadComponent: () => import('./components/admin/detalle-rutina/detalle-rutina').then(m => m.DetalleRutina)
+      },
+      {
+        path: 'empleados',
+        loadComponent: () => import('./components/admin/empleados/empleados').then(m => m.Empleados)
+      },
+      {
         path: 'agenda',
         loadComponent: () => import('./components/entrenador/agenda/agenda').then(m => m.AgendaProfesional)
       },
-      { path: '', redirectTo: 'socios', pathMatch: 'full' }
+      ...sharedRoutes,
+      { path: '', redirectTo: 'mis-socios', pathMatch: 'full' }
     ]
   },
 

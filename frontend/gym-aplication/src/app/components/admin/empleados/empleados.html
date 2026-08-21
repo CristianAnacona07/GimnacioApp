@@ -5,7 +5,9 @@
       <h2 class="page-title">🧑‍💼 Empleados</h2>
       <p class="page-sub">Recepcionistas, entrenadores y demás personal del gimnasio</p>
     </div>
-    <button class="btn-nuevo" (click)="abrirForm()">+ Nuevo empleado</button>
+    @if (puedeAdministrar) {
+      <button class="btn-nuevo" (click)="abrirForm()">+ Nuevo empleado</button>
+    }
   </div>
 
   <!-- Ventana de alta: se superpone en vez de empujar la lista hacia abajo -->
@@ -105,6 +107,48 @@
     </div>
   }
 
+  <!-- Qué secciones ve esta persona. Reemplaza lo que antes estaba fijo en el código. -->
+  @if (editandoPermisos) {
+    <div class="modal-fondo" (click)="cerrarPermisos()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <button class="modal__cerrar" (click)="cerrarPermisos()" aria-label="Cerrar">✕</button>
+        <p class="modal__titulo">Permisos de {{ editandoPermisos.nombre }}</p>
+        <p class="modal__sub">Marcá qué puede ver y qué puede tocar dentro del gimnasio</p>
+
+        @for (s of secciones; track s.clave) {
+          <div class="permiso">
+            <div class="permiso__datos">
+              <p class="permiso__titulo">{{ s.titulo }}</p>
+              <p class="permiso__detalle">{{ s.detalle }}</p>
+            </div>
+            <div class="permiso__opciones">
+              @for (n of s.niveles; track n.valor) {
+                <button type="button"
+                        class="permiso__opcion"
+                        [class.activo]="borrador[s.clave] === n.valor"
+                        (click)="borrador[s.clave] = n.valor">
+                  {{ n.etiqueta }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <p class="modal__nota">
+          Borrar no se reparte: aunque alguien pueda editar una sección, dar de
+          baja sigue siendo cosa tuya.
+        </p>
+
+        <div class="modal__acciones">
+          <button class="btn-texto" (click)="cerrarPermisos()">Cancelar</button>
+          <button class="btn-crear" (click)="guardarPermisos()" [disabled]="guardandoPermisos">
+            @if (guardandoPermisos) { Guardando… } @else { Guardar permisos }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
   @if (!cargando && !empleados.length) {
     <div class="empty-state">
       <span class="empty-icon">🧑‍💼</span>
@@ -129,7 +173,12 @@
             <span class="fila-pendiente" title="Todavía no entró por primera vez">Sin activar</span>
           }
           <span class="fila-cargo">{{ infoCargo(e).etiqueta }}</span>
-          <button class="btn-borrar" (click)="eliminar(e)" title="Eliminar">🗑️</button>
+          @if (puedeAdministrar) {
+            <button class="btn-permisos" (click)="abrirPermisos(e)" [title]="resumenPermisos(e)">
+              🔑 <span class="btn-permisos__texto">Permisos</span>
+            </button>
+            <button class="btn-borrar" (click)="eliminar(e)" title="Eliminar">🗑️</button>
+          }
         </div>
       }
     </div>

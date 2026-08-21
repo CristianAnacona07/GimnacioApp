@@ -30,7 +30,7 @@
             <th>Socio</th>
             <th>Email</th>
             <th>Membresía</th>
-            <th class="text-center">Renovar días</th>
+            @if (puedeEditarMembresia) { <th class="text-center">Renovar días</th> }
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
@@ -62,7 +62,7 @@
             <th>Entrenador</th>
             <th>Email</th>
             <th>Membresía</th>
-            <th class="text-center">Renovar días</th>
+            @if (puedeEditarMembresia) { <th class="text-center">Renovar días</th> }
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
@@ -147,37 +147,41 @@
       }
     </td>
 
-    <td>
-      <div class="renew-group">
-        <button type="button" (click)="renovar(u._id, 7, u.nombre)"
-                [disabled]="loadingId === u._id"
-                aria-label="Renovar 7 días"
-                class="btn-days btn-7">+7</button>
-        <button type="button" (click)="renovar(u._id, 15, u.nombre)"
-                [disabled]="loadingId === u._id"
-                aria-label="Renovar 15 días"
-                class="btn-days btn-15">+15</button>
-        <button type="button" (click)="renovar(u._id, 30, u.nombre)"
-                [disabled]="loadingId === u._id"
-                aria-label="Renovar 30 días"
-                class="btn-days btn-30">+30</button>
-      </div>
-    </td>
+    @if (puedeEditarMembresia) {
+      <td>
+        <div class="renew-group">
+          <button type="button" (click)="renovar(u._id, 7, u.nombre)"
+                  [disabled]="loadingId === u._id"
+                  aria-label="Renovar 7 días"
+                  class="btn-days btn-7">+7</button>
+          <button type="button" (click)="renovar(u._id, 15, u.nombre)"
+                  [disabled]="loadingId === u._id"
+                  aria-label="Renovar 15 días"
+                  class="btn-days btn-15">+15</button>
+          <button type="button" (click)="renovar(u._id, 30, u.nombre)"
+                  [disabled]="loadingId === u._id"
+                  aria-label="Renovar 30 días"
+                  class="btn-days btn-30">+30</button>
+        </div>
+      </td>
+    }
 
     <td>
       <div class="action-group">
         @if (u.fechaVencimiento) {
-          <button [routerLink]="['/admin/detalle-rutina', u._id]" class="btn-rutina" [attr.aria-label]="'Ver rutina de ' + u.nombre">
+          <button [routerLink]="[zona + '/detalle-rutina', u._id]" class="btn-rutina" [attr.aria-label]="'Ver rutina de ' + u.nombre">
             <span aria-hidden="true">🏋️</span> Rutina
           </button>
-          <button type="button" (click)="limpiarMembresia(u._id, u.nombre)"
-                  [disabled]="loadingId === u._id"
-                  class="btn-delete" title="Limpiar membresía" aria-label="Limpiar membresía">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          @if (puedeEditarMembresia) {
+            <button type="button" (click)="limpiarMembresia(u._id, u.nombre)"
+                    [disabled]="loadingId === u._id"
+                    class="btn-delete" title="Limpiar membresía" aria-label="Limpiar membresía">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          }
         } @else {
           <span class="text-slate-300 text-xs italic">—</span>
         }
