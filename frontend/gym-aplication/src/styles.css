@@ -186,3 +186,48 @@ select:focus {
 [data-tema='oscuro'] [class*='placeholder'] {
   filter: brightness(0.6) saturate(0.85);
 }
+
+/* ============================================
+   AUTOCOMPLETADO DEL NAVEGADOR
+
+   Cuando Chrome rellena un campo le pinta SU propio fondo (un amarillo pálido,
+   o casi blanco) y pisa cualquier `background` del CSS: no se puede cambiar por
+   las buenas. El truco es una sombra interior enorme, que sí acepta, y fijar el
+   color del texto con -webkit-text-fill-color, que es lo que Chrome respeta.
+
+   Sin esto, en modo oscuro los campos autocompletados quedan blancos junto a
+   los vacíos, que siguen oscuros.
+   ============================================ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--sup-2) inset !important;
+  box-shadow: 0 0 0 1000px var(--sup-2) inset !important;
+  -webkit-text-fill-color: var(--txt-1) !important;
+  caret-color: var(--txt-1);
+  /* El relleno es instantáneo; sin esto Chrome hace una transición de color. */
+  transition: background-color 100000s ease-in-out 0s;
+}
+
+/* ============================================
+   LISTAS DESPLEGABLES
+
+   Las opciones de un <select> las dibuja el sistema operativo, no la página.
+   Solo acepta color de fondo y de texto, y hay que dárselos: si no, en modo
+   oscuro salen con los colores claros de Windows.
+   ============================================ */
+select option {
+  background-color: var(--sup-1);
+  color: var(--txt-1);
+}
+
+/* La flecha del select también se pinta sola y queda oscura sobre oscuro. */
+select {
+  color-scheme: light;
+}
+[data-tema='oscuro'] select {
+  color-scheme: dark;
+}
