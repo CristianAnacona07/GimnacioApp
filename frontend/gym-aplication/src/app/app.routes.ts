@@ -266,6 +266,10 @@ export const routes: Routes = [
         loadComponent: () => import('./components/admin/empleados/empleados').then(m => m.Empleados)
       },
       {
+        path: 'recepcion',
+        loadComponent: () => import('./components/admin/recepcion/recepcion').then(m => m.Recepcion)
+      },
+      {
         path: 'agenda',
         loadComponent: () => import('./components/entrenador/agenda/agenda').then(m => m.AgendaProfesional)
       },

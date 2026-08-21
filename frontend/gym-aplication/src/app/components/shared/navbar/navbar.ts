@@ -11,6 +11,7 @@ import { ThemeService } from '../../../services/theme.service';
 import { BuscadorGlobal } from '../buscador-global/buscador-global';
 import { Notificaciones } from '../notificaciones/notificaciones';
 import { NotificacionesService } from '../../../services/notificaciones.service';
+import { PermisosService } from '../../../services/permisos.service';
 
 @Component({
   selector: 'app-navbar',
@@ -27,6 +28,7 @@ export class Navbar implements OnInit, OnDestroy {
 
   private notificaciones = inject(NotificacionesService);
   private theme = inject(ThemeService);
+  private permisos = inject(PermisosService);
 
   get esOscuro(): boolean { return this.theme.modo === 'oscuro'; }
 
@@ -80,6 +82,20 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '🧑‍💼', name: 'empleados',   route: '/admin/empleados',     show: true },
         { icon: '📋', name: 'rutinas',       route: '/admin/rutinas',       show: m('rutinas') },
         { icon: '⚙️', name: 'Configuración', route: '/admin/configuracion', show: true },
+        { icon: '🚪', name: 'Cerrar Sesión', route: 'logout', isAction: true, show: true }
+      ].filter(l => l.show);
+    } else if (this.role === 'entrenador') {
+      const p = this.permisos;
+      return [
+        { icon: '🎯', name: 'mis socios',    route: '/entrenador/mis-socios', show: true },
+        { icon: '👥', name: 'socios',        route: '/entrenador/socios',     show: p.puede('socios') },
+        { icon: '📋', name: 'rutinas',       route: '/entrenador/rutinas',    show: p.puede('rutinas') && m('rutinas') },
+        { icon: '📰', name: 'noticias',      route: '/entrenador/noticias',   show: p.puede('noticias') && m('noticias') },
+        { icon: '🎫', name: 'Recepción',     route: '/entrenador/recepcion',  show: p.puede('recepcion') },
+        { icon: '💳', name: 'planes',        route: '/entrenador/planes',     show: p.puede('planes') && m('pagos') },
+        { icon: '💰', name: 'pagos',         route: '/entrenador/pagos',      show: p.puede('pagos') && m('pagos') },
+        { icon: '🧑‍💼', name: 'empleados',   route: '/entrenador/empleados',  show: p.puede('empleados') },
+        { icon: '📅', name: 'mi agenda',     route: '/entrenador/agenda',     show: true },
         { icon: '🚪', name: 'Cerrar Sesión', route: 'logout', isAction: true, show: true }
       ].filter(l => l.show);
     } else if (this.role === 'empleado') {
