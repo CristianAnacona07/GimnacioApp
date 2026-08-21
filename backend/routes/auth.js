@@ -453,27 +453,45 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
             return res.status(400).json({ mensaje: 'Cargo inválido' });
         }
         const emailNorm = email.toLowerCase().trim();
-        const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
-        if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        // Con `withDeleted` a propósito: el borrado es lógico, así que la fila
+        // de un empleado eliminado sigue existiendo y el índice único
+        // (email, gymId) la sigue defendiendo, pero una consulta normal no la
+        // ve. Sin esto el alta superaba el control de duplicados y moría
+        // contra la base con un error que llegaba al navegador como un 500.
+        const previo = await prisma.user.findFirst({
+            where: { email: emailNorm, gymId: req.gymId },
+            select: { id: true, deletedAt: true },
+            withDeleted: true
+        });
+        if (previo && !previo.deletedAt) {
+            return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        }
 
         // Contraseña temporal generada por el servidor; el admin no la elige.
         const passPlano = crypto.randomBytes(6).toString('hex');
         const salt = await bcrypt.genSalt(10);
-        const empleado = await prisma.user.create({
-            data: {
-                gymId: req.gymId,
-                nombre,
-                email: emailNorm,
-                password: await bcrypt.hash(passPlano, salt),
-                role: cargo === 'entrenador' ? 'entrenador' : 'empleado',
-                cargo: cargo === 'entrenador' ? null : cargo,
-                emailVerified: true,
-                // La puso otro: hay que cambiarla en el primer ingreso.
-                debeCambiarPassword: true,
-                telefono: telefono || '',
-                identificacion: String(identificacion).trim()
-            }
-        });
+        const datosEmpleado = {
+            nombre,
+            email: emailNorm,
+            password: await bcrypt.hash(passPlano, salt),
+            role: cargo === 'entrenador' ? 'entrenador' : 'empleado',
+            cargo: cargo === 'entrenador' ? null : cargo,
+            emailVerified: true,
+            // La puso otro: hay que cambiarla en el primer ingreso.
+            debeCambiarPassword: true,
+            telefono: telefono || '',
+            identificacion: String(identificacion).trim()
+        };
+        // Si a esa persona ya se le había dado de alta y luego se la eliminó,
+        // se reutiliza su fila en vez de rechazar el correo: para quien lo usa
+        // es el alta de siempre, y crear otra el índice único no lo permite.
+        const empleado = previo
+            ? await prisma.user.update({
+                where: { id: previo.id },
+                data: { ...datosEmpleado, deletedAt: null },
+                withDeleted: true
+            })
+            : await prisma.user.create({ data: { gymId: req.gymId, ...datosEmpleado } });
         await registrarAuditoria(req, 'CREAR_EMPLEADO', { recurso: 'User', recursoId: empleado.id, detalle: { cargo } });
 
         const gym = await prisma.gym.findUnique({ where: { id: req.gymId }, select: { nombre: true } });
@@ -494,6 +512,12 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
             passwordTemporal: correoEnviado ? null : passPlano
         });
     } catch (error) {
+        // Sin esta traza el fallo llegaba al navegador como un 500 pelado y no
+        // dejaba ni rastro de la causa en los registros del servidor.
+        console.error('Error al crear empleado:', error);
+        if (error.code === 'P2002') {
+            return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        }
         res.status(500).json({ mensaje: 'Error al crear empleado' });
     }
 });
