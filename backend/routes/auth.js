@@ -663,6 +663,45 @@ router.put('/cambiar-password', verificarToken, async (req, res) => {
     }
 });
 
+// Cambio forzado del primer ingreso. A diferencia de /cambiar-password, no
+// pide la contraseña vieja: quien llega acá acaba de escribirla en el login
+// para obtener este mismo token, y volver a pedirla no prueba nada nuevo.
+// Solo responde mientras `debeCambiarPassword` siga en pie, así que deja de
+// servir apenas se usa una vez.
+router.put('/cambiar-password-inicial', verificarToken, async (req, res) => {
+    try {
+        const { nueva } = req.body;
+
+        if (typeof nueva !== 'string' || nueva.length < 8) {
+            return res.status(400).json({ mensaje: 'La nueva contraseña debe tener al menos 8 caracteres' });
+        }
+
+        const usuario = await prisma.user.findUnique({ where: { id: req.userId }, omit: { password: false } });
+        if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        if (!usuario.debeCambiarPassword) {
+            return res.status(403).json({ mensaje: 'Esta cuenta ya definió su contraseña' });
+        }
+
+        // Se compara contra el hash en vez de pedirle que la escriba: la
+        // temporal la conoce quien dio el alta, así que reutilizarla dejaría
+        // la cuenta en manos de esa persona.
+        if (usuario.password && await bcrypt.compare(nueva, usuario.password)) {
+            return res.status(400).json({ mensaje: 'La nueva contraseña debe ser distinta de la temporal' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const nuevoHash = await bcrypt.hash(nueva, salt);
+        await prisma.user.update({ where: { id: usuario.id }, data: { password: nuevoHash, debeCambiarPassword: false } });
+
+        await registrarAuditoria(req, 'CAMBIAR_PASSWORD_INICIAL', { recurso: 'User', recursoId: usuario.id });
+
+        res.json({ mensaje: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        console.error('Error en el cambio de contraseña inicial:', error);
+        res.status(500).json({ mensaje: 'Error al cambiar la contraseña' });
+    }
+});
+
 router.put('/actualizar-perfil/:id', verificarToken, async (req, res) => {
     try {
         const { id } = req.params;
