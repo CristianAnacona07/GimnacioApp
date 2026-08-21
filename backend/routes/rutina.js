@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { getPrismaClient } = require('../prisma/client');
-const { verificarToken, soloAdmin, resolverUsuarioId, filtroPropiedad } = require('../middleware/auth');
+const { verificarToken, soloAdmin, resolverUsuarioId, filtroPropiedad, requierePermiso, tienePermiso } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { conRutina, ejerciciosParaCrear } = require('../lib/rutinaMapper');
 const { emitirAUsuario } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
 
-router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
+router.post('/asignar', verificarToken, requierePermiso('rutinas', 'edicion'), async (req, res) => {
   try {
     const { usuarioId, nombre, ejercicios, dia, enfoque } = req.body;
 
@@ -46,7 +46,12 @@ router.post('/asignar', verificarToken, soloAdmin, async (req, res) => {
 
 router.get('/:usuarioId', verificarToken, async (req, res) => {
   try {
-    const usuarioId = resolverUsuarioId(req, req.params.usuarioId);
+    // El socio sólo ve la suya; el admin y quien tenga la sección de rutinas,
+    // la de cualquiera. resolverUsuarioId por sí solo forzaría al entrenador a
+    // mirarse a sí mismo y no podría abrir la rutina de nadie.
+    const usuarioId = await tienePermiso(req, 'rutinas')
+      ? (req.params.usuarioId || req.userId)
+      : resolverUsuarioId(req, req.params.usuarioId);
     const rutinas = await prisma.rutina.findMany({ where: { gymId: req.gymId, usuarioId }, include: { ejercicios: true } });
     res.json(rutinas.map(conRutina));
   } catch (error) {
@@ -54,7 +59,7 @@ router.get('/:usuarioId', verificarToken, async (req, res) => {
   }
 });
 
-router.put('/actualizar/:id', verificarToken, soloAdmin, async (req, res) => {
+router.put('/actualizar/:id', verificarToken, requierePermiso('rutinas', 'edicion'), async (req, res) => {
   try {
     // No permitir reasignar la rutina a otro gym/usuario vía body (mass assignment).
     const { gymId, usuarioId, _id, id, ejercicios, ...datos } = req.body;

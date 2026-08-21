@@ -5,9 +5,10 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { getPrismaClient } = require('../prisma/client');
+const { permisosEfectivos, sanearPermisos } = require('../lib/permisos');
 const { toApiUser, fromApiDatosPersonales } = require('../lib/userMapper');
 const { toApiGym } = require('../lib/gymMapper');
-const { verificarToken, soloAdmin, soloSuperAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
+const { verificarToken, soloAdmin, soloSuperAdmin, esAdmin, JWT_SECRET, requierePermiso, tienePermiso } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
 
@@ -175,7 +176,7 @@ async function responderLogin(res, usuario) {
     res.json({
         mensaje: 'Login exitoso',
         token,
-        usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null, debeCambiarPassword: !!usuario.debeCambiarPassword },
+        usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null, debeCambiarPassword: !!usuario.debeCambiarPassword, permisos: permisosEfectivos(usuario) },
         gym: gym ? toApiGym(gym) : null
     });
 }
@@ -280,7 +281,7 @@ router.post('/google', async (req, res) => {
 });
 
 // ✅ OBTENER TODOS LOS USUARIOS (SOLO ADMINS)
-router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
+router.get('/usuarios', verificarToken, requierePermiso('socios'), async (req, res) => {
     try {
         // Paginación retro-compatible: sin ?page se devuelve el array completo
         // (como siempre); con ?page se devuelve { data, total, page, limit, pages }.
@@ -523,16 +524,41 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
 });
 
 // ✅ LISTAR EMPLEADOS (SOLO ADMINS) — entrenadores y empleados del gym
-router.get('/empleados', verificarToken, soloAdmin, async (req, res) => {
+router.get('/empleados', verificarToken, requierePermiso('empleados'), async (req, res) => {
     try {
         const empleados = await prisma.user.findMany({
             where: { gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
-            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, telefono: true, identificacion: true, debeCambiarPassword: true, createdAt: true },
+            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, telefono: true, identificacion: true, debeCambiarPassword: true, permisos: true, createdAt: true },
             orderBy: { createdAt: 'desc' }
         });
-        res.json(empleados.map(({ id, ...e }) => ({ ...e, _id: id })));
+        // Se devuelven los permisos ya resueltos (guardados sobre los de
+        // fábrica): a la pantalla le importa lo que rige hoy, no de dónde sale.
+        res.json(empleados.map(({ id, ...e }) => ({ ...e, _id: id, permisos: permisosEfectivos(e) })));
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al obtener empleados' });
+    }
+});
+
+// Permisos por sección de un empleado o entrenador. Se reemplazan enteros: el
+// formulario manda siempre las secciones completas, así que no hay updates
+// parciales que puedan dejar la mitad vieja y la mitad nueva.
+router.put('/empleados/:id/permisos', verificarToken, soloAdmin, async (req, res) => {
+    try {
+        const permisos = sanearPermisos(req.body?.permisos);
+
+        // El filtro por rol es lo que evita que por esta vía se le toquen los
+        // permisos a un socio, a otro admin o a alguien de otro gimnasio.
+        const filtro = { id: req.params.id, gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } };
+        const empleado = await prisma.user.findFirst({ where: filtro, select: { id: true, role: true, cargo: true } });
+        if (!empleado) return res.status(404).json({ mensaje: 'Empleado no encontrado' });
+
+        await prisma.user.update({ where: { id: empleado.id }, data: { permisos } });
+        await registrarAuditoria(req, 'CAMBIAR_PERMISOS', { recurso: 'User', recursoId: empleado.id, detalle: permisos });
+
+        res.json({ mensaje: 'Permisos actualizados', permisos: permisosEfectivos({ ...empleado, permisos }) });
+    } catch (error) {
+        console.error('Error al guardar permisos:', error);
+        res.status(500).json({ mensaje: 'Error al guardar los permisos' });
     }
 });
 
@@ -896,11 +922,13 @@ router.post('/login', async (req, res) => {
 // ✅ PERFIL DEL SOCIO
 router.get('/perfil/:id', verificarToken, async (req, res) => {
     try {
-        // El socio sólo puede ver su propio perfil; el admin, los de su gym.
-        if (!esAdmin(req) && req.userId !== req.params.id) {
+        // El socio sólo puede ver su propio perfil; el admin y quien tenga la
+        // sección de socios, los de su gimnasio.
+        const veAjenos = await tienePermiso(req, 'socios');
+        if (!veAjenos && req.userId !== req.params.id) {
             return res.status(403).json({ mensaje: 'No autorizado para ver este perfil' });
         }
-        const where = esAdmin(req)
+        const where = veAjenos
             ? { id: req.params.id, gymId: req.gymId }
             : { id: req.params.id };
         const usuario = await prisma.user.findFirst({ where });
