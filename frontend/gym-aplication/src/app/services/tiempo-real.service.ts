@@ -43,7 +43,21 @@ export class TiempoRealService {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnectionDelay: 2000,
-      reconnectionDelayMax: 30000
+      reconnectionDelayMax: 30000,
+      // Se rinde tras unos pocos intentos en vez de reintentar para siempre.
+      // Donde el backend corre sin servidor propio (funciones que se apagan
+      // entre peticiones) el canal NUNCA va a conectar, y sin este límite el
+      // cliente llena la consola de errores y gasta batería y datos del móvil
+      // por algo que no va a funcionar. Al rendirse, la app sigue andando con
+      // sus consultas periódicas, que es justo el respaldo previsto.
+      reconnectionAttempts: 3
+    });
+
+    // Cuando agota los intentos se anota una sola vez y se cierra el socket,
+    // para que no quede a medias ni vuelva a intentarlo por su cuenta.
+    this.socket.io.on('reconnect_failed', () => {
+      console.info('Tiempo real no disponible; la app sigue con consultas periódicas.');
+      this.desconectar();
     });
 
     for (const evento of TiempoRealService.EVENTOS) {
