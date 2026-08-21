@@ -32,6 +32,14 @@ const LOTE = 1000;
 const hex = (v) => (v == null ? null : v.toHexString ? v.toHexString() : String(v));
 const decimal = (v) => (v == null ? null : new Prisma.Decimal(v));
 
+// Los días llegan de Mongo con tilde ("Miércoles", "Sábado"), pero el enum de
+// Postgres no las admite en sus identificadores y los define sin ellas. Se
+// quitan aquí para que coincidan; cualquier otro valor pasa tal cual y, si no
+// existe en el enum, la base lo rechaza (que es lo que queremos).
+const dia = (v) => (v == null ? null : String(v)
+  .replace('é', 'e')   // Miércoles -> Miercoles
+  .replace('á', 'a')); // Sábado    -> Sabado
+
 function log(...args) {
   console.log(...args);
 }
@@ -169,7 +177,7 @@ function tProgreso(d) {
 function tNoticia(d) {
   return {
     id: hex(d._id), gymId: hex(d.gymId), titulo: d.titulo, descripcion: d.descripcion,
-    dia: d.dia ?? null, horaInicio: d.horaInicio ?? null, horaFin: d.horaFin ?? null,
+    dia: dia(d.dia), horaInicio: d.horaInicio ?? null, horaFin: d.horaFin ?? null,
     imageUrl: d.imageUrl ?? '', whatsappUrl: d.whatsappUrl ?? '', estado: d.estado ?? true,
     createdAt: d.createdAt ?? new Date(), updatedAt: d.updatedAt ?? new Date(), deletedAt: d.deletedAt ?? null,
   };
@@ -195,7 +203,7 @@ function tPlan(d) {
 function tRutina(d) {
   return {
     id: hex(d._id), gymId: hex(d.gymId), usuarioId: hex(d.usuarioId), nombre: d.nombre ?? null,
-    dia: d.dia, enfoque: d.enfoque, fechaCreacion: d.fechaCreacion ?? d.createdAt ?? new Date(),
+    dia: dia(d.dia), enfoque: d.enfoque, fechaCreacion: d.fechaCreacion ?? d.createdAt ?? new Date(),
     createdAt: d.createdAt ?? new Date(), updatedAt: d.updatedAt ?? new Date(), deletedAt: d.deletedAt ?? null,
   };
 }
@@ -409,10 +417,25 @@ async function main() {
     log(`✅ asistencias: ${counts.asistencias}`);
 
     // 6 — Rutina + tabla hija (expande el array embebido con `orden` = índice)
+    //
+    // Mongo no exigía que el usuarioId existiera de verdad, así que quedan
+    // rutinas de socios que se borraron: apuntan a alguien que ya no está.
+    // Postgres sí lo exige, y no hay a quién atribuírselas, así que se
+    // descartan y se informa cuántas fueron.
+    const idsUsuarios = new Set(
+      (await db.collection('users').find({}, { projection: { _id: 1 } }).toArray())
+        .map((u) => hex(u._id))
+    );
     const cursorRutinas = db.collection('rutinas').find({});
     let totalRutinas = 0;
     let totalEjercicios = 0;
+    let rutinasHuerfanas = 0;
     for await (const r of cursorRutinas) {
+      const dueno = hex(r.usuarioId);
+      if (!dueno || !idsUsuarios.has(dueno)) {
+        rutinasHuerfanas++;
+        continue;
+      }
       if (!DRY_RUN) await prisma.rutina.create({ data: tRutina(r) });
       totalRutinas++;
       const ejercicios = tEjercicios(r);
@@ -420,6 +443,9 @@ async function main() {
         await prisma.rutinaEjercicio.createMany({ data: ejercicios, skipDuplicates: true });
       }
       totalEjercicios += ejercicios.length;
+    }
+    if (rutinasHuerfanas) {
+      log(`⚠️  ${rutinasHuerfanas} rutina(s) descartada(s): su socio ya no existe en Mongo`);
     }
     counts.rutinas = totalRutinas;
     counts.rutina_ejercicios = totalEjercicios;
