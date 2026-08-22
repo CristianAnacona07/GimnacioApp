@@ -6,7 +6,7 @@
       <h1 class="header-titulo">Noticias</h1>
       <p class="header-sub">Novedades y avisos del gimnasio</p>
     </div>
-    @if (role === 'admin') {
+    @if (puedeEditar) {
       <button type="button" (click)="abrirFormulario()" class="btn-agregar">
         + Nueva noticia
       </button>
@@ -107,10 +107,14 @@
                 <span class="placeholder-icon">🏋️</span>
               </div>
             }
-            @if (role === 'admin') {
+            @if (puedeEditar || puedeBorrar) {
               <div class="card-acciones">
-                <button type="button" (click)="editarNoticia(noticia)" class="btn-accion btn-editar">✏️</button>
-                <button type="button" (click)="eliminarNoticia(noticia._id)" class="btn-accion btn-eliminar">🗑️</button>
+                @if (puedeEditar) {
+                  <button type="button" (click)="editarNoticia(noticia)" class="btn-accion btn-editar">✏️</button>
+                }
+                @if (puedeBorrar) {
+                  <button type="button" (click)="eliminarNoticia(noticia._id)" class="btn-accion btn-eliminar">🗑️</button>
+                }
               </div>
             }
           </div>

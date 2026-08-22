@@ -45,10 +45,10 @@ const SECCIONES = [
   { clave: 'socios',    titulo: 'Socios',    detalle: 'La lista y la ficha de cada socio. Editar incluye renovar días y quitar la membresía.', niveles: [OCULTO, VER, EDITAR] },
   { clave: 'rutinas',   titulo: 'Rutinas',   detalle: 'Armar y modificar rutinas de entrenamiento. Borrarlas sigue siendo tuyo.',            niveles: [OCULTO, VER, EDITAR] },
   { clave: 'recepcion', titulo: 'Recepción', detalle: 'Registrar la entrada de socios por código o QR.',                                     niveles: [OCULTO, USAR] },
-  { clave: 'noticias',  titulo: 'Noticias',  detalle: 'Los avisos que ven los socios. Publicarlos sigue siendo tuyo.',                       niveles: [OCULTO, VER] },
-  { clave: 'planes',    titulo: 'Planes',    detalle: 'Los planes de membresía y sus precios.',                                              niveles: [OCULTO, VER] },
-  { clave: 'pagos',     titulo: 'Pagos',     detalle: 'Los métodos de pago del gimnasio.',                                                   niveles: [OCULTO, VER] },
-  { clave: 'empleados', titulo: 'Empleados', detalle: 'El resto del personal. Dar de alta y de baja sigue siendo tuyo.',                      niveles: [OCULTO, VER] },
+  { clave: 'noticias',  titulo: 'Noticias',  detalle: 'Los avisos que ven los socios. Publicarlos y editarlos.',                               niveles: [OCULTO, VER, EDITAR] },
+  { clave: 'planes',    titulo: 'Planes',    detalle: 'Los planes de membresía y sus precios.',                                              niveles: [OCULTO, VER, EDITAR] },
+  { clave: 'pagos',     titulo: 'Pagos',     detalle: 'Los métodos de pago del gimnasio.',                                                   niveles: [OCULTO, VER, EDITAR] },
+  { clave: 'empleados', titulo: 'Empleados', detalle: 'El resto del personal. Dar de alta y de baja sigue siendo tuyo.',                      niveles: [OCULTO, VER, EDITAR] },
 ];
 
 @Component({
@@ -85,13 +85,27 @@ export class Empleados implements OnInit {
   /** Empleado cuyos permisos se están editando, con el borrador sin guardar. */
   editandoPermisos: Empleado | null = null;
   borrador: Record<string, string> = {};
+  private permisosOriginales: Record<string, string> = {};
   guardandoPermisos = false;
+
+  /** El botón de guardar se bloquea si nada cambió. */
+  get hayCambiosPermisos(): boolean {
+    for (const s of SECCIONES) {
+      if (this.borrador[s.clave] !== this.permisosOriginales[s.clave]) return true;
+    }
+    return false;
+  }
 
   abrirPermisos(e: Empleado): void {
     this.editandoPermisos = e;
     // Copia: si cancela, lo de la fila queda como estaba.
     this.borrador = {};
-    for (const s of SECCIONES) this.borrador[s.clave] = e.permisos?.[s.clave] || 'ninguno';
+    this.permisosOriginales = {};
+    for (const s of SECCIONES) {
+      const valor = e.permisos?.[s.clave] || 'ninguno';
+      this.borrador[s.clave] = valor;
+      this.permisosOriginales[s.clave] = valor;
+    }
   }
 
   cerrarPermisos(): void {

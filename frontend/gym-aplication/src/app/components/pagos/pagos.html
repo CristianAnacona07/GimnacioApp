@@ -1,7 +1,7 @@
 <div class="pagos-container">
   <div class="pagos-header">
-    <h1>{{ role === 'admin' ? 'Gestión de Pagos' : 'Métodos de Pago' }}</h1>
-    @if (role === 'admin') {
+    <h1>{{ puedeEditar ? 'Gestión de Pagos' : 'Métodos de Pago' }}</h1>
+    @if (puedeEditar) {
       <button (click)="abrirFormulario()" class="btn-agregar">+ Nuevo Método</button>
     }
   </div>
@@ -43,10 +43,14 @@
 <div class="grid-pagos">
   @for (pago of listaPagos; track pago._id) {
     <div class="pago-card">
-      @if (role === 'admin') {
+      @if (puedeEditar || puedeBorrar) {
         <div class="acciones-admin">
-          <button (click)="prepararEdicion(pago)" class="btn-mini-edit" title="Editar">✏️</button>
-          <button (click)="eliminarMetodo(pago._id)" class="btn-mini-delete" title="Eliminar">🗑️</button>
+          @if (puedeEditar) {
+            <button (click)="prepararEdicion(pago)" class="btn-mini-edit" title="Editar">✏️</button>
+          }
+          @if (puedeBorrar) {
+            <button (click)="eliminarMetodo(pago._id)" class="btn-mini-delete" title="Eliminar">🗑️</button>
+          }
         </div>
       }
 

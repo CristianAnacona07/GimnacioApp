@@ -141,7 +141,7 @@
 
         <div class="modal__acciones">
           <button class="btn-texto" (click)="cerrarPermisos()">Cancelar</button>
-          <button class="btn-crear" (click)="guardarPermisos()" [disabled]="guardandoPermisos">
+          <button class="btn-crear" (click)="guardarPermisos()" [disabled]="guardandoPermisos || !hayCambiosPermisos">
             @if (guardandoPermisos) { Guardando… } @else { Guardar permisos }
           </button>
         </div>

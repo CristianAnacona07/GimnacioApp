@@ -542,7 +542,7 @@ router.get('/empleados', verificarToken, requierePermiso('empleados'), async (re
 // Permisos por sección de un empleado o entrenador. Se reemplazan enteros: el
 // formulario manda siempre las secciones completas, así que no hay updates
 // parciales que puedan dejar la mitad vieja y la mitad nueva.
-router.put('/empleados/:id/permisos', verificarToken, soloAdmin, async (req, res) => {
+router.put('/empleados/:id/permisos', verificarToken, requierePermiso('empleados', 'edicion'), async (req, res) => {
     try {
         const permisos = sanearPermisos(req.body?.permisos);
 

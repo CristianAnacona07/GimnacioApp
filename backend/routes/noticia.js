@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPrismaClient } = require('../prisma/client');
-const { verificarToken, soloAdmin } = require('../middleware/auth');
+const { verificarToken, soloAdmin, requierePermiso } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { paginar } = require('../lib/pagination');
 const { emitirAGym } = require('../helpers/tiempoReal');
@@ -35,7 +35,7 @@ router.get('/:id', verificarToken, async (req, res) => {
   }
 });
 
-router.post('/', verificarToken, soloAdmin, async (req, res) => {
+router.post('/', verificarToken, requierePermiso('noticias', 'edicion'), async (req, res) => {
   try {
     const datosNoticia = {
       gymId: req.gymId,
@@ -59,7 +59,7 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
+router.put('/:id', verificarToken, requierePermiso('noticias', 'edicion'), async (req, res) => {
   try {
     const { titulo, descripcion, dia, horaInicio, horaFin, estado, imageUrl, whatsappUrl } = req.body;
     const datos = { titulo, descripcion };
