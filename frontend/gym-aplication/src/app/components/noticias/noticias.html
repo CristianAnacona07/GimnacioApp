@@ -58,9 +58,13 @@
             <label>Día</label>
             <select [(ngModel)]="formulario.dia" name="dia">
               <option value="">Sin día específico</option>
-              @for (dia of dias; track dia) {
-                <option [value]="dia">{{ dia }}</option>
-              }
+              <option value="Lunes">Lunes</option>
+              <option value="Martes">Martes</option>
+              <option value="Miercoles">Miércoles</option>
+              <option value="Jueves">Jueves</option>
+              <option value="Viernes">Viernes</option>
+              <option value="Sabado">Sábado</option>
+              <option value="Domingo">Domingo</option>
             </select>
           </div>
 
