@@ -7,6 +7,7 @@ import { environment } from '../../../../environments/environment';
 import { ToastService } from '../../../services/toast.service';
 import { StorageService } from '../../../services/storage.service';
 import { AuthService } from '../../../services/auth';
+import { GymService, Gym } from '../../../services/gym.service';
 
 // Pantalla forzada para cuentas creadas con contraseña temporal (superadmin
 // o recepción la generaron y se la entregaron en persona, sin correo de por
@@ -29,6 +30,8 @@ export class CambiarPasswordInicial {
   cargando = false;
 
   readonly nombre = localStorage.getItem('nombre') || '';
+  /** Gimnasio en uso: la cabecera muestra su logo, no el de la plataforma. */
+  gym: Gym | null = null;
 
   constructor(
     private http: HttpClient,
@@ -36,8 +39,11 @@ export class CambiarPasswordInicial {
     private toast: ToastService,
     private storageService: StorageService,
     private auth: AuthService,
-    private cdr: ChangeDetectorRef
-  ) {}
+    private cdr: ChangeDetectorRef,
+    private gymService: GymService
+  ) {
+    this.gym = this.gymService.getGym();
+  }
 
   get contrasenasCoinciden(): boolean {
     return this.nuevaPassword === this.confirmarPassword;

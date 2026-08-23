@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { ToastService } from '../../../services/toast.service';
+import { GymService, Gym } from '../../../services/gym.service';
 
 @Component({
   selector: 'app-forgot-password',
@@ -17,8 +18,17 @@ export class ForgotPassword {
   email = '';
   cargando = false;
   enviado = false;
+  /** Gimnasio en uso: la cabecera muestra su logo, no el de la plataforma. */
+  gym: Gym | null = null;
 
-  constructor(private http: HttpClient, private toast: ToastService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private http: HttpClient,
+    private toast: ToastService,
+    private cdr: ChangeDetectorRef,
+    private gymService: GymService
+  ) {
+    this.gym = this.gymService.getGym();
+  }
 
   enviar() {
     if (!this.email || this.cargando) return;

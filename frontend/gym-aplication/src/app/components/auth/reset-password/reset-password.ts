@@ -5,6 +5,7 @@ import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { ToastService } from '../../../services/toast.service';
+import { GymService, Gym } from '../../../services/gym.service';
 
 @Component({
   selector: 'app-reset-password',
@@ -24,16 +25,20 @@ export class ResetPassword implements OnInit {
   // Los enlaces de invitación a un administrador traen `bienvenida=1`: es el
   // primer acceso, no un olvido de contraseña, y el texto debe reflejarlo.
   bienvenida = false;
+  /** Gimnasio en uso: la cabecera muestra su logo, no el de la plataforma. */
+  gym: Gym | null = null;
 
   constructor(
     private http: HttpClient,
     private route: ActivatedRoute,
     private router: Router,
     private toast: ToastService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private gymService: GymService
   ) {}
 
   ngOnInit() {
+    this.gym = this.gymService.getGym();
     this.token = this.route.snapshot.queryParamMap.get('token') || '';
     this.bienvenida = this.route.snapshot.queryParamMap.get('bienvenida') === '1';
     if (!this.token) this.router.navigate(['/login']);
