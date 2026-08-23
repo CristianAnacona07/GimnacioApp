@@ -41,16 +41,29 @@ router.get('/export/usuarios', verificarToken, soloAdmin, async (req, res) => {
     try {
         const usuarios = await prisma.user.findMany({
             where: { gymId: req.gymId },
-            select: { nombre: true, email: true, role: true, fechaRegistro: true, fechaVencimiento: true }
+            select: {
+                nombre: true, email: true, role: true, fechaRegistro: true, fechaVencimiento: true,
+                terminosAceptadosEn: true, terminosVersion: true
+            }
         });
 
-        const cabecera = ['nombre', 'email', 'role', 'fechaRegistro', 'fechaVencimiento'];
+        // Las dos últimas columnas son la constancia legal (cuándo aceptó cada
+        // socio los Términos y la Política de Privacidad, y qué versión del
+        // texto): van en el respaldo para que el gimnasio pueda demostrarlo
+        // sin depender de la base de datos. Vacías = cuentas anteriores a que
+        // existiera la aceptación.
+        const cabecera = [
+            'nombre', 'email', 'role', 'fechaRegistro', 'fechaVencimiento',
+            'terminosAceptadosEn', 'terminosVersion'
+        ];
         const filas = usuarios.map((u) => [
             u.nombre,
             u.email,
             u.role,
             fechaISO(u.fechaRegistro),
-            fechaISO(u.fechaVencimiento)
+            fechaISO(u.fechaVencimiento),
+            fechaISO(u.terminosAceptadosEn),
+            u.terminosVersion || ''
         ]);
 
         const csv = construirCSV(cabecera, filas);

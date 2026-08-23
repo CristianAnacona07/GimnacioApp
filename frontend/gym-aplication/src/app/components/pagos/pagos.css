@@ -186,8 +186,37 @@
 }
 
 .modal-botones { display: flex; gap: 10px; margin-top: 15px; }
-.btn-guardar { flex: 1; background: #667eea; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
-.btn-cancelar { flex: 1; background: var(--sup-2, #eee); border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
+
+/* Mismo look "de reposo" que .btn-cancelar — solo se pone azul al pasarle
+   el mouse, igual que el otro botón. */
+.btn-guardar {
+  flex: 1;
+  background: var(--sup-2, #eee);
+  color: var(--txt-2, #475569);
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.14);
+  transition: background .15s, color .15s, box-shadow .15s, transform .1s;
+}
+.btn-guardar:hover { background: #667eea; color: white; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4); }
+.btn-guardar:active { transform: translateY(1px); box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3); }
+
+.btn-cancelar {
+  flex: 1;
+  background: var(--sup-2, #eee);
+  color: var(--txt-2, #475569);
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.14);
+  transition: background .15s, color .15s, box-shadow .15s, transform .1s;
+}
+/* Mismo azul del botón principal, para que el hover deje claro que también es clickeable. */
+.btn-cancelar:hover { background: #667eea; color: white; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4); }
+.btn-cancelar:active { transform: translateY(1px); box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3); }
 
 /* RESPONSIVE */
 @media (max-width: 600px) {

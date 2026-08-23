@@ -123,7 +123,7 @@ export class AlertaService {
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       new Notification(titulo, {
         body: cuerpo,
-        icon: '/icons/LogoGym.jpg',
+        icon: '/icons/LogoGym.png',
         tag: 'aviso-gym'
       });
     } catch {}

@@ -29,7 +29,8 @@
 
     <div class="flex flex-col w-full">
       <label class="text-[10px] font-extrabold text-slate-400 uppercase mb-1 ml-1 tracking-wider">Enfoque (Músculos)</label>
-      <input [(ngModel)]="enfoque" placeholder="Ej: Pecho y Tríceps" 
+      <input [ngModel]="enfoque" (input)="onEnfoqueInput($event)" placeholder="Ej: Pecho y Tríceps"
+             autocomplete="off"
              class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 transition-all font-semibold">
     </div>
 </header>

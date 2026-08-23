@@ -28,6 +28,12 @@ export class Socios implements OnInit, OnDestroy {
   usuarios: any[] = [];
   loadingId: string | null = null;
 
+  /** Modal "Ver información" — perfil completo de un socio/entrenador. */
+  mostrarDetalle = false;
+  guardandoDetalle = false;
+  detalleId: string | null = null;
+  detalle: any = null;
+
   /** Texto del buscador de la página. La lupa del navbar lo precarga por `?q=`. */
   filtro = '';
 
@@ -139,6 +145,69 @@ export class Socios implements OnInit, OnDestroy {
           this.toast.error('Error al limpiar la membresía');
         }
       });
+  }
+
+  verInfo(id: string) {
+    this.detalleId = id;
+    this.detalle = null;
+    this.mostrarDetalle = true;
+    this.authService.getPerfilUsuario(id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (perfil: any) => {
+          this.detalle = {
+            nombre: perfil.nombre || '',
+            mensajeMotivador: perfil.mensajeMotivador || '',
+            identificacion: perfil.datosPersonales?.identificacion || '',
+            fechaNacimiento: perfil.datosPersonales?.fechaNacimiento || '',
+            sexo: perfil.datosPersonales?.sexo || '',
+            pesoActual: perfil.datosPersonales?.pesoActual || 0,
+            altura: perfil.datosPersonales?.altura || 0,
+            telefono: perfil.datosPersonales?.telefono || '',
+            email: perfil.email || ''
+          };
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.toast.error('Error al cargar la información del socio');
+          this.cerrarDetalle();
+        }
+      });
+  }
+
+  cerrarDetalle() {
+    this.mostrarDetalle = false;
+    this.detalleId = null;
+    this.detalle = null;
+  }
+
+  guardarDetalle() {
+    if (!this.detalleId || !this.detalle) return;
+    this.guardandoDetalle = true;
+    const { email, ...editable } = this.detalle;
+    this.authService.actualizarPerfil(this.detalleId, {
+      nombre: editable.nombre,
+      mensajeMotivador: editable.mensajeMotivador,
+      datosPersonales: {
+        identificacion: editable.identificacion,
+        fechaNacimiento: editable.fechaNacimiento,
+        sexo: editable.sexo,
+        pesoActual: Number(editable.pesoActual) || 0,
+        altura: Number(editable.altura) || 0,
+        telefono: editable.telefono
+      }
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.guardandoDetalle = false;
+        this.toast.success('Información actualizada');
+        this.cerrarDetalle();
+        this.cargarUsuarios();
+      },
+      error: () => {
+        this.guardandoDetalle = false;
+        this.toast.error('Error al guardar la información');
+      }
+    });
   }
 
   ngOnDestroy() {

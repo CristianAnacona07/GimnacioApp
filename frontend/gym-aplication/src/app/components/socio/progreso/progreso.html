@@ -219,7 +219,7 @@
                         [attr.stroke]="colorSecundario" stroke-width="2.5"
                         stroke-linejoin="round" stroke-linecap="round"/>
               @for (p of historial; track $index) {
-                @let esUltimo = $index === 0;
+                @let esUltimo = $index === historial.length - 1;
                 <circle [attr.cx]="xPos($index)" [attr.cy]="yPos(datos[$index])"
                         [attr.r]="esUltimo ? 6 : 4"
                         [attr.fill]="esUltimo ? colorPrimario : colorSecundario"
@@ -269,7 +269,7 @@
                   </span>
                 </div>
               } @else {
-                <div class="historial-fila" [class.fila-destacada]="$index === 0">
+                <div class="historial-fila" [class.fila-destacada]="$index === historial.length - 1">
                   <span class="h-fecha">{{ p.fecha }}</span>
                   <span class="h-val h-peso">{{ p.peso !== null ? p.peso + ' kg' : '—' }}</span>
                   <span class="h-val h-reps">{{ p.reps !== null ? p.reps + ' reps' : '—' }}</span>

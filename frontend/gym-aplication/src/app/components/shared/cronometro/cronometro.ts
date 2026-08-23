@@ -404,7 +404,7 @@ export class Cronometro implements OnInit, OnDestroy {
     const titulo = '¡Tiempo de descanso terminado! 💪';
     const opciones: NotificationOptions = {
       body: '¡A darle con todo, guerrero!',
-      icon: '/icons/LogoGym.jpg',
+      icon: '/icons/LogoGym.png',
       tag: 'cronometro-fin',
       requireInteraction: true
     };

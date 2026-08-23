@@ -3,7 +3,6 @@ import { RouterOutlet, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { Notification } from './components/shared/notification/notification';
 import { Cronometro } from './components/shared/cronometro/cronometro';
-import { SpotifyPlayer } from './components/shared/spotify-player/spotify-player';
 import { UserStateService } from './services/user-state.service';
 import { UpdateService } from './services/update.service';
 import { ThemeService } from './services/theme.service';
@@ -12,7 +11,7 @@ import { TokenMonitorService } from './services/token-monitor.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Notification, Cronometro, SpotifyPlayer, CommonModule],
+  imports: [RouterOutlet, Notification, Cronometro, CommonModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -24,11 +23,7 @@ export class App implements OnInit {
   private router = inject(Router);
   private tokenMonitor = inject(TokenMonitorService);
 
-  isSocioRoute() {
-    return this.router.url.startsWith('/socio');
-  }
-
-  /** La página pública del gimnasio se muestra sola: sin cronómetro ni reproductor. */
+  /** La página pública del gimnasio se muestra sola: sin cronómetro. */
   esPaginaPublica() {
     return this.router.url.startsWith('/g/');
   }

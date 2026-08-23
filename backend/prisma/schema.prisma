@@ -99,6 +99,13 @@ model Gym {
   planPlataformaId    String?         @map("plan_plataforma_id")
   planPlataforma      PlanPlataforma? @relation(fields: [planPlataformaId], references: [id], onDelete: SetNull)
   planPlataformaCampo String?         @map("plan_plataforma_campo") // 'mensual' | 'porSuscriptor'
+  // Vigencia del plan de plataforma — mismo espíritu que fechaRegistro/
+  // fechaVencimiento del socio, pero para lo que el GIMNASIO le paga a la
+  // plataforma. Se fijan solas al asignar un plan (o reasignar a otro) y se
+  // extienden un mes cada vez que se registra un pago "pagada" en
+  // Facturación — nunca se escriben a mano. Null si no hay plan asignado.
+  planActivadoEn DateTime? @map("plan_activado_en")
+  planVenceEn    DateTime? @map("plan_vence_en")
 
   // agenda{} aplanado — sesiones personalizadas (duración/precio los fija el
   // gimnasio; el horario lo publica cada profesional en User.disponibilidad).
@@ -134,6 +141,7 @@ model Gym {
   transacciones Transaccion[]
   citas         Cita[]
   invitaciones  Invitacion[]
+  pagosPlataforma PagoPlataforma[]
 
   @@index([deletedAt])
   @@index([planPlataformaId])
@@ -191,6 +199,14 @@ model User {
   emailVerified     Boolean   @default(false) @map("email_verified")
   verifyToken       String?   @map("verify_token")
   verifyTokenExpiry DateTime? @map("verify_token_expiry")
+
+  // Constancia de la aceptación de Términos y Condiciones / Política de
+  // Privacidad. La fecha es la prueba de CUÁNDO aceptó; la versión, QUÉ texto
+  // aceptó — si los documentos cambian se sube VERSION_LEGAL y a quien tenga
+  // una versión vieja se le vuelve a pedir. Nulo = nunca aceptó (cuentas
+  // anteriores a esta función incluidas).
+  terminosAceptadosEn DateTime? @map("terminos_aceptados_en")
+  terminosVersion     String?   @map("terminos_version")
 
   // twoFactor{} aplanado
   twoFactorEnabled     Boolean  @default(false) @map("two_factor_enabled")
@@ -444,6 +460,31 @@ model PlanPlataforma {
 
   @@index([deletedAt])
   @@map("planes_plataforma")
+}
+
+// Pago (o factura) que un gimnasio le hace a la PLATAFORMA — lo que el
+// superadmin registra a mano desde "Facturación", no lo que los socios le
+// pagan al gimnasio (eso es Transaccion). "anulada" es un estado final real,
+// no una eliminación — mismo criterio que Cita: no lleva soft-delete, así que
+// nunca desaparece del historial ni por accidente ni a propósito.
+model PagoPlataforma {
+  id     String   @id @db.Char(24)
+  gymId  String   @map("gym_id") @db.Char(24)
+  gym    Gym      @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  monto  Decimal   @db.Decimal(10, 2)
+  fecha  DateTime // desde cuándo cubre el pago
+  hasta  DateTime? // hasta cuándo — null si nunca se llegó a fijar (pagos viejos)
+  metodo String    @default("")
+  // 'pagada' | 'vencida' | 'pendiente' | 'anulada'
+  estado String   @default("pagada")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([gymId])
+  @@index([estado])
+  @@index([fecha])
+  @@map("pagos_plataforma")
 }
 
 // ── Rutina + tabla hija ──────────────────────────────────────────────

@@ -8,6 +8,8 @@
 const http = require('http');
 const app = require('./index');
 const tiempoReal = require('./helpers/tiempoReal');
+const { getPrismaClient } = require('./prisma/client');
+const { iniciarBarridoVigencia } = require('./lib/planPlataformaVigencia');
 
 const PORT = process.env.PORT || 10000;
 
@@ -16,6 +18,11 @@ const PORT = process.env.PORT || 10000;
 // lo pide. Por eso aquí se crea el servidor a mano en vez de usar app.listen().
 const servidor = http.createServer(app);
 tiempoReal.iniciar(servidor);
+
+// Desactiva en segundo plano los gimnasios que vencieron hace más de los
+// días de gracia sin pagar — solo tiene sentido acá, en el proceso
+// persistente (ver iniciarBarridoVigencia).
+iniciarBarridoVigencia(getPrismaClient());
 
 servidor.listen(PORT, () => {
   console.log(`🚀 API Kodiak escuchando en el puerto ${PORT}`);

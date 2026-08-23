@@ -95,12 +95,19 @@
 
 /* Botones */
 .btn {
+  /* Varios .btn son <a>, que por defecto son inline: el padding/margin
+     vertical no separa nada del contenido de arriba/abajo y la caja puede
+     terminar montada sobre el texto vecino (más visible con zoom alto). Con
+     inline-block, .btn ocupa su propio espacio en el flujo como cualquier
+     botón real. */
+  display: inline-block;
   border: none;
   border-radius: 0.65rem;
   padding: 0.7rem 1rem;
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
   transition: opacity 0.15s, transform 0.05s;
 }
 
@@ -330,10 +337,17 @@
 }
 
 .tarjeta__aviso {
-  margin-top: 0.4rem;
+  margin: 0.4rem 0;
   color: var(--txt-ambar, #b45309);
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+/* El botón "Renovar" no tenía separación propia del aviso de arriba — a
+   pantallas con zoom alto (150%) el texto y el botón quedaban pegados o se
+   montaban. */
+.tarjeta .btn--primary {
+  margin-top: 0.5rem;
 }
 
 .tarjeta__wa {

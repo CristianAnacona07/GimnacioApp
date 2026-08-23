@@ -6,6 +6,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { GymService, Gym } from '../../../services/gym.service';
+import { textoTerminos, textoPrivacidad, NOMBRE_APP_RESPALDO } from '../../../data/legal-textos';
 import { TenantService } from '../../../services/tenant.service';
 import { ThemeService } from '../../../services/theme.service';
 import { StorageService } from '../../../services/storage.service';
@@ -44,6 +45,15 @@ export class Login implements OnInit, AfterViewInit {
   readonly esNativo = Capacitor.isNativePlatform();
   /** Enlace de primer ingreso reusado con esa misma sesión todavía viva. */
   yaActivada = false;
+
+  // Primer ingreso (se llegó por el botón del correo de contraseña temporal,
+  // que trae ?email=): acá mismo se aceptan los documentos legales, para no
+  // meter una pantalla extra entre el correo y el cambio de contraseña.
+  esPrimerIngreso = false;
+  aceptaTerminos = false;
+  aceptaPrivacidad = false;
+  mostrarTerminos = false;
+  mostrarPrivacidad = false;
   private gsiCargando: Promise<void> | null = null;
 
   constructor(
@@ -71,7 +81,10 @@ export class Login implements OnInit, AfterViewInit {
     // Correo temporal por primer ingreso (enviarPasswordTemporal en el
     // backend): precarga el campo para que solo falte pegar la contraseña.
     const email = this.ruta.snapshot.queryParamMap.get('email');
-    if (email) this.usuario.email = email;
+    if (email) {
+      this.usuario.email = email;
+      this.esPrimerIngreso = true;
+    }
 
     // Mismo enlace reusado con la sesión de esa activación todavía viva
     // (noAuthGuard lo dejó pasar a propósito por traer ?email=) — no se
@@ -289,6 +302,9 @@ export class Login implements OnInit, AfterViewInit {
         this.cargando = false;
         if (err.status === 400 || err.status === 401) {
           this.toast.error('Credenciales incorrectas. Revisa tu email y contraseña.');
+        } else if (err.status === 403) {
+          // Membresía vencida u otro motivo puntual que el backend explica.
+          this.toast.error(err?.error?.mensaje || 'No tienes permiso para iniciar sesión.');
         } else {
           this.toast.error('Error del servidor. Inténtalo más tarde.');
         }
@@ -332,7 +348,17 @@ export class Login implements OnInit, AfterViewInit {
     // 4) Sincronizar estado reactivo (escribe 'usuario' y notifica al navbar)
     this.userStateService.updateUser(res.usuario);
 
-    // 5) Contraseña temporal sin cambiar: nada de navbar/paneles hasta que la
+    // 5) Primer ingreso: recién ahora hay token, así que es acá donde se
+    // sella la aceptación que la persona marcó en el formulario. No bloquea
+    // la entrada si el registro falla — la constancia se reintenta sola en el
+    // siguiente primer ingreso, y dejar a alguien afuera por esto sería peor.
+    if (this.esPrimerIngreso && this.aceptaTerminos && this.aceptaPrivacidad) {
+      this.authService.aceptarTerminos().subscribe({
+        error: (err) => console.warn('No se pudo registrar la aceptación de términos', err)
+      });
+    }
+
+    // 6) Contraseña temporal sin cambiar: nada de navbar/paneles hasta que la
     // defina — el guard también lo exige, pero evita el parpadeo de entrar
     // un instante al panel normal antes de que la ruta rebote.
     this.storageService.setDebeCambiarPassword(!!res.usuario.debeCambiarPassword);
@@ -345,6 +371,19 @@ export class Login implements OnInit, AfterViewInit {
     else if (role === 'admin') this.router.navigate(['admin/noticias']);
     else if (role === 'empleado') this.router.navigate(['/empleado']);
     else this.router.navigate(['/socio']);
+  }
+
+  get terminosTexto(): string {
+    return textoTerminos(this.gym?.nombre || NOMBRE_APP_RESPALDO);
+  }
+
+  get privacidadTexto(): string {
+    return textoPrivacidad(this.gym?.nombre || NOMBRE_APP_RESPALDO);
+  }
+
+  /** En el primer ingreso no se entra sin aceptar los dos documentos. */
+  get legalesAceptados(): boolean {
+    return !this.esPrimerIngreso || (this.aceptaTerminos && this.aceptaPrivacidad);
   }
 
   /** Segunda llamada del login cuando el correo existe en varios gimnasios. */

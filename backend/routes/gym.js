@@ -10,6 +10,7 @@ const { registrarAuditoria } = require('../helpers/audit');
 const { enviarPasswordTemporal } = require('../helpers/email');
 
 const prisma = getPrismaClient();
+const { activarPlan, desactivarGymsVencidos } = require('../lib/planPlataformaVigencia');
 
 const SELECT_GYM_PUBLICO = {
   id: true, nombre: true, slug: true, logo: true, slogan: true,
@@ -203,29 +204,41 @@ router.get('/:slug/landing', async (req, res) => {
 // slug (mismo motivo por el que /buscar y /dominio-permitido van antes).
 router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
   try {
+    // Se desactivan acá también (no solo en el login) para que el dashboard
+    // no muestre "activo" un gimnasio que ya pasó su gracia simplemente
+    // porque nadie de ese gym intentó loguearse todavía.
+    await desactivarGymsVencidos(prisma);
     const ahora = new Date();
     const seisMesesAtras = new Date(ahora.getFullYear(), ahora.getMonth() - 5, 1);
 
+    // "Activo" en todo este dashboard es suscripción vigente (planVenceEn en
+    // el futuro), no el interruptor activo/desactivado de la tarjeta — un gym
+    // con la suscripción vencida no debe sumar en ninguna de estas métricas,
+    // aunque su cuenta siga habilitada. Mismo criterio que ya se ve en
+    // Facturación y en las tarjetas de Gimnasios ("Activo hasta"/"Vencido
+    // desde"), aplicado parejo acá para que el dashboard no cuente distinto
+    // según la tarjeta.
+    const gymVigente = { activo: true, planVenceEn: { gt: ahora } };
+
     // A diferencia de groupBy (usado más abajo, en GET /), count()/findMany()
     // SÍ pasan por la extensión de soft-delete: no hace falta agregar
-    // deletedAt: null a mano. `gym: { activo: true }` es un filtro por
-    // relación anidada, que groupBy no soporta — por eso esta ruta no reusa
-    // ese helper.
+    // deletedAt: null a mano. `gym: {...}` es un filtro por relación anidada,
+    // que groupBy no soporta — por eso esta ruta no reusa ese helper.
     const [sociosActivos, adminTotal, gimnasiosActivos, sociosNuevos, gymsConPlan, planes, sociosPorGym] = await Promise.all([
       prisma.user.count({
-        where: { gym: { activo: true }, role: 'socio', fechaVencimiento: { gt: ahora } }
+        where: { gym: gymVigente, role: 'socio', fechaVencimiento: { gt: ahora } }
       }),
       prisma.user.count({
-        where: { gym: { activo: true }, role: 'admin' }
+        where: { gym: gymVigente, role: 'admin' }
       }),
-      prisma.gym.count({ where: { activo: true } }),
+      prisma.gym.count({ where: gymVigente }),
       prisma.user.findMany({
-        where: { gym: { activo: true }, role: 'socio', createdAt: { gte: seisMesesAtras } },
+        where: { gym: gymVigente, role: 'socio', createdAt: { gte: seisMesesAtras } },
         select: { createdAt: true }
       }),
-      // Ingresos estimados: solo gimnasios activos con un plan asignado.
+      // Ingresos estimados: solo gimnasios con suscripción vigente y un plan asignado.
       prisma.gym.findMany({
-        where: { activo: true, planPlataformaId: { not: null } },
+        where: { ...gymVigente, planPlataformaId: { not: null } },
         select: { id: true, planPlataformaId: true, planPlataformaCampo: true }
       }),
       // findMany SÍ filtra deletedAt sola (a diferencia de groupBy): un plan
@@ -296,6 +309,10 @@ router.get('/:slug', async (req, res) => {
 // Todos los gyms (activos e inactivos)
 router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
   try {
+    // Mismo barrido que en el login: que la insignia "Activo/Inactivo" de la
+    // tarjeta refleje una desactivación automática por vencimiento aunque
+    // nadie de ese gym haya intentado loguearse todavía.
+    await desactivarGymsVencidos(prisma);
     const gyms = await prisma.gym.findMany({ orderBy: { createdAt: 'desc' } });
 
     // "Usuarios" por gym, para la tarjeta del panel: un socio cuenta si su
@@ -357,7 +374,7 @@ router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'El correo del administrador no es válido' });
     }
 
-    const gym = await prisma.gym.create({
+    let gym = await prisma.gym.create({
       data: {
         nombre, slug, logo, slogan, spotifyPlaylist,
         planPlataformaId: planPlataformaId || null,
@@ -368,6 +385,18 @@ router.post('/crear', verificarToken, soloSuperAdmin, async (req, res) => {
       }
     });
     await registrarAuditoria(req, 'CREAR_GYM', { recurso: 'Gym', recursoId: gym.id });
+
+    // Con plan asignado desde la creación, la vigencia arranca ahora mismo —
+    // y ese primer mes queda como una fila "pagada" en Facturación, no como
+    // un estado invisible: un gym recién creado nunca debería figurar activo
+    // sin que Facturación explique por qué.
+    if (planPlataformaId) {
+      const plan = await prisma.planPlataforma.findUnique({ where: { id: planPlataformaId } });
+      if (plan) {
+        await activarPlan(prisma, { gymId: gym.id, planPlataforma: plan, campo: planPlataformaCampo || 'mensual', sociosActivos: 0 });
+        gym = await prisma.gym.findUnique({ where: { id: gym.id } });
+      }
+    }
 
     // El gimnasio ya está creado: si la invitación falla se informa, pero no se
     // revierte nada (el superadmin puede reintentarla desde la ficha del gym).
@@ -525,20 +554,54 @@ router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => 
       cambios.slug = slug;
     }
 
+    const existe = await prisma.gym.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, planPlataformaId: true, planPlataformaCampo: true }
+    });
+    if (!existe) return res.status(404).json({ error: 'Gimnasio no encontrado' });
+
     // El plan de plataforma (lo que le cobramos al gimnasio) tampoco lo puede
     // tocar el admin del propio gimnasio, por el mismo motivo que el slug.
     // Se elige UN valor puntual del plan (mensual o por suscriptor, no los
     // dos juntos) — sin id no tiene sentido guardar cuál de los dos.
+    let activarPlanNuevo = null;
     if (req.userRole === 'superadmin' && 'planPlataformaId' in req.body) {
-      cambios.planPlataformaId = req.body.planPlataformaId || null;
-      cambios.planPlataformaCampo = req.body.planPlataformaId ? (req.body.planPlataformaCampo || null) : null;
+      const nuevoId = req.body.planPlataformaId || null;
+      const nuevoCampo = nuevoId ? (req.body.planPlataformaCampo || null) : null;
+      cambios.planPlataformaId = nuevoId;
+      cambios.planPlataformaCampo = nuevoCampo;
+
+      // La vigencia solo se reinicia si de verdad cambió a qué está asignado
+      // (otro plan, otro campo, o se quitó/puso) — volver a guardar lo mismo
+      // no le regala un mes gratis al gimnasio.
+      const cambioDeVerdad = nuevoId !== existe.planPlataformaId || nuevoCampo !== existe.planPlataformaCampo;
+      if (cambioDeVerdad) {
+        if (nuevoId) {
+          activarPlanNuevo = { id: nuevoId, campo: nuevoCampo };
+        } else {
+          // Se quitó el plan: sin plan no hay vigencia que mostrar.
+          cambios.planActivadoEn = null;
+          cambios.planVenceEn = null;
+        }
+      }
     }
 
-    const existe = await prisma.gym.findUnique({ where: { id: req.params.id }, select: { id: true } });
-    if (!existe) return res.status(404).json({ error: 'Gimnasio no encontrado' });
-
-    const gym = await prisma.gym.update({ where: { id: req.params.id }, data: cambios });
+    let gym = await prisma.gym.update({ where: { id: req.params.id }, data: cambios });
     await registrarAuditoria(req, 'EDITAR_GYM', { recurso: 'Gym', recursoId: req.params.id });
+
+    if (activarPlanNuevo) {
+      const plan = await prisma.planPlataforma.findUnique({ where: { id: activarPlanNuevo.id } });
+      if (plan) {
+        const sociosActivos = await prisma.user.count({
+          where: { gymId: gym.id, role: 'socio', deletedAt: null, fechaVencimiento: { gt: new Date() } }
+        });
+        await activarPlan(prisma, {
+          gymId: gym.id, planPlataforma: plan, campo: activarPlanNuevo.campo || 'mensual', sociosActivos
+        });
+        gym = await prisma.gym.findUnique({ where: { id: gym.id } });
+      }
+    }
+
     res.json(toApiGym(gym));
   } catch (error) {
     if (error.code === 'P2002') return res.status(400).json({ error: 'Ese subdominio ya está en uso' });

@@ -14,24 +14,26 @@
   <div class="deco deco-4"></div>
 
   <div class="login-wrapper">
-    <div class="login-card">
 
-      <div class="card-header">
-        <div class="brand-logo-ring">
-          @if (gym?.logo) {
-            <img [src]="gym!.logo" [alt]="gym!.nombre" class="brand-logo">
-          } @else if (gym) {
-            <div class="brand-inicial" [style.background]="gym.colores.primario || '#f97316'">
-              {{ gym.nombre[0] }}
-            </div>
-          } @else {
-            <img src="icons/LogoGym.jpg" alt="Logo" class="brand-logo">
-          }
-        </div>
-        <h1 class="brand-name">{{ gym?.nombre || 'GymApp' }}</h1>
-        <p class="brand-sub">{{ gym?.slogan || 'Strength · Discipline · Power' }}</p>
+    <!-- Fuera de la tarjeta, flotando directo sobre el fondo de la página
+         (sin caja propia detrás) — la tarjeta blanca empieza recién abajo. -->
+    <div class="card-header">
+      <div class="brand-logo-ring">
+        @if (gym?.logo) {
+          <img [src]="gym!.logo" [alt]="gym!.nombre" class="brand-logo">
+        } @else if (gym) {
+          <div class="brand-inicial" [style.background]="gym.colores.primario || '#f97316'">
+            {{ gym.nombre[0] }}
+          </div>
+        } @else {
+          <img src="icons/LogoGym.png" alt="Logo" class="brand-logo">
+        }
       </div>
+      <h1 class="brand-name">{{ gym?.nombre || 'GymApp' }}</h1>
+      <p class="brand-sub">{{ gym?.slogan || 'Strength · Discipline · Power' }}</p>
+    </div>
 
+    <div class="login-card">
       <div class="card-body">
 
         @if (yaActivada) {
@@ -81,7 +83,37 @@
           </div>
         </div>
 
-        <button type="button" [disabled]="cargando" (click)="iniciarSesion()" class="btn-login">
+        @if (esPrimerIngreso) {
+          <div class="legal-item" [class.legal-item--abierto]="mostrarTerminos">
+            <div class="legal-item__fila">
+              <label class="legal-item__check">
+                <input type="checkbox" [(ngModel)]="aceptaTerminos" name="aceptaTerminos">
+                <span class="legal-item__titulo">He leído y acepto los Términos y Condiciones</span>
+              </label>
+              <button type="button" class="legal-item__flecha" (click)="mostrarTerminos = !mostrarTerminos"
+                [attr.aria-label]="mostrarTerminos ? 'Ocultar texto' : 'Mostrar texto'">▾</button>
+            </div>
+            @if (mostrarTerminos) {
+              <div class="legal-item__texto">{{ terminosTexto }}</div>
+            }
+          </div>
+
+          <div class="legal-item" [class.legal-item--abierto]="mostrarPrivacidad">
+            <div class="legal-item__fila">
+              <label class="legal-item__check">
+                <input type="checkbox" [(ngModel)]="aceptaPrivacidad" name="aceptaPrivacidad">
+                <span class="legal-item__titulo">He leído y acepto la Política de Privacidad</span>
+              </label>
+              <button type="button" class="legal-item__flecha" (click)="mostrarPrivacidad = !mostrarPrivacidad"
+                [attr.aria-label]="mostrarPrivacidad ? 'Ocultar texto' : 'Mostrar texto'">▾</button>
+            </div>
+            @if (mostrarPrivacidad) {
+              <div class="legal-item__texto">{{ privacidadTexto }}</div>
+            }
+          </div>
+        }
+
+        <button type="button" [disabled]="cargando || !legalesAceptados" (click)="iniciarSesion()" class="btn-login">
           @if (!cargando) { Iniciar Sesión }
           @else {
             <span class="btn-loading">

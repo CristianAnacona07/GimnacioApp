@@ -189,6 +189,20 @@
 }
 .btn-rutina:hover { background: #ea6c0a; transform: scale(1.04); }
 
+.btn-info {
+  padding: 6px 14px;
+  background: var(--tinte-azul, #dbeafe);
+  color: var(--color-secundario, #2563eb);
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, transform .1s;
+}
+.btn-info:hover { transform: scale(1.04); }
+
 .btn-delete {
   display: flex;
   align-items: center;
@@ -215,6 +229,78 @@
   font-size: 14px;
   font-style: italic;
 }
+
+/* ── Modal "Ver información" ───────────────────────────────────
+   Mismo patrón que planes.css: overlay + tarjeta centrada, formulario en
+   grupos de label+input. */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.modal-contenido {
+  background: var(--sup-1, #f8fbff);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--bde, #e0e0e0);
+}
+.modal-header h3 { margin: 0; font-size: 1.05rem; color: var(--txt-1, #1e293b); }
+
+.btn-cerrar {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  color: var(--txt-3, #94a3b8);
+  cursor: pointer;
+}
+
+.formulario { padding: 20px; }
+.form-grupo { margin-bottom: 16px; }
+.form-grupo label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--txt-1, #334155); }
+.form-grupo input, .form-grupo select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--bde, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.form-grupo input:focus, .form-grupo select:focus {
+  outline: none;
+  border-color: var(--color-secundario, #2563eb);
+}
+.form-grupo input:disabled { background: var(--sup-2, #f1f5f9); color: var(--txt-3, #94a3b8); }
+
+.btn-guardar {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primario);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-guardar:disabled { opacity: .6; cursor: not-allowed; }
 
 /* ── Mobile ─────────────────────────────────────────────────── */
 @media (max-width: 768px) {

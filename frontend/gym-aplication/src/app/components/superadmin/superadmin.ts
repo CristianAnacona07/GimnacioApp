@@ -1,9 +1,9 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { Subject, forkJoin } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth';
@@ -23,7 +23,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
   cargando = false;
   // Dashboard es la puerta de entrada del panel; Gimnasios queda como
   // pestaña de siempre para administrar cada gym individualmente.
-  tabActiva: 'dashboard' | 'gyms' | 'planes' | 'superadmins' = 'dashboard';
+  tabActiva: 'dashboard' | 'gyms' | 'planes' | 'superadmins' | 'facturacion' = 'dashboard';
   mostrarForm = false;
   guardando = false;
   editando: any = null; // gym que se está editando
@@ -35,7 +35,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
   mostrarFormSuperadmin = false;
   guardandoSuperadmin = false;
   nuevoSuperadmin = { nombre: '', email: '' };
-  passwordTemporalSuperadmin: { email: string; password: string } | null = null;
+  passwordTemporalSuperadmin: { email: string; password: string | null; invitacionEnviada?: boolean } | null = null;
   editandoSuperadmin: any = null; // superadmin que se está editando (nombre/email)
 
   // --- Dashboard: métricas globales de la plataforma ---
@@ -59,14 +59,56 @@ export class SuperAdmin implements OnInit, OnDestroy {
   // el único input "Valor" del formulario inline, ver abrirEditarPlan().
   editandoPlanCampo: 'mensual' | 'porSuscriptor' | null = null;
   editandoValor: number | null = null;
+  // Un plan siempre guarda los dos precios de una — el gimnasio elige cuál
+  // de los dos le aplica al asignarlo — así que al crearlo se piden juntos,
+  // sin dejar ninguno en $0 por defecto.
   nuevoPlan = { nombre: '', precioMensual: null as number | null, precioPorSuscriptor: null as number | null };
+
+  /** true cuando el superadmin eligió "Otro" en el selector de Plan, para escribir un nombre nuevo. */
+  nuevoPlanNombrePersonalizado = false;
+
+  /** Nombres de plan ya creados (Pro, Super, …), para ofrecerlos en el selector
+   *  del formulario de "Nuevo plan" — sin nombres repetidos aunque haya varias
+   *  filas con el mismo nombre. */
+  get nombresPlanesExistentes(): string[] {
+    return [...new Set(this.planesPlataforma.map(p => p.nombre))];
+  }
+
+  onCambiaPlanSeleccionado(valor: string) {
+    this.nuevoPlanNombrePersonalizado = valor === '__otro__';
+    this.nuevoPlan.nombre = this.nuevoPlanNombrePersonalizado ? '' : valor;
+  }
+
+  // --- Facturación de la plataforma: lo que cada gimnasio le paga a la
+  // plataforma, registrado a mano. No confundir con /admin/pagos, que son
+  // los pagos de los socios a su gimnasio — esto es un nivel arriba. ---
+  pagosPlataforma: any[] = [];
+  cargandoPagos = false;
+  mostrarFormPago = false;
+  guardandoPago = false;
+  filtroEstadoPago: '' | 'pagada' | 'vencida' | 'pendiente' | 'anulada' = '';
+  filtroDesdePago = '';
+  filtroHastaPago = '';
+  nuevoPago = {
+    gymId: '', monto: null as number | null,
+    fecha: new Date().toISOString().slice(0, 10),
+    hasta: this.sumarUnMesStr(new Date().toISOString().slice(0, 10)),
+    metodo: ''
+  };
+  // Mismas opciones que ya usa matrícula para el pago de un socio — la
+  // plataforma no le abre a cada gym su propia lista de métodos, es un solo
+  // desplegable genérico.
+  readonly metodosPagoPlataforma = ['Nequi', 'Efectivo', 'Tarjeta', 'Transferencia'];
 
   // Geometría del gráfico de barras "socios nuevos por mes" — mismo espíritu
   // que los getters de xPos/yPos/yLabels en components/socio/progreso/progreso.ts,
   // simplificado porque acá son barras de altura fija, no una polilínea.
   readonly DASH_BARRA_ANCHO = 52;
   readonly DASH_H = 160;
-  readonly DASH_PAD = { top: 12, right: 16, bottom: 28, left: 36 };
+  // top: 20, no 12 — la barra más alta llega al techo del gráfico y el
+  // número se dibuja 6px arriba de la barra; con solo 12px de margen ese
+  // texto quedaba recortado contra el borde superior del SVG.
+  readonly DASH_PAD = { top: 20, right: 16, bottom: 28, left: 36 };
 
   get dashInnerH(): number {
     return this.DASH_H - this.DASH_PAD.top - this.DASH_PAD.bottom;
@@ -114,6 +156,24 @@ export class SuperAdmin implements OnInit, OnDestroy {
     return '$' + Math.round(Number(n)).toLocaleString('es');
   }
 
+  esVencido(fecha: string | Date): boolean {
+    return new Date(fecha).getTime() < Date.now();
+  }
+
+  // Debe coincidir con DIAS_GRACIA del backend (planPlataformaVigencia.js) —
+  // los días entre que vence la suscripción y se desactiva el gimnasio de
+  // verdad. Duplicado acá porque es solo para pintar la tarjeta a tiempo; la
+  // desactivación real la decide siempre el backend.
+  readonly DIAS_GRACIA = 5;
+
+  /** true mientras el gym venció pero todavía está dentro de los días de gracia. */
+  enGracia(fecha: string | Date): boolean {
+    if (!this.esVencido(fecha)) return false;
+    const finGracia = new Date(fecha);
+    finGracia.setDate(finGracia.getDate() + this.DIAS_GRACIA);
+    return Date.now() < finGracia.getTime();
+  }
+
   // Contraseña temporal del admin recién creado: se muestra una sola vez,
   // en una tarjeta persistente (un toast se autodesaparece antes de poder
   // copiarla o dictarla).
@@ -127,6 +187,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
   editandoAdmins: any[] | null = null;
   nuevoAdminGym = { email: '', nombre: '', identificacion: '', telefono: '' };
   guardandoAdminGym = false;
+  /** _id del admin al que se le está reenviando la invitación (null = ninguno). */
+  reinvitandoAdminId: string | null = null;
 
   // Dominio raíz de la plataforma para los subdominios por gimnasio.
   // Ej: slug "sogafit" → sogafit.micro-gimnacios.com (al desplegar en el VPS).
@@ -192,6 +254,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
     this.cargarSuperadmins();
     this.cargarDashboard();
     this.cargarPlanesPlataforma();
+    this.cargarPagosPlataforma();
   }
 
   ngOnDestroy() {
@@ -216,7 +279,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
         next: (res) => {
           this.guardandoSuperadmin = false;
           this.mostrarFormSuperadmin = false;
-          this.passwordTemporalSuperadmin = { email: res.superadmin.email, password: res.passwordTemporal };
+          this.passwordTemporalSuperadmin = { email: res.superadmin.email, password: res.passwordTemporal, invitacionEnviada: !!res.invitacionEnviada };
           this.nuevoSuperadmin = { nombre: '', email: '' };
           this.toast.success('Superadmin creado');
           this.cargarSuperadmins();
@@ -293,11 +356,100 @@ export class SuperAdmin implements OnInit, OnDestroy {
         next: () => {
           this.toast.success('Plan creado');
           this.nuevoPlan = { nombre: '', precioMensual: null, precioPorSuscriptor: null };
+          this.nuevoPlanNombrePersonalizado = false;
           this.mostrarFormPlan = false;
           this.guardandoPlan = false;
           this.cargarPlanesPlataforma();
         },
         error: (err) => { this.guardandoPlan = false; this.toast.error(err.error?.error || 'Error al crear el plan'); }
+      });
+  }
+
+  cargarPagosPlataforma() {
+    this.cargandoPagos = true;
+    let params = new HttpParams();
+    if (this.filtroEstadoPago) params = params.set('estado', this.filtroEstadoPago);
+    if (this.filtroDesdePago) params = params.set('desde', this.filtroDesdePago);
+    if (this.filtroHastaPago) params = params.set('hasta', this.filtroHastaPago);
+
+    this.http.get<any[]>(`${environment.apiUrl}/api/pagos-plataforma`, { headers: this.headers, params })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (data) => { this.pagosPlataforma = data; this.cargandoPagos = false; this.cdr.detectChanges(); },
+        error: () => { this.cargandoPagos = false; this.toast.error('Error al cargar la facturación'); }
+      });
+  }
+
+  filtrarEstadoPago(estado: typeof this.filtroEstadoPago) {
+    this.filtroEstadoPago = estado;
+    this.cargarPagosPlataforma();
+  }
+
+  abrirFormPago() {
+    const hoy = new Date().toISOString().slice(0, 10);
+    this.nuevoPago = { gymId: '', monto: null, fecha: hoy, hasta: this.sumarUnMesStr(hoy), metodo: '' };
+    this.mostrarFormPago = true;
+  }
+
+  // Al elegir el gimnasio, sugiere el monto según su plan de plataforma
+  // asignado — el superadmin lo puede pisar igual, es solo un punto de
+  // partida para no tener que ir a mirar la pestaña Planes.
+  sugerirMontoPago() {
+    const gym = this.gyms.find(g => g._id === this.nuevoPago.gymId);
+    if (!gym?.planPlataforma) return;
+    if (gym.planPlataformaCampo === 'mensual') {
+      this.nuevoPago.monto = Number(gym.planPlataforma.precioMensual);
+    } else if (gym.planPlataformaCampo === 'porSuscriptor') {
+      this.nuevoPago.monto = Number(gym.planPlataforma.precioPorSuscriptor) * (gym.sociosActivos || 0);
+    }
+  }
+
+  // "Vence" arranca en un mes justo desde "Fecha inicio" — el superadmin
+  // puede pisarlo igual que cualquier otro campo, esto es solo el arranque.
+  sugerirHastaPago() {
+    this.nuevoPago.hasta = this.sumarUnMesStr(this.nuevoPago.fecha);
+  }
+
+  private sumarUnMesStr(fechaStr: string): string {
+    if (!fechaStr) return '';
+    const f = new Date(fechaStr + 'T00:00:00');
+    f.setMonth(f.getMonth() + 1);
+    return f.toISOString().slice(0, 10);
+  }
+
+  crearPagoPlataforma() {
+    if (!this.nuevoPago.gymId || this.nuevoPago.monto == null || this.guardandoPago) return;
+    this.guardandoPago = true;
+    this.http.post(`${environment.apiUrl}/api/pagos-plataforma`, this.nuevoPago, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: () => {
+          this.toast.success('Pago registrado');
+          this.guardandoPago = false;
+          this.mostrarFormPago = false;
+          this.cargarPagosPlataforma();
+          // Un pago "pagada" extiende la vigencia del gimnasio en el backend —
+          // sin este refresco, la tarjeta de Gimnasios se quedaba con la fecha
+          // vieja hasta recargar toda la página.
+          this.cargar();
+        },
+        error: (err) => { this.guardandoPago = false; this.toast.error(err.error?.error || 'Error al registrar el pago'); }
+      });
+  }
+
+  async anularPago(pago: any) {
+    const ok = await this.confirm.confirm(
+      `¿Anular el pago de ${pago.gymNombre} por ${this.formatMoneda(pago.monto)}? Esto también desactiva el gimnasio: sus socios y administrador no podrán ingresar hasta que se registre un pago nuevo.`
+    );
+    if (!ok) return;
+    this.http.put(`${environment.apiUrl}/api/pagos-plataforma/${pago._id}`, { estado: 'anulada' }, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: () => {
+          this.toast.success('Pago anulado');
+          this.cargarPagosPlataforma();
+          // Anular un pago "pagada" le resta el mes que había sumado —
+          // refresca Gimnasios para que la tarjeta lo muestre sin recargar.
+          this.cargar();
+        },
+        error: (err) => this.toast.error(err.error?.error || 'Error al anular el pago')
       });
   }
 
@@ -451,21 +603,41 @@ export class SuperAdmin implements OnInit, OnDestroy {
       });
   }
 
-  guardarAdminGym(admin: any) {
-    if (!this.editando || this.guardandoAdminGym) return;
-    this.guardandoAdminGym = true;
-    this.http.put<any>(`${environment.apiUrl}/api/gym/${this.editando._id}/admin/${admin._id}`, {
-      nombre: admin.nombre, identificacion: admin.identificacion, telefono: admin.telefono
-    }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.guardandoAdminGym = false; this.toast.success('Administrador actualizado'); this.cargar(); },
-      error: (err) => { this.guardandoAdminGym = false; this.toast.error(err?.error?.error || 'Error al guardar'); }
-    });
+  /**
+   * Le genera al administrador una contraseña temporal nueva y se la manda
+   * por correo — para cuando la olvidó y no puede entrar a pedir el reseteo.
+   * Reusa la MISMA ruta que crear (`POST /:id/admin`): el backend detecta que
+   * el correo ya existe en ese gym y, en vez de duplicarlo, le renueva la
+   * contraseña. Por eso la anterior deja de servir apenas se hace esto.
+   */
+  reinvitarAdminGym(admin: any) {
+    if (!this.editando || this.reinvitandoAdminId) return;
+    const gymId = this.editando._id;
+    this.reinvitandoAdminId = admin._id;
+
+    this.http.post<any>(`${environment.apiUrl}/api/gym/${gymId}/admin`, { email: admin.email }, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: (res) => {
+          this.reinvitandoAdminId = null;
+          // Misma tarjeta que al crear: si el correo salió no se muestra la
+          // contraseña; si falló, queda a la vista para entregarla a mano.
+          this.adminCreado = { email: res.email, passwordTemporal: res.passwordTemporal, invitacionEnviada: !!res.invitacionEnviada };
+          this.cargarAdminsEditando(gymId);
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.reinvitandoAdminId = null;
+          this.toast.error(err?.error?.error || 'No se pudo reenviar la invitación');
+          this.cdr.detectChanges();
+        }
+      });
   }
 
   guardarEdicion() {
     if (!this.editando || this.guardando) return;
     this.guardando = true;
-    this.http.put(`${environment.apiUrl}/api/gym/${this.editando._id}/configuracion`, {
+
+    const gym$ = this.http.put(`${environment.apiUrl}/api/gym/${this.editando._id}/configuracion`, {
       nombre: this.editando.nombre,
       slug: this.editando.slug,
       logo: this.editando.logo,
@@ -475,7 +647,18 @@ export class SuperAdmin implements OnInit, OnDestroy {
       spotifyPlaylist: this.editando.spotifyPlaylist,
       planPlataformaId: this.editando.planPlataformaId,
       planPlataformaCampo: this.editando.planPlataformaCampo
-    }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
+    }, { headers: this.headers });
+
+    // El o los administradores ya existentes se guardan junto con el resto
+    // del formulario — un solo botón "Guardar cambios", sin uno aparte por
+    // cada admin.
+    const admins$ = (this.editandoAdmins || []).map(a =>
+      this.http.put(`${environment.apiUrl}/api/gym/${this.editando._id}/admin/${a._id}`, {
+        nombre: a.nombre, identificacion: a.identificacion, telefono: a.telefono
+      }, { headers: this.headers })
+    );
+
+    forkJoin([gym$, ...admins$]).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.toast.success('Gimnasio actualizado');
         this.guardando = false;
@@ -546,10 +729,10 @@ export class SuperAdmin implements OnInit, OnDestroy {
     });
   }
 
-  // Logo del encabezado — Kodiak Gym es el gimnasio piloto, así que el panel
-  // central se marca con su logo en vez de un ícono genérico.
-  get logoKodiak(): string | null {
-    return this.gyms.find(g => g.slug === 'kodiak')?.logo || null;
+  // Logo del encabezado — Snake Gym (antes Kodiak Gym) es el gimnasio piloto,
+  // así que el panel central se marca con su logo en vez de un ícono genérico.
+  get logoGymPiloto(): string | null {
+    return this.gyms.find(g => g.slug === 'snake-gym')?.logo || null;
   }
 
   // --- Panel "Información" de cada tarjeta de gimnasio ---
@@ -578,6 +761,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
 
   cerrarSesion() {
     this.auth.logout();
-    this.router.navigate(['/sa']);
+    // No a /sa: es la pantalla "Panel Central" vestigial de antes del login
+    // universal. El superadmin ya se loguea por el mismo /login que todos.
+    this.router.navigate(['/login']);
   }
 }

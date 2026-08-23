@@ -69,21 +69,21 @@
   text-align: center;
 }
 
+/* Sin recuadro ni borde: el logo es un PNG con fondo transparente, así que
+   se apoya directo sobre la tarjeta. El marco gris que había antes existía
+   para separar del fondo el logo rectangular con fondo negro que ya no se
+   usa. Solo queda como contenedor para el espaciado inferior. */
 .brand-logo-ring {
   display: inline-flex;
-  padding: 4px;
-  border-radius: 1.25rem;
-  background: linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.05));
-  border: 1px solid rgba(255,255,255,0.15);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
   margin-bottom: 0.75rem;
 }
 
 .brand-logo {
-  width: 72px;
-  height: 72px;
-  border-radius: 1rem;
-  object-fit: cover;
+  width: 84px;
+  height: 84px;
+  /* contain, no cover: el logo es más alto que ancho y con cover se le
+     recortarían los costados de la cabeza. */
+  object-fit: contain;
   display: block;
 }
 
@@ -99,25 +99,38 @@
   font-weight: 900;
 }
 
+/* Dorado a juego con el logo. El color plano va primero como respaldo: si
+   el WebView no soporta recortar el degradado sobre el texto, el nombre
+   igual se lee en dorado en vez de quedar invisible. */
 .brand-name {
   font-size: 2rem;
   font-weight: 900;
-  color: #ffffff;
+  color: #e6c25f;
   letter-spacing: -0.02em;
   text-transform: uppercase;
   line-height: 1;
 }
 
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .brand-name {
+    background: linear-gradient(180deg, #f8ecb8 0%, #e3bb4c 55%, #b8891f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
 .brand-gym {
-  color: rgba(147, 197, 253, 0.8);
+  color: #c9a648;
   font-weight: 300;
   margin-left: 6px;
 }
 
+/* Dorado más apagado que el nombre: acompaña sin competir con él. */
 .brand-sub {
   font-size: 0.65rem;
   font-weight: 700;
-  color: rgba(147, 197, 253, 0.6);
+  color: rgba(201, 166, 72, 0.85);
   text-transform: uppercase;
   letter-spacing: 0.2em;
   margin-top: 0.3rem;
@@ -127,7 +140,7 @@
 .login-card {
   width: 100%;
   background: var(--sup-1, #ffffff);
-  border-radius: 1.75rem;
+  border-radius: 0.7rem;
   overflow: hidden;
   box-shadow:
     0 20px 60px rgba(0,0,0,0.35),
@@ -136,15 +149,29 @@
   flex-direction: column;
 }
 
-/* Header dentro de la card */
+/* Logo/nombre/lema flotan directo sobre el fondo de la página — ya no
+   tienen su propia caja oscura detrás; .login-wrapper pone el espacio hacia
+   la tarjeta blanca de abajo con su "gap". */
 .card-header {
-  background: linear-gradient(160deg, #2f333b 0%, #23262d 100%);
-  padding: 1.5rem 1.5rem 1.25rem;
+  position: relative;
+  padding: 0 1.5rem;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* Degradado oscuro detrás del logo+nombre+lema — no es un color nuevo, es
+   más negro sobre el fondo ya oscuro, para que el dorado resalte más por
+   contraste en vez de flotar plano sobre el degradado gris del fondo. */
+.card-header::before {
+  content: '';
+  position: absolute;
+  inset: -1rem -1.5rem;
+  background: radial-gradient(ellipse 60% 65% at 50% 45%, rgba(0, 0, 0, 0.55) 0%, transparent 75%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .btn-cambiar-gym {
@@ -196,7 +223,7 @@
   display: flex;
   align-items: center;
   background: var(--sup-1, #f0f5ff);
-  border: 2px solid #c8dcff;
+  border: 2px solid var(--bde, #c8dcff);
   border-radius: 0.875rem;
   padding: 0 0.75rem;
   transition: border-color 0.2s;
@@ -233,12 +260,15 @@
   flex-shrink: 0;
 }
 
-/* ===== BOTÓN ===== */
+/* ===== BOTÓN =====
+   Único elemento dorado — el resto del formulario queda en el azul neutro
+   de siempre. Degradado diagonal con una franja clara al centro para que
+   se lea "metalizado" en vez de un dorado plano y apagado. */
 .btn-login {
   width: 100%;
   padding: 0.9rem;
-  background: var(--acento);
-  color: #ffffff;
+  background: linear-gradient(135deg, #9c6f0a 0%, #f3ca55 30%, #fff3c4 50%, #f3ca55 70%, #9c6f0a 100%);
+  color: #2b1d00;
   border: none;
   border-radius: 0.875rem;
   font-size: 0.85rem;
@@ -246,11 +276,15 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(29,78,216,0.45);
-  transition: opacity 0.15s, transform 0.15s;
+  box-shadow: 0 6px 20px rgba(184,137,31,0.55);
+  transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
   margin-top: 0.25rem;
 }
-.btn-login:active { transform: scale(0.97); }
+.btn-login:hover:not(:disabled) {
+  box-shadow: 0 9px 26px rgba(184,137,31,0.7);
+  transform: translateY(-1px);
+}
+.btn-login:active:not(:disabled) { transform: scale(0.97) translateY(0); }
 .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-loading {
@@ -321,7 +355,7 @@
   justify-content: center;
   gap: 0.5rem;
   height: 44px;
-  border: 1.5px solid #c8dcff;
+  border: 1.5px solid var(--bde, #c8dcff);
   background: var(--sup-1, #f8fbff);
   color: var(--txt-1, #1e293b);
   border-radius: 0.875rem;
@@ -436,3 +470,69 @@
 }
 .multi-gym__cancelar:hover { text-decoration: underline; }
 .card-footer-nota { font-size: 0.75rem; }
+
+/* Desplegables de Términos y Condiciones / Política de Privacidad. Viven acá
+   porque los usan tanto el registro por invitación como el primer ingreso con
+   contraseña temporal, y ambas pantallas importan este archivo. */
+.legal-item {
+  border: 1px solid var(--bde, #c8dcff);
+  border-radius: 0.75rem;
+  background: var(--sup-1, #f8fbff);
+  overflow: hidden;
+}
+
+.legal-item--abierto { border-color: var(--acento, #1d4ed8); }
+
+.legal-item__fila {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.85rem;
+}
+
+.legal-item__check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  cursor: pointer;
+}
+
+.legal-item__check input[type='checkbox'] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--acento, #1d4ed8);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.legal-item__titulo {
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--txt-2, #475569);
+}
+
+.legal-item__flecha {
+  border: none;
+  background: none;
+  color: var(--txt-azul, #1d4ed8);
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+
+.legal-item--abierto .legal-item__flecha { transform: rotate(180deg); }
+
+.legal-item__texto {
+  max-height: 12rem;
+  overflow-y: auto;
+  padding: 0.6rem 0.85rem 0.85rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--txt-2, #475569);
+  white-space: pre-line;
+  border-top: 1px solid var(--bde, #c8dcff);
+}

@@ -1,6 +1,6 @@
 {
-  "name": "Bear GYM",
-  "short_name": "Bear GYM",
+  "name": "Snake Gym",
+  "short_name": "Snake Gym",
   "theme_color": "#1d4ed8",
   "background_color": "#eef3ff",
   "display": "standalone",
@@ -8,46 +8,46 @@
   "start_url": "./",
   "icons": [
     {
-      "src": "icons/icon-72x72.png",
+      "src": "assets/icons/icon-48.webp",
+      "type": "image/png",
+      "sizes": "48x48",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/icon-72.webp",
+      "type": "image/png",
       "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-96x96.png",
+      "src": "assets/icons/icon-96.webp",
+      "type": "image/png",
       "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-128x128.png",
+      "src": "assets/icons/icon-128.webp",
+      "type": "image/png",
       "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-144x144.png",
-      "sizes": "144x144",
+      "src": "assets/icons/icon-192.webp",
       "type": "image/png",
-      "purpose": "maskable any"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-152x152.png",
-      "sizes": "152x152",
+      "src": "assets/icons/icon-256.webp",
       "type": "image/png",
-      "purpose": "maskable any"
+      "sizes": "256x256",
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-384x384.png",
-      "sizes": "384x384",
+      "src": "assets/icons/icon-512.webp",
       "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     }
   ]
 }

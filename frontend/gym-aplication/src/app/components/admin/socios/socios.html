@@ -118,6 +118,73 @@
     </div>
   </section>
 
+
+  <!-- ── MODAL "VER INFORMACIÓN" ─────────────────────────────
+       Perfil completo de un socio/entrenador: hasta ahora la tabla solo
+       mostraba nombre/correo/membresía y no había forma de ver ni corregir
+       los datos personales que se piden al registrarse. -->
+  @if (mostrarDetalle) {
+    <div class="modal-overlay" (click)="cerrarDetalle()">
+      <div class="modal-contenido" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Información del socio</h3>
+          <button type="button" class="btn-cerrar" (click)="cerrarDetalle()" aria-label="Cerrar">✕</button>
+        </div>
+
+        @if (!detalle) {
+          <div class="formulario"><p>Cargando…</p></div>
+        } @else {
+          <div class="formulario">
+            <div class="form-grupo">
+              <label>Correo</label>
+              <input type="email" [value]="detalle.email" disabled>
+            </div>
+            <div class="form-grupo">
+              <label>Nombre</label>
+              <input type="text" [(ngModel)]="detalle.nombre" name="nombre">
+            </div>
+            <div class="form-grupo">
+              <label>Identificación</label>
+              <input type="text" [(ngModel)]="detalle.identificacion" name="identificacion">
+            </div>
+            <div class="form-grupo">
+              <label>Teléfono</label>
+              <input type="text" [(ngModel)]="detalle.telefono" name="telefono">
+            </div>
+            <div class="form-grupo">
+              <label>Fecha de nacimiento</label>
+              <input type="date" [(ngModel)]="detalle.fechaNacimiento" name="fechaNacimiento">
+            </div>
+            <div class="form-grupo">
+              <label>Sexo</label>
+              <select [(ngModel)]="detalle.sexo" name="sexo">
+                <option value="">— Sin especificar —</option>
+                <option value="masculino">Masculino</option>
+                <option value="femenino">Femenino</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label>Peso actual (kg)</label>
+              <input type="number" min="0" [(ngModel)]="detalle.pesoActual" name="pesoActual">
+            </div>
+            <div class="form-grupo">
+              <label>Altura (cm)</label>
+              <input type="number" min="0" [(ngModel)]="detalle.altura" name="altura">
+            </div>
+            <div class="form-grupo">
+              <label>Mensaje motivador</label>
+              <input type="text" [(ngModel)]="detalle.mensajeMotivador" name="mensajeMotivador">
+            </div>
+
+            <button type="button" class="btn-guardar" [disabled]="guardandoDetalle" (click)="guardarDetalle()">
+              {{ guardandoDetalle ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
 </div>
 
 <!-- Filas de una tabla de personas. Socios y trabajadores comparten columnas y
@@ -166,6 +233,9 @@
 
     <td>
       <div class="action-group">
+        <button type="button" (click)="verInfo(u._id)" class="btn-info" [attr.aria-label]="'Ver información de ' + u.nombre">
+          <span aria-hidden="true">ℹ️</span> Info
+        </button>
         @if (u.fechaVencimiento) {
           <button [routerLink]="['/admin/detalle-rutina', u._id]" class="btn-rutina" [attr.aria-label]="'Ver rutina de ' + u.nombre">
             <span aria-hidden="true">🏋️</span> Rutina
@@ -178,8 +248,6 @@
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </button>
-        } @else {
-          <span class="text-slate-300 text-xs italic">—</span>
         }
       </div>
     </td>

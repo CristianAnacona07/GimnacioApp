@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.kodiak.gym',
-  appName: 'Kodiak Gym',
+  appName: 'Snake Gym',
   webDir: 'dist/frontend/browser',
   plugins: {
     SplashScreen: {

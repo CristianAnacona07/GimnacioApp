@@ -6,6 +6,7 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { GymService, Gym } from '../../../services/gym.service';
+import { textoTerminos, textoPrivacidad, NOMBRE_APP_RESPALDO } from '../../../data/legal-textos';
 
 @Component({
   selector: 'app-register',
@@ -19,6 +20,11 @@ export class Register implements OnInit {
   verPass = false;
   verConfirmPass = false;
   gym: Gym | null = null;
+
+  aceptaTerminos = false;
+  aceptaPrivacidad = false;
+  mostrarTerminos = false;
+  mostrarPrivacidad = false;
 
   constructor(
     private authService: AuthService,
@@ -40,13 +46,23 @@ export class Register implements OnInit {
     }
   }
 
+  get terminosTexto(): string {
+    return textoTerminos(this.gym?.nombre || NOMBRE_APP_RESPALDO);
+  }
+
+  get privacidadTexto(): string {
+    return textoPrivacidad(this.gym?.nombre || NOMBRE_APP_RESPALDO);
+  }
+
   esFormularioValido(): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return (
       this.nuevoUsuario.nombre.length > 2 &&
       emailRegex.test(this.nuevoUsuario.email) &&
       this.nuevoUsuario.password.length >= 8 &&
-      this.nuevoUsuario.password === this.nuevoUsuario.confirmPassword
+      this.nuevoUsuario.password === this.nuevoUsuario.confirmPassword &&
+      this.aceptaTerminos &&
+      this.aceptaPrivacidad
     );
   }
 
@@ -60,7 +76,10 @@ export class Register implements OnInit {
     const usuarioAEnviar = {
       ...this.nuevoUsuario,
       role: 'socio',
-      invitacion: this.invitacion
+      invitacion: this.invitacion,
+      // El backend lo exige y sella la constancia (fecha + versión) al crear
+      // la cuenta; esFormularioValido() ya garantizó que ambas están marcadas.
+      aceptaTerminos: this.aceptaTerminos && this.aceptaPrivacidad
     };
 
     this.authService.registrar(usuarioAEnviar).subscribe({

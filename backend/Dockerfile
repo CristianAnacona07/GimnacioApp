@@ -10,8 +10,12 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# El schema tiene que estar copiado ANTES de `npm ci`: el postinstall del
+# package.json corre `prisma generate`, que necesita el schema para no fallar
+# (ese postinstall existe por Vercel, donde todo el repo se copia de una sola
+# vez — acá, con copiado en etapas para aprovechar la cache, el orden importa).
 COPY prisma ./prisma
+RUN npm ci
 RUN npx prisma generate
 
 # ---- Etapa 2: imagen final ----

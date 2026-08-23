@@ -2,13 +2,28 @@
 
   <header class="sa-header">
     <div class="sa-brand">
-      @if (logoKodiak) {
-        <img [src]="logoKodiak" class="sa-brand-logo" alt="Kodiak Gym">
+      @if (logoGymPiloto) {
+        <img [src]="logoGymPiloto" class="sa-brand-logo" alt="Snake Gym">
       } @else {
-        <div class="sa-brand-logo sa-brand-logo--fallback">K</div>
+        <div class="sa-brand-logo sa-brand-logo--fallback">S</div>
       }
       <div>
-        <h1 class="sa-title">Kodiak Gym ⚡</h1>
+        <!-- El rayo va como SVG y no como emoji ⚡: un emoji se dibuja con
+             sus propios colores y no hay forma de teñirlo, así que no podía
+             seguir el dorado del logo. -->
+        <h1 class="sa-title">
+          Snake Gym
+          <svg class="sa-title-rayo" viewBox="0 0 24 24" aria-hidden="true">
+            <defs>
+              <linearGradient id="oroRayo" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f8ecb8"/>
+                <stop offset="55%" stop-color="#e3bb4c"/>
+                <stop offset="100%" stop-color="#b8891f"/>
+              </linearGradient>
+            </defs>
+            <path d="M7 2v11h3v9l7-12h-4l4-8z" fill="url(#oroRayo)"/>
+          </svg>
+        </h1>
         <p class="sa-sub">Super Administrador</p>
       </div>
     </div>
@@ -28,6 +43,11 @@
           {{ mostrarFormSuperadmin ? '✕ Cancelar' : '+ Nuevo Superadmin' }}
         </button>
       }
+      @if (tabActiva === 'facturacion') {
+        <button class="btn-nuevo" (click)="mostrarFormPago ? (mostrarFormPago = false) : abrirFormPago()">
+          {{ mostrarFormPago ? '✕ Cancelar' : '🧾 Registrar pago' }}
+        </button>
+      }
       <button class="btn-salir" (click)="cerrarSesion()">Salir</button>
     </div>
   </header>
@@ -45,6 +65,9 @@
     </button>
     <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'superadmins'" (click)="tabActiva = 'superadmins'">
       🛡️ Superadmins
+    </button>
+    <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'facturacion'" (click)="tabActiva = 'facturacion'">
+      🧾 Facturación
     </button>
   </div>
 
@@ -66,9 +89,9 @@
             <p class="dash-tarjeta__hint">En gimnasios activos</p>
           </div>
           <div class="dash-tarjeta">
-            <p class="dash-tarjeta__label">🏋️ Total de Gimnasios</p>
+            <p class="dash-tarjeta__label">🏋️ Gimnasios activos</p>
             <p class="dash-tarjeta__valor">{{ dashboard.gimnasiosActivos }}</p>
-            <p class="dash-tarjeta__hint">Solo activos</p>
+            <p class="dash-tarjeta__hint">Con suscripción vigente</p>
           </div>
           <div class="dash-tarjeta">
             <p class="dash-tarjeta__label">💰 Ingresos estimados</p>
@@ -125,11 +148,17 @@
           <p class="form-titulo">Nuevo plan</p>
           <div class="field">
             <label class="flabel">Plan</label>
-            <select [(ngModel)]="nuevoPlan.nombre" class="finput">
-              <option value="" disabled>Elegí un plan</option>
-              <option value="Pro">Pro</option>
-              <option value="Super">Super</option>
-            </select>
+            @if (nuevoPlanNombrePersonalizado) {
+              <input [(ngModel)]="nuevoPlan.nombre" type="text" placeholder="Nombre del plan nuevo" class="finput">
+            } @else {
+              <select [ngModel]="nuevoPlan.nombre" (ngModelChange)="onCambiaPlanSeleccionado($event)" class="finput">
+                <option value="" disabled>Elegí un plan</option>
+                @for (n of nombresPlanesExistentes; track n) {
+                  <option [value]="n">{{ n }}</option>
+                }
+                <option value="__otro__">+ Nombre nuevo…</option>
+              </select>
+            }
           </div>
           <div class="field">
             <label class="flabel">Valor mensual</label>
@@ -146,6 +175,7 @@
         </div>
       }
 
+      @if (!mostrarFormPlan) {
       @if (cargandoPlanes) {
         <p class="dash-cargando">Cargando planes…</p>
       } @else if (!planesPlataforma.length) {
@@ -198,6 +228,7 @@
           }
         }
       }
+      }
     </div>
   }
 
@@ -225,8 +256,17 @@
 
       @if (passwordTemporalSuperadmin) {
         <div class="tarjeta-password">
-          <p><strong>{{ passwordTemporalSuperadmin.email }}</strong> se creó con esta contraseña temporal — copiala y entregásela, no se vuelve a mostrar:</p>
-          <p class="tarjeta-password__valor">{{ passwordTemporalSuperadmin.password }}</p>
+          <p class="tarjeta-password__titulo">Superadmin creado: {{ passwordTemporalSuperadmin.email }}</p>
+          @if (passwordTemporalSuperadmin.invitacionEnviada) {
+            <p class="tarjeta-password__valor">
+              📧 Le mandamos un correo con su contraseña temporal para que entre por primera vez.
+            </p>
+          } @else {
+            <p class="tarjeta-password__valor">
+              Contraseña temporal: <strong>{{ passwordTemporalSuperadmin.password }}</strong>
+              <span class="tarjeta-password__hint">No se pudo mandar por correo — entregásela vos, no se puede volver a ver</span>
+            </p>
+          }
           <button class="btn-cancelar" (click)="passwordTemporalSuperadmin = null">Entendido</button>
         </div>
       }
@@ -295,6 +335,114 @@
     </div>
   }
 
+  <!-- Tab Facturación: lo que cada gimnasio le paga a la plataforma, no lo
+       que los socios le pagan a su gimnasio (eso vive en /admin/pagos). -->
+  @if (tabActiva === 'facturacion') {
+    <div class="planes-gestion">
+
+      @if (mostrarFormPago) {
+        <div class="form-card">
+          <p class="form-titulo">Registrar pago</p>
+          <div class="field">
+            <label class="flabel">Gimnasio</label>
+            <select class="finput" [(ngModel)]="nuevoPago.gymId" (ngModelChange)="sugerirMontoPago()">
+              <option value="" disabled>Elegí un gimnasio</option>
+              @for (g of gyms; track g._id) {
+                <option [value]="g._id">{{ g.nombre }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label class="flabel">Monto</label>
+              <input [(ngModel)]="nuevoPago.monto" type="number" min="0" placeholder="150000" class="finput">
+            </div>
+            <div class="field">
+              <label class="flabel">Fecha inicio</label>
+              <input [(ngModel)]="nuevoPago.fecha" type="date" class="finput" (ngModelChange)="sugerirHastaPago()">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label class="flabel">Método (opcional)</label>
+              <select class="finput" [(ngModel)]="nuevoPago.metodo">
+                <option value="">— Seleccioná —</option>
+                @for (m of metodosPagoPlataforma; track m) {
+                  <option [value]="m">{{ m }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label class="flabel">Vence</label>
+              <input [(ngModel)]="nuevoPago.hasta" type="date" class="finput">
+            </div>
+          </div>
+          <button class="btn-crear" (click)="crearPagoPlataforma()"
+                  [disabled]="!nuevoPago.gymId || nuevoPago.monto === null || guardandoPago">
+            {{ guardandoPago ? 'Guardando...' : '🚀 Registrar pago' }}
+          </button>
+        </div>
+      }
+
+      @if (!mostrarFormPago) {
+        <div class="factura-filtros">
+          <div class="factura-filtros__estados">
+            <button class="chip-filtro" [class.activo]="filtroEstadoPago === ''" (click)="filtrarEstadoPago('')">Todos</button>
+            <button class="chip-filtro chip-filtro--pagada" [class.activo]="filtroEstadoPago === 'pagada'" (click)="filtrarEstadoPago('pagada')">Pagada</button>
+            <button class="chip-filtro chip-filtro--vencida" [class.activo]="filtroEstadoPago === 'vencida'" (click)="filtrarEstadoPago('vencida')">Vencida</button>
+            <button class="chip-filtro chip-filtro--pendiente" [class.activo]="filtroEstadoPago === 'pendiente'" (click)="filtrarEstadoPago('pendiente')">Pendiente</button>
+            <button class="chip-filtro chip-filtro--anulada" [class.activo]="filtroEstadoPago === 'anulada'" (click)="filtrarEstadoPago('anulada')">Anulada</button>
+          </div>
+          <div class="factura-filtros__fechas">
+            <input type="date" [(ngModel)]="filtroDesdePago" class="finput" aria-label="Desde">
+            <span>hasta</span>
+            <input type="date" [(ngModel)]="filtroHastaPago" class="finput" aria-label="Hasta">
+            <button class="btn-cancelar" (click)="cargarPagosPlataforma()">Filtrar</button>
+          </div>
+        </div>
+
+        @if (cargandoPagos) {
+          <p class="dash-cargando">Cargando facturación…</p>
+        } @else if (!pagosPlataforma.length) {
+          <p class="fb-empty">No hay pagos registrados{{ filtroEstadoPago ? ' con ese estado' : '' }}.</p>
+        } @else {
+          <div class="factura-tabla-wrap">
+            <table class="factura-tabla">
+              <thead>
+                <tr>
+                  <th>Gimnasio</th>
+                  <th>Desde</th>
+                  <th>Vence</th>
+                  <th>Monto</th>
+                  <th>Método</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of pagosPlataforma; track p._id) {
+                  <tr>
+                    <td>{{ p.gymNombre || '—' }}</td>
+                    <td>{{ p.fecha | date:'dd/MM/yy' }}</td>
+                    <td>{{ p.hasta ? (p.hasta | date:'dd/MM/yy') : '—' }}</td>
+                    <td>{{ formatMoneda(p.monto) }}</td>
+                    <td>{{ p.metodo || '—' }}</td>
+                    <td><span class="estado-pago" [class]="'estado-pago--' + p.estado">{{ p.estado }}</span></td>
+                    <td>
+                      @if (p.estado === 'pagada') {
+                        <button class="btn-eliminar" (click)="anularPago(p)">Anular</button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    </div>
+  }
+
   <!-- Tab Gimnasios -->
   @if (tabActiva === 'gyms') {
 
@@ -344,6 +492,10 @@
       <!-- Administrador del gimnasio (opcional) -->
       <p class="form-titulo" style="margin-top:.75rem">Administrador del gimnasio</p>
       <div class="field">
+        <label class="flabel">Nombre del administrador (opcional)</label>
+        <input [(ngModel)]="nuevo.adminNombre" placeholder="Ej: María Gómez" class="finput">
+      </div>
+      <div class="field">
         <label class="flabel">👤 Correo de acceso del administrador (opcional)</label>
         <input [(ngModel)]="nuevo.adminEmail" type="email" inputmode="email"
                placeholder="admin@sugimnasio.com" class="finput">
@@ -351,10 +503,6 @@
           Se crea con una contraseña temporal que aparece acá al terminar (nada de correos):
           entregásela vos, y la cambia en su primer login.
         </p>
-      </div>
-      <div class="field">
-        <label class="flabel">Nombre del administrador (opcional)</label>
-        <input [(ngModel)]="nuevo.adminNombre" placeholder="Ej: María Gómez" class="finput">
       </div>
       <div class="form-grid">
         <div class="field">
@@ -461,13 +609,13 @@
       } @else if (!editandoAdmins.length) {
         <p class="subdominio-hint">Este gimnasio todavía no tiene administrador.</p>
         <div class="field">
+          <label class="flabel">Nombre</label>
+          <input [(ngModel)]="nuevoAdminGym.nombre" placeholder="Ej: María Gómez" class="finput">
+        </div>
+        <div class="field">
           <label class="flabel">👤 Correo de acceso *</label>
           <input [(ngModel)]="nuevoAdminGym.email" type="email" inputmode="email"
                  placeholder="admin@sugimnasio.com" class="finput">
-        </div>
-        <div class="field">
-          <label class="flabel">Nombre</label>
-          <input [(ngModel)]="nuevoAdminGym.nombre" placeholder="Ej: María Gómez" class="finput">
         </div>
         <div class="form-grid">
           <div class="field">
@@ -488,7 +636,11 @@
             <label class="flabel">Nombre</label>
             <input [(ngModel)]="a.nombre" class="finput">
           </div>
-          <p class="subdominio-hint">{{ a.email }}</p>
+          <div class="field">
+            <label class="flabel">👤 Correo de acceso</label>
+            <input [ngModel]="a.email" disabled class="finput finput-solo-lectura">
+            <p class="subdominio-hint">Es su identidad de acceso: no se cambia acá.</p>
+          </div>
           <div class="form-grid">
             <div class="field">
               <label class="flabel">Cédula</label>
@@ -499,9 +651,16 @@
               <input [(ngModel)]="a.telefono" type="tel" placeholder="Ej: 3001234567" class="finput">
             </div>
           </div>
-          <button class="btn-crear" (click)="guardarAdminGym(a)" [disabled]="guardandoAdminGym">
-            {{ guardandoAdminGym ? 'Guardando...' : '💾 Guardar administrador' }}
+
+          <!-- Para cuando el admin olvidó su contraseña: no puede pedir el
+               reseteo solo si además perdió el acceso al correo del gym. -->
+          <button class="btn-reinvitar" (click)="reinvitarAdminGym(a)"
+                  [disabled]="reinvitandoAdminId === a._id">
+            {{ reinvitandoAdminId === a._id ? 'Enviando…' : '📧 Reenviar invitación (contraseña nueva)' }}
           </button>
+          <p class="subdominio-hint">
+            Le genera una contraseña temporal nueva y se la manda por correo. La anterior deja de funcionar.
+          </p>
         }
       }
 
@@ -566,6 +725,21 @@
 
         <div class="gym-plan-linea">
           @if (g.planPlataforma) {
+            @if (g.planVenceEn) {
+              <span class="gym-vigencia"
+                    [class.gym-vigencia--vencido]="esVencido(g.planVenceEn) && !enGracia(g.planVenceEn)"
+                    [class.gym-vigencia--gracia]="enGracia(g.planVenceEn)">
+                @if (enGracia(g.planVenceEn)) {
+                  ⏳ Venció {{ g.planVenceEn | date:'dd/MM/yy' }} — {{ DIAS_GRACIA }} días de gracia para pagar
+                } @else if (esVencido(g.planVenceEn)) {
+                  ⚠️ Vencido y desactivado desde {{ g.planVenceEn | date:'dd/MM/yy' }}
+                } @else {
+                  ✅ Activo hasta {{ g.planVenceEn | date:'dd/MM/yy' }}
+                }
+              </span>
+            } @else {
+              <span class="gym-vigencia gym-vigencia--sin">Sin vigencia registrada — reasigná el plan para activarla</span>
+            }
             <span class="gym-plan-badge">
               💳 {{ g.planPlataforma.nombre }}
               {{ g.planPlataformaCampo === 'mensual'

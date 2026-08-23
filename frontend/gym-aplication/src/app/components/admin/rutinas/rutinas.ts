@@ -38,6 +38,43 @@ export class Rutinas implements OnInit, OnDestroy {
   dia = '';
   enfoque = '';
 
+  /**
+   * Autocompleta el "Enfoque" palabra por palabra contra los músculos del
+   * catálogo (los mismos botones de arriba: Pecho, Hombro, Tríceps…). Al
+   * escribir "P" completa a "Pecho" con el resto seleccionado — si sigue
+   * escribiendo, sobreescribe la sugerencia; si no, queda tal cual. Con un
+   * espacio se pasa a la siguiente palabra, así se arman frases como
+   * "Pecho Tríceps" letra por letra.
+   */
+  onEnfoqueInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const valor = input.value;
+    this.enfoque = valor;
+
+    // Solo autocompleta si está escribiendo al final del texto — editar en
+    // medio de la frase no debería disparar sugerencias raras.
+    const cursorAlFinal = input.selectionStart === valor.length && input.selectionEnd === valor.length;
+    if (!cursorAlFinal) return;
+
+    const separador = valor.lastIndexOf(' ');
+    const antes = separador >= 0 ? valor.slice(0, separador + 1) : '';
+    const palabra = separador >= 0 ? valor.slice(separador + 1) : valor;
+    if (!palabra) return;
+
+    const coincidencia = this.categorias.find(
+      (c: string) => c.length > palabra.length && c.toLowerCase().startsWith(palabra.toLowerCase())
+    );
+    if (!coincidencia) return;
+
+    const nuevoValor = antes + coincidencia;
+    this.enfoque = nuevoValor;
+    // Se aplica en el siguiente ciclo: Angular todavía no escribió el nuevo
+    // valor en el <input> cuando se llega hasta acá.
+    setTimeout(() => {
+      input.setSelectionRange(antes.length + palabra.length, nuevoValor.length);
+    });
+  }
+
   rutinaParaSocio: any[] = [];
   listaSocios: any[] = [];
 

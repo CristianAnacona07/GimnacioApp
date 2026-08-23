@@ -39,6 +39,15 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/register`, usuario);
   }
 
+  /**
+   * Deja la constancia (fecha + versión) de que esta cuenta aceptó los
+   * Términos y la Política de Privacidad. Requiere sesión iniciada, así que
+   * se llama justo después del login de primer ingreso.
+   */
+  aceptarTerminos() {
+    return this.http.post(`${this.apiUrl}/aceptar-terminos`, {});
+  }
+
   logout() {
     this.userStateService.clearSession();
   }
@@ -100,6 +109,14 @@ export class AuthService {
 
   obtenerPerfil(userId: string): Observable<any> {
     return this.getPerfilSocio(userId);
+  }
+
+  // Igual que getPerfilSocio, pero SIN el tap que pisa el estado global del
+  // usuario logueado — para cuando un admin mira el perfil de OTRA persona
+  // (si no, el nombre/foto del admin en la navbar quedaría con los datos del
+  // socio que acaba de consultar).
+  getPerfilUsuario(id: string): Observable<any> {
+    return this.http.get(`${this.apiUrl}/perfil/${id}`);
   }
 
   actualizarPerfil(id: string, datos: any): Observable<any> {

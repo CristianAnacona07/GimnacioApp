@@ -100,14 +100,18 @@ export class Progreso implements OnInit {
     this.editandoId = null;
     this.progresoService.getHistorial(this.usuarioId, nombre).subscribe({
       next: (data) => {
-        // Del más nuevo al más viejo: es el orden en que el socio ve la tabla
-        // y también el de la gráfica (el primero de la lista, primero a la izquierda).
+        // Orden cronológico real: del más viejo al más nuevo, tal como lo
+        // devuelve el backend. La gráfica avanza en el tiempo de izquierda a
+        // derecha (serie 1 primero, última serie al final) y la tabla lo
+        // acompaña. Antes esto se invertía acá y mi-rutina invertía a su vez
+        // el orden de guardado para compensar: dos vueltas que se anulaban en
+        // pantalla pero dejaban el cálculo de "mejora" con el signo cambiado.
         this.historial = data.map(r => ({
           _id: r._id,
           fecha: this.formatFecha(r.fecha),
           peso: r.pesoKg,
           reps: r.repeticiones
-        })).reverse();
+        }));
         this.cargando = false;
         this.cdr.detectChanges();
         setTimeout(() => {
@@ -295,19 +299,22 @@ export class Progreso implements OnInit {
     }));
   }
 
-  // El array va del más nuevo al más viejo: el registro reciente es v[0].
+  // El array va del más viejo al más nuevo: el primer registro es v[0] y el
+  // más reciente el último. La mejora se mide desde dónde arrancó hasta dónde
+  // llegó — subir de 30 kg a 60 kg es +100%, no un retroceso.
   get mejora(): string {
     const v = this.valoresValidos;
     if (v.length < 2) return '';
-    const primero = v[v.length - 1];
-    const diff = v[0] - primero;
+    const primero = v[0];
+    if (!primero) return '';
+    const diff = v[v.length - 1] - primero;
     const pct = ((diff / primero) * 100).toFixed(0);
     return diff >= 0 ? `+${pct}%` : `${pct}%`;
   }
 
   get mejoraPositiva(): boolean {
     const v = this.valoresValidos;
-    return v.length >= 2 && v[0] >= v[v.length - 1];
+    return v.length >= 2 && v[v.length - 1] >= v[0];
   }
 
   // ─── SVG helpers — peso corporal ──────────────────────────────────────────

@@ -205,12 +205,15 @@ export class MiRutina implements OnInit, OnDestroy {
     this.guardando = true;
 
     // Enviar las series una por una (en paralelo el orden de llegada al servidor
-    // era aleatorio y el historial quedaba desordenado), y de la última a la
-    // primera: el historial y la gráfica muestran el registro más nuevo primero,
-    // así que guardando la serie 1 de última, queda de primera en pantalla.
+    // era aleatorio y el historial quedaba desordenado), y en su orden real:
+    // la serie 1 se guarda primero, así su fecha es la más antigua y el
+    // historial refleja de verdad cómo avanzó el entrenamiento. Antes se
+    // mandaban al revés para compensar otra inversión que hacía la pantalla de
+    // progreso; el resultado se veía bien pero el porcentaje de mejora salía
+    // con el signo cambiado (subir de 30 a 60 kg aparecía como -50%).
     // Cada una reporta éxito/fallo sin abortar a las demás (no se trata un
     // fallo parcial como éxito total).
-    const peticiones = [...setsConDatos].reverse().map(set =>
+    const peticiones = setsConDatos.map(set =>
       this.progresoService.guardarRegistro({
         usuarioId: usuario._id,
         ejercicioNombre: ejer.nombre,

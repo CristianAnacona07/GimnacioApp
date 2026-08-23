@@ -137,6 +137,91 @@
   padding: 3rem;
 }
 
+/* ===== FACTURACIÓN ===== */
+.factura-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+
+.factura-filtros__estados,
+.factura-filtros__fechas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.factura-filtros__fechas span { font-size: 0.78rem; color: var(--txt-3, #64748b); }
+.factura-filtros__fechas .finput { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+
+.chip-filtro {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  color: var(--txt-3, #94a3b8);
+  padding: 0.35rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip-filtro.activo { background: #2563eb; border-color: #2563eb; color: #fff; }
+.chip-filtro--pagada.activo { background: #16a34a; border-color: #16a34a; }
+.chip-filtro--vencida.activo { background: #ef4444; border-color: #ef4444; }
+.chip-filtro--pendiente.activo { background: #d97706; border-color: #d97706; }
+.chip-filtro--anulada.activo { background: #64748b; border-color: #64748b; }
+
+.factura-tabla-wrap {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.factura-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.factura-tabla th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  color: var(--txt-3, #64748b);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #334155;
+  white-space: nowrap;
+}
+.factura-tabla td {
+  padding: 0.75rem 1rem;
+  color: #e2e8f0;
+  border-bottom: 1px solid #26334b;
+  white-space: nowrap;
+}
+.factura-tabla tbody tr:last-child td { border-bottom: none; }
+.factura-tabla tbody tr:hover { background: #24324a; }
+
+.estado-pago {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+.estado-pago--pagada { background: rgba(34,197,94,.14); color: #22c55e; }
+.estado-pago--vencida { background: rgba(239,68,68,.14); color: #ef4444; }
+.estado-pago--pendiente { background: rgba(217,119,6,.14); color: #d97706; }
+.estado-pago--anulada { background: rgba(100,116,139,.14); color: #94a3b8; }
+
 .sa-page {
   min-height: 100vh;
   background: #0f172a;
@@ -177,11 +262,33 @@
   font-size: 1.2rem;
 }
 
+/* Mismo degradado dorado que el logo y que el nombre del login
+   (.brand-name en components/auth/login/login.css) — si se cambia uno,
+   cambiarlos todos. El color plano va primero como respaldo: si el WebView
+   no sabe recortar el degradado sobre el texto, el nombre igual se lee. */
 .sa-title {
   font-size: 1.6rem;
   font-weight: 800;
-  color: var(--txt-ambar, #f97316);
+  color: #e6c25f;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.sa-title-rayo {
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .sa-title {
+    background: linear-gradient(180deg, #f8ecb8 0%, #e3bb4c 55%, #b8891f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 
 .sa-sub {
@@ -340,6 +447,7 @@
   transition: border-color .2s;
 }
 .finput:focus { border-color: #f97316; }
+.finput-solo-lectura { color: var(--txt-3, #64748b); cursor: not-allowed; }
 
 /* Colores */
 .colores-row {
@@ -406,6 +514,24 @@
 .btn-crear:hover:not(:disabled) { background: #ea6c0e; }
 .btn-crear:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Reenviar invitación al admin: acción secundaria (regenera su contraseña),
+   así que no compite visualmente con "Guardar cambios". */
+.btn-reinvitar {
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  color: var(--txt-2, #cbd5e1);
+  padding: .6rem;
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+  margin-top: .35rem;
+  transition: border-color .2s, color .2s;
+}
+.btn-reinvitar:hover:not(:disabled) { border-color: #2563eb; color: #fff; }
+.btn-reinvitar:disabled { opacity: .5; cursor: not-allowed; }
+
 /* Cargando */
 .cargando {
   color: var(--txt-3, #94a3b8);
@@ -423,7 +549,7 @@
      ancho no depende de cuántas columnas entren ni del contenido.
      El min(280px, 100%) evita que desborde en pantallas más angostas que eso. */
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 320px));
-  justify-content: start;
+  justify-content: center;
   gap: 1rem;
   align-items: start;
 }
@@ -509,6 +635,7 @@
 
 .gym-plan-badge {
   display: inline-block;
+  margin-top: .35rem;
   font-size: .72rem;
   font-weight: 600;
   padding: .25rem .6rem;
@@ -519,7 +646,18 @@
 .gym-plan-badge--sin {
   background: rgba(100,116,139,.14);
   color: var(--txt-3, #64748b);
+  margin-top: 0;
 }
+
+.gym-vigencia {
+  display: block;
+  font-size: .7rem;
+  font-weight: 600;
+  color: #22c55e;
+}
+.gym-vigencia--vencido { color: #ef4444; }
+.gym-vigencia--gracia { color: #d97706; }
+.gym-vigencia--sin { color: var(--txt-3, #64748b); font-weight: 500; font-style: italic; }
 
 .btn-info-toggle {
   width: 100%;

@@ -7,6 +7,8 @@ const { OAuth2Client } = require('google-auth-library');
 const { getPrismaClient } = require('../prisma/client');
 const { toApiUser, fromApiDatosPersonales } = require('../lib/userMapper');
 const { toApiGym } = require('../lib/gymMapper');
+const { desactivarGymsVencidos } = require('../lib/planPlataformaVigencia');
+const { VERSION_LEGAL } = require('../lib/legal');
 const { verificarToken, soloAdmin, soloSuperAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
@@ -163,15 +165,40 @@ router.post('/reset-password', async (req, res) => {
 
 // ✅ LOGIN — firma el token y arma la respuesta de un login correcto. Incluye
 // el gym del usuario para que el frontend aplique su marca sin otra consulta.
+// Un socio con membresía vencida no debe poder entrar a la app — solo se
+// bloquea si tiene una fecha de vencimiento y ya pasó; un socio recién
+// invitado, sin plan asignado todavía (fechaVencimiento null), sigue
+// pudiendo loguearse normalmente.
+function membresiaVencida(usuario) {
+    return usuario.role === 'socio'
+        && usuario.fechaVencimiento
+        && new Date(usuario.fechaVencimiento) < new Date();
+}
+
 async function responderLogin(res, usuario) {
+    if (membresiaVencida(usuario)) {
+        return res.status(403).json({ mensaje: 'Tu membresía venció. Contacta a tu gimnasio para renovarla.' });
+    }
+    // Barre gimnasios cuya suscripción venció hace más de los días de gracia
+    // antes de decidir: así el "activo: true" de abajo ya refleja una
+    // desactivación automática que recién debería tomar efecto ahora mismo.
+    await desactivarGymsVencidos(prisma);
+    const gym = usuario.gymId
+        ? await prisma.gym.findFirst({ where: { id: usuario.gymId, activo: true }, select: SELECT_GYM_LOGIN })
+        : null;
+    // Antes esto solo dejaba `gym: null` en la respuesta pero igual emitía un
+    // token válido — un gimnasio desactivado (a mano, por "Anular", o ahora
+    // por vencimiento automático) no bloqueaba de verdad el ingreso de sus
+    // socios/admin. Sin esta rama, todo el punto de desactivar automáticamente
+    // no tenía ningún efecto real.
+    if (usuario.gymId && !gym) {
+        return res.status(403).json({ mensaje: 'Este gimnasio está desactivado. Contacta a la plataforma.' });
+    }
     const token = jwt.sign(
         { id: usuario.id, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null },
         JWT_SECRET,
         { expiresIn: TOKEN_EXPIRY }
     );
-    const gym = usuario.gymId
-        ? await prisma.gym.findFirst({ where: { id: usuario.gymId, activo: true }, select: SELECT_GYM_LOGIN })
-        : null;
     res.json({
         mensaje: 'Login exitoso',
         token,
@@ -653,9 +680,15 @@ router.post('/register', async (req, res) => {
         ? prisma.invitacion.update({ where: { id: invId }, data: { usada: false } }).catch(() => {})
         : Promise.resolve();
     try {
-        const { nombre, email, password, invitacion } = req.body;
+        const { nombre, email, password, invitacion, aceptaTerminos } = req.body;
         if (!nombre || !email || !password) {
             return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
+        }
+        // La constancia legal se guarda más abajo; se exige explícitamente en
+        // vez de darla por hecha, para que un registro hecho por fuera del
+        // formulario no deje un sello de aceptación que nunca ocurrió.
+        if (aceptaTerminos !== true) {
+            return res.status(400).json({ mensaje: 'Tenés que aceptar los Términos y Condiciones y la Política de Privacidad' });
         }
         if (typeof password !== 'string' || password.length < 8) {
             return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
@@ -695,8 +728,15 @@ router.post('/register', async (req, res) => {
 
         // El registro público SIEMPRE crea socios. Crear admins/entrenadores
         // debe hacerse por una ruta protegida (soloAdmin), nunca desde el body.
+        // La aceptación de los documentos legales se sella acá mismo: el
+        // formulario no deja enviar sin marcarla, y así queda constancia con
+        // fecha y versión desde el momento en que existe la cuenta.
         const nuevoUsuario = await prisma.user.create({
-            data: { gymId, nombre, email: emailNorm, password: passwordHasheada, role: 'socio' }
+            data: {
+                gymId, nombre, email: emailNorm, password: passwordHasheada, role: 'socio',
+                terminosAceptadosEn: new Date(),
+                terminosVersion: VERSION_LEGAL
+            }
         });
         await prisma.invitacion.update({ where: { id: invId }, data: { usadaPor: nuevoUsuario.id } }).catch(() => {});
 
@@ -706,6 +746,32 @@ router.post('/register', async (req, res) => {
     } catch (error) {
         await liberarInvitacion();
         res.status(500).json({ mensaje: 'Error en el servidor' });
+    }
+});
+
+// ✅ ACEPTAR TÉRMINOS Y POLÍTICA DE PRIVACIDAD
+// Lo llama el paso 1 del primer ingreso (cuentas creadas con contraseña
+// temporal, que no pasan por /register). Deja la constancia con fecha y
+// versión del texto. Es idempotente: reaceptar solo actualiza el sello, así
+// que un reintento del cliente no rompe nada.
+router.post('/aceptar-terminos', verificarToken, async (req, res) => {
+    try {
+        const usuario = await prisma.user.update({
+            where: { id: req.userId },
+            data: { terminosAceptadosEn: new Date(), terminosVersion: VERSION_LEGAL }
+        });
+        await registrarAuditoria(req, 'ACEPTAR_TERMINOS', {
+            recurso: 'User',
+            recursoId: req.userId,
+            detalle: { version: VERSION_LEGAL }
+        });
+        res.json({
+            mensaje: 'Términos aceptados',
+            terminosAceptadosEn: usuario.terminosAceptadosEn,
+            terminosVersion: usuario.terminosVersion
+        });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'No se pudo registrar la aceptación' });
     }
 });
 
@@ -912,8 +978,6 @@ router.post('/superadmins', verificarToken, soloSuperAdmin, async (req, res) => 
         const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: null }, select: { id: true } });
         if (existe) return res.status(400).json({ mensaje: 'Ya existe una cuenta con ese correo' });
 
-        // Contraseña temporal a la vista, igual que crear-socio: quien la crea
-        // se la entrega en persona, y queda obligada a cambiarla en el primer login.
         const passPlano = crypto.randomBytes(6).toString('hex');
         const salt = await bcrypt.genSalt(10);
 
@@ -930,10 +994,19 @@ router.post('/superadmins', verificarToken, soloSuperAdmin, async (req, res) => 
         });
         await registrarAuditoria(req, 'CREAR_SUPERADMIN', { recurso: 'User', recursoId: nuevo.id });
 
+        // Mismo criterio que crear-socio/invitar admin: la contraseña ya
+        // generada se manda por correo (entra por el login normal, con el
+        // correo precargado); solo se muestra en pantalla si el envío falló
+        // o no hay correo configurado.
+        const invitacionEnviada = await enviarPasswordTemporal({
+            email: emailNorm, nombre: nuevo.nombre, gymNombre: 'Kodiak Gym', password: passPlano
+        });
+
         res.status(201).json({
             mensaje: 'Superadmin creado',
             superadmin: { _id: nuevo.id, nombre: nuevo.nombre, email: nuevo.email },
-            passwordTemporal: passPlano
+            invitacionEnviada,
+            passwordTemporal: invitacionEnviada ? null : passPlano
         });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al crear superadmin' });

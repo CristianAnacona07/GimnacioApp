@@ -17,11 +17,11 @@ import {
 } from '../prisma/extensions/softDelete.js';
 
 describe('esSoftDeletable', () => {
-  it('es true para los 7 modelos con borrado suave', () => {
-    for (const modelo of ['Gym', 'Noticia', 'MetodoPago', 'Plan', 'Rutina', 'Transaccion', 'User']) {
+  it('es true para los 8 modelos con borrado suave', () => {
+    for (const modelo of ['Gym', 'Noticia', 'MetodoPago', 'Plan', 'PlanPlataforma', 'Rutina', 'Transaccion', 'User']) {
       expect(esSoftDeletable(modelo)).toBe(true);
     }
-    expect(SOFT_DELETE_MODELS).toHaveLength(7);
+    expect(SOFT_DELETE_MODELS).toHaveLength(8);
   });
 
   it('es false para modelos sin borrado suave (Asistencia, AuditLog, Dispositivo, Feedback, Medidas, Progreso)', () => {

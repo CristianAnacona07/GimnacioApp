@@ -237,8 +237,13 @@ export class Matricula implements OnInit {
   onPlanChange(): void {
     const plan = this.planes.find((p) => p._id === this.planId);
     if (plan) {
-      if (typeof plan.precio === 'number') {
-        this.monto = plan.precio;
+      // Prisma serializa los campos Decimal (como precio) como string en el
+      // JSON, no como number — por eso el chequeo era "typeof === 'number'"
+      // nunca daba true y el monto se quedaba vacío. Number(...) acepta las
+      // dos formas.
+      const precio = Number(plan.precio);
+      if (Number.isFinite(precio)) {
+        this.monto = precio;
       }
       // Los días vienen del plan: si no se copiaran aquí, el campo se quedaría en
       // su valor por defecto (30) y un plan quincenal cargaría un mes entero.
@@ -266,6 +271,11 @@ export class Matricula implements OnInit {
       }
     } else if (!this.socioSeleccionado) {
       this.toast.error('Selecciona un socio existente');
+      return;
+    }
+
+    if (!this.planTexto.trim()) {
+      this.toast.error('El plan es obligatorio');
       return;
     }
 

@@ -131,6 +131,7 @@ app.use('/api/rutinas', require('./routes/rutina'));
 app.use('/api/noticias', require('./routes/noticia'));
 app.use('/api/planes', require('./routes/planes'));
 app.use('/api/planes-plataforma', require('./routes/planesPlataforma'));
+app.use('/api/pagos-plataforma', require('./routes/pagosPlataforma'));
 app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/progreso', require('./routes/progreso'));
 app.use('/api/medidas', require('./routes/medidas'));
@@ -171,6 +172,7 @@ if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 10000;
   const servidor = require('http').createServer(app);
   require('./helpers/tiempoReal').iniciar(servidor);
+  require('./lib/planPlataformaVigencia').iniciarBarridoVigencia(require('./prisma/client').getPrismaClient());
   servidor.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
 }
 
