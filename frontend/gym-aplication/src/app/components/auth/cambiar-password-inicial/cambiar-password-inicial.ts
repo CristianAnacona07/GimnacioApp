@@ -22,10 +22,8 @@ import { AuthService } from '../../../services/auth';
   styleUrl: './cambiar-password-inicial.css'
 })
 export class CambiarPasswordInicial {
-  passwordActual = '';
   nuevaPassword = '';
   confirmarPassword = '';
-  verActual = false;
   verNueva = false;
   verConfirm = false;
   cargando = false;
@@ -46,10 +44,7 @@ export class CambiarPasswordInicial {
   }
 
   get formularioValido(): boolean {
-    return !!this.passwordActual
-      && this.nuevaPassword.length >= 8
-      && this.nuevaPassword !== this.passwordActual
-      && this.contrasenasCoinciden;
+    return this.nuevaPassword.length >= 8 && this.contrasenasCoinciden;
   }
 
   // --- Indicador de fuerza: puramente visual, no bloquea el envío (el único
@@ -71,8 +66,10 @@ export class CambiarPasswordInicial {
     if (!this.formularioValido || this.cargando) return;
     this.cargando = true;
 
-    this.http.put(`${environment.apiUrl}/api/auth/cambiar-password`, {
-      actual: this.passwordActual,
+    // Ruta propia del primer ingreso: no pide la temporal porque se acaba
+    // de usar en el login para llegar hasta acá. El servidor comprueba que
+    // la nueva sea distinta comparando contra el hash.
+    this.http.put(`${environment.apiUrl}/api/auth/cambiar-password-inicial`, {
       nueva: this.nuevaPassword
     }).subscribe({
       next: () => {

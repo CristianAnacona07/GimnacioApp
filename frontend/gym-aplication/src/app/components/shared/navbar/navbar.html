@@ -1,7 +1,7 @@
 <nav [style.background]="navbarBg" class="text-center text-white shadow-xl relative">
   <div class="flex items-center justify-between px-4 md:px-6 py-1">
     <div class="flex items-center gap-2">
-      @if (role === 'admin' || role === 'socio') {
+      @if (menuLinks.length) {
       <button type="button" (click)="menuOpen = !menuOpen"
         [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'"
         [attr.aria-expanded]="menuOpen"
@@ -36,7 +36,7 @@
         {{ role }}
       </span>
 
-      <a [routerLink]="role === 'socio' ? '/socio/perfil' : '/admin/configuracion'" aria-label="Ir a mi perfil" class="relative w-10 h-10 group block ml-1">
+      <a [routerLink]="rutaPerfil" aria-label="Ir a mi perfil" class="relative w-10 h-10 group block ml-1">
         <img [src]="fotoUrl ||'assets/default-avatar.png'" alt="Foto de perfil"
           class="w-10 h-10 rounded-full object-cover cursor-pointer" (error)="manejarErrorFoto($event)">
         <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-900 rounded-full" aria-hidden="true"></div>
@@ -62,7 +62,7 @@
   </div>
 
   <!-- Menú Desplegable -->
-  @if (role === 'admin' || role === 'socio') {
+  @if (menuLinks.length) {
   <ul
     class="menu-container absolute left-0 top-full w-64 border-t border-slate-800 transition-all duration-300 overflow-hidden z-50 shadow-2xl rounded-b-lg"
     [style.background]="menuBg"

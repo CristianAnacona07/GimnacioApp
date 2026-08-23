@@ -7,6 +7,7 @@ import { takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { ConfirmService } from '../../../services/confirm.service';
+import { PermisosService } from '../../../services/permisos.service';
 
 @Component({
   selector: 'app-detalle-rutina',
@@ -21,6 +22,12 @@ export class DetalleRutina implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private toast = inject(ToastService);
   private confirm = inject(ConfirmService);
+  private permisos = inject(PermisosService);
+
+  /** Borrar una rutina no se reparte: sigue siendo del admin. */
+  get puedeBorrar(): boolean {
+    return this.permisos.puedeBorrar;
+  }
   private destroy$ = new Subject<void>();
 
   usuarioId = '';

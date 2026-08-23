@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPrismaClient } = require('../prisma/client');
-const { verificarToken, soloAdmin } = require('../middleware/auth');
+const { verificarToken, soloAdmin, requierePermiso } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 
 const prisma = getPrismaClient();
@@ -31,7 +31,7 @@ router.get('/:id', verificarToken, async (req, res) => {
   }
 });
 
-router.post('/', verificarToken, soloAdmin, async (req, res) => {
+router.post('/', verificarToken, requierePermiso('pagos', 'edicion'), async (req, res) => {
   try {
     const { gymId, _id, id, ...datos } = req.body;
     const metodo = await prisma.metodoPago.create({ data: { ...datos, gymId: req.gymId } });
@@ -42,7 +42,7 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', verificarToken, soloAdmin, async (req, res) => {
+router.put('/:id', verificarToken, requierePermiso('pagos', 'edicion'), async (req, res) => {
   try {
     const { gymId, _id, id, ...datos } = req.body; // no permitir mover el método de pago de gym
     const actual = await prisma.metodoPago.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });

@@ -27,7 +27,9 @@
           </div>
           <div class="card-actions">
             <button class="btn-edit" (click)="editarRutina(rutina)">✏️ Editar</button>
-            <button class="btn-delete" (click)="borrarRutina(rutina._id)">🗑️ Borrar</button>
+            @if (puedeBorrar) {
+              <button class="btn-delete" (click)="borrarRutina(rutina._id)">🗑️ Borrar</button>
+            }
           </div>
         </div>
 

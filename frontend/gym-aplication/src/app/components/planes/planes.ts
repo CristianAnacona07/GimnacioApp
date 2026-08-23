@@ -7,6 +7,7 @@ import { PlanesService } from './../../services/planes.service';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { UserStateService } from '../../services/user-state.service';
+import { PermisosService } from '../../services/permisos.service';
 
 @Component({
   selector: 'app-planes',
@@ -28,9 +29,18 @@ export class Planes implements OnInit {
     private toast: ToastService,
     private confirm: ConfirmService,
     private userStateService: UserStateService,
+    private permisos: PermisosService,
     private cdr: ChangeDetectorRef,
     private location: Location
   ) {}
+
+  get puedeEditar(): boolean {
+    return this.permisos.puede('planes', 'edicion');
+  }
+
+  get puedeBorrar(): boolean {
+    return this.permisos.puedeBorrar;
+  }
 
   // Planes es una ruta compartida (llega desde el menú, o desde el enlace
   // "Editar planes" del editor de página): volver por historial, no a una

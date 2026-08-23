@@ -35,8 +35,12 @@ const construirTransporter = () => {
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: (process.env.EMAIL_USER || '').trim(),
+      // Google muestra las contraseñas de aplicación en grupos de cuatro
+      // ("abcd efgh ijkl mnop") y al pegarlas se cuelan los espacios, que
+      // Gmail rechaza con 535 BadCredentials. Se limpian aquí para que un
+      // copiar y pegar literal no deje al gimnasio sin correos.
+      pass: (process.env.EMAIL_PASS || '').replace(/\s+/g, ''),
     },
   });
 };

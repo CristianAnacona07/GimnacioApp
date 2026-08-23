@@ -17,6 +17,7 @@ import { AsistenciaService, SocioBuscado } from '../../../services/asistencia.se
 import { ToastService } from '../../../services/toast.service';
 import { ConfirmService } from '../../../services/confirm.service';
 import { PagoService } from '../../../services/pago.service';
+import { AuthService } from '../../../services/auth';
 
 /** Plan de membresía del gym. */
 interface Plan {
@@ -63,6 +64,7 @@ interface Confirmacion {
 export class Matricula implements OnInit {
   private asistenciaService = inject(AsistenciaService);
   private pagoService = inject(PagoService);
+  private authService = inject(AuthService);
   private toast = inject(ToastService);
   private confirm = inject(ConfirmService);
   private cdr = inject(ChangeDetectorRef);
@@ -91,6 +93,10 @@ export class Matricula implements OnInit {
   planId = '';
   /** Lo que se ve/escribe en el campo; si coincide con un plan real, se autocompleta monto/días/concepto. */
   planTexto = '';
+
+  /** Entrenador que se le asigna al cobrar. Vacío = no se le toca. */
+  entrenadorId = '';
+  entrenadores: { _id: string; nombre: string }[] = [];
   metodoId = '';
   concepto = '';
   monto: number | null = null;
@@ -105,6 +111,16 @@ export class Matricula implements OnInit {
   confirmacion: Confirmacion | null = null;
 
   ngOnInit(): void {
+    this.authService.getEmpleados()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (lista) => {
+          this.entrenadores = (lista || []).filter((e: any) => e.role === 'entrenador');
+          this.cdr.detectChanges();
+        },
+        // Sin entrenadores el cobro sigue funcionando: el selector queda vacío.
+        error: () => {}
+      });
     // Buscador de socios existentes con debounce
     this.busqueda$
       .pipe(
@@ -366,6 +382,19 @@ export class Matricula implements OnInit {
       });
   }
 
+  /**
+   * Se hace aparte del cobro y después de él: el pago es lo que no se puede
+   * perder. Si esto falla se avisa, y el admin lo corrige desde Socios sin
+   * tener que volver a cobrar.
+   */
+  private asignarEntrenador(socioId: string, entrenadorId: string): void {
+    this.authService.asignarEntrenador(socioId, entrenadorId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        error: () => this.toast.error('El pago quedó registrado, pero no se pudo asignar el entrenador. Asignalo desde Socios.')
+      });
+  }
+
   private registrarPago(
     usuarioId: string,
     monto: number,
@@ -407,6 +436,9 @@ export class Matricula implements OnInit {
             invitacionEnviada
           };
           this.toast.success('Pago registrado');
+          const entrenador = this.entrenadorId;
+          const socioId = socio._id || usuarioId;
+          if (entrenador && socioId) this.asignarEntrenador(socioId, entrenador);
           this.resetFormulario();
           this.cdr.markForCheck();
         },
@@ -420,6 +452,7 @@ export class Matricula implements OnInit {
   }
 
   private resetFormulario(): void {
+    this.entrenadorId = '';
     this.nombre = '';
     this.telefono = '';
     this.correo = '';

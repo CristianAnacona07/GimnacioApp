@@ -5,11 +5,12 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { getPrismaClient } = require('../prisma/client');
+const { permisosEfectivos, sanearPermisos } = require('../lib/permisos');
 const { toApiUser, fromApiDatosPersonales } = require('../lib/userMapper');
 const { toApiGym } = require('../lib/gymMapper');
 const { desactivarGymsVencidos } = require('../lib/planPlataformaVigencia');
 const { VERSION_LEGAL } = require('../lib/legal');
-const { verificarToken, soloAdmin, soloSuperAdmin, esAdmin, JWT_SECRET } = require('../middleware/auth');
+const { verificarToken, soloAdmin, soloSuperAdmin, esAdmin, JWT_SECRET, requierePermiso, tienePermiso } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
 
@@ -202,7 +203,7 @@ async function responderLogin(res, usuario) {
     res.json({
         mensaje: 'Login exitoso',
         token,
-        usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null, debeCambiarPassword: !!usuario.debeCambiarPassword },
+        usuario: { _id: usuario.id, nombre: usuario.nombre, role: usuario.role, cargo: usuario.cargo || null, gymId: usuario.gymId || null, debeCambiarPassword: !!usuario.debeCambiarPassword, permisos: permisosEfectivos(usuario) },
         gym: gym ? toApiGym(gym) : null
     });
 }
@@ -307,7 +308,7 @@ router.post('/google', async (req, res) => {
 });
 
 // ✅ OBTENER TODOS LOS USUARIOS (SOLO ADMINS)
-router.get('/usuarios', verificarToken, soloAdmin, async (req, res) => {
+router.get('/usuarios', verificarToken, requierePermiso('socios'), async (req, res) => {
     try {
         // Paginación retro-compatible: sin ?page se devuelve el array completo
         // (como siempre); con ?page se devuelve { data, total, page, limit, pages }.
@@ -460,56 +461,131 @@ router.post('/crear-entrenador', verificarToken, soloAdmin, async (req, res) => 
 const CARGOS_EMPLEADO = ['recepcionista', 'limpieza', 'nutricionista', 'entrenador'];
 
 // ✅ CREAR EMPLEADO (SOLO ADMINS) — recepcionista, entrenador, limpieza, nutricionista
+//
+// Mismo trato que un socio dado de alta en recepción: la contraseña la genera
+// el servidor y viaja por correo, nunca la teclea el admin. Así nadie más que
+// la persona conoce su clave, y el primer login la obliga a cambiarla.
 router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
     try {
-        const { nombre, email, password, cargo } = req.body;
-        if (!nombre || !email || !password) {
-            return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
+        const { nombre, email, cargo, telefono, identificacion } = req.body;
+        if (!nombre || !email) {
+            return res.status(400).json({ mensaje: 'Nombre y correo son obligatorios' });
         }
-        if (typeof password !== 'string' || password.length < 8) {
-            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
+        if (!EMAIL_RX.test(String(email).trim())) {
+            return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
+        }
+        if (!identificacion || !String(identificacion).trim()) {
+            return res.status(400).json({ mensaje: 'La cédula es obligatoria' });
         }
         if (!CARGOS_EMPLEADO.includes(cargo)) {
             return res.status(400).json({ mensaje: 'Cargo inválido' });
         }
         const emailNorm = email.toLowerCase().trim();
-        const existe = await prisma.user.findFirst({ where: { email: emailNorm, gymId: req.gymId }, select: { id: true } });
-        if (existe) return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
-
-        const salt = await bcrypt.genSalt(10);
-        const empleado = await prisma.user.create({
-            data: {
-                gymId: req.gymId,
-                nombre,
-                email: emailNorm,
-                password: await bcrypt.hash(password, salt),
-                role: cargo === 'entrenador' ? 'entrenador' : 'empleado',
-                cargo: cargo === 'entrenador' ? null : cargo,
-                emailVerified: true
-            }
+        // Con `withDeleted` a propósito: el borrado es lógico, así que la fila
+        // de un empleado eliminado sigue existiendo y el índice único
+        // (email, gymId) la sigue defendiendo, pero una consulta normal no la
+        // ve. Sin esto el alta superaba el control de duplicados y moría
+        // contra la base con un error que llegaba al navegador como un 500.
+        const previo = await prisma.user.findFirst({
+            where: { email: emailNorm, gymId: req.gymId },
+            select: { id: true, deletedAt: true },
+            withDeleted: true
         });
+        if (previo && !previo.deletedAt) {
+            return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        }
+
+        // Contraseña temporal generada por el servidor; el admin no la elige.
+        const passPlano = crypto.randomBytes(6).toString('hex');
+        const salt = await bcrypt.genSalt(10);
+        const datosEmpleado = {
+            nombre,
+            email: emailNorm,
+            password: await bcrypt.hash(passPlano, salt),
+            role: cargo === 'entrenador' ? 'entrenador' : 'empleado',
+            cargo: cargo === 'entrenador' ? null : cargo,
+            emailVerified: true,
+            // La puso otro: hay que cambiarla en el primer ingreso.
+            debeCambiarPassword: true,
+            telefono: telefono || '',
+            identificacion: String(identificacion).trim()
+        };
+        // Si a esa persona ya se le había dado de alta y luego se la eliminó,
+        // se reutiliza su fila en vez de rechazar el correo: para quien lo usa
+        // es el alta de siempre, y crear otra el índice único no lo permite.
+        const empleado = previo
+            ? await prisma.user.update({
+                where: { id: previo.id },
+                data: { ...datosEmpleado, deletedAt: null },
+                withDeleted: true
+            })
+            : await prisma.user.create({ data: { gymId: req.gymId, ...datosEmpleado } });
         await registrarAuditoria(req, 'CREAR_EMPLEADO', { recurso: 'User', recursoId: empleado.id, detalle: { cargo } });
+
+        const gym = await prisma.gym.findUnique({ where: { id: req.gymId }, select: { nombre: true } });
+        const correoEnviado = await enviarPasswordTemporal({
+            email: emailNorm, nombre: empleado.nombre, gymNombre: gym?.nombre || 'tu gimnasio', password: passPlano
+        });
 
         res.status(201).json({
             mensaje: 'Empleado creado',
-            empleado: { _id: empleado.id, nombre: empleado.nombre, email: empleado.email, role: empleado.role, cargo: empleado.cargo }
+            empleado: {
+                _id: empleado.id, nombre: empleado.nombre, email: empleado.email,
+                role: empleado.role, cargo: empleado.cargo
+            },
+            correoEnviado,
+            // Si el correo salió, la clave ya viaja hacia su dueño y no hace
+            // falta mostrarla. Si falló el envío, se devuelve para poder
+            // entregarla a mano y que el alta no quede inservible.
+            passwordTemporal: correoEnviado ? null : passPlano
         });
     } catch (error) {
+        // Sin esta traza el fallo llegaba al navegador como un 500 pelado y no
+        // dejaba ni rastro de la causa en los registros del servidor.
+        console.error('Error al crear empleado:', error);
+        if (error.code === 'P2002') {
+            return res.status(400).json({ mensaje: 'El correo ya está registrado en este gimnasio' });
+        }
         res.status(500).json({ mensaje: 'Error al crear empleado' });
     }
 });
 
 // ✅ LISTAR EMPLEADOS (SOLO ADMINS) — entrenadores y empleados del gym
-router.get('/empleados', verificarToken, soloAdmin, async (req, res) => {
+router.get('/empleados', verificarToken, requierePermiso('empleados'), async (req, res) => {
     try {
         const empleados = await prisma.user.findMany({
             where: { gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
-            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, createdAt: true },
+            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, telefono: true, identificacion: true, debeCambiarPassword: true, permisos: true, createdAt: true },
             orderBy: { createdAt: 'desc' }
         });
-        res.json(empleados.map(({ id, ...e }) => ({ ...e, _id: id })));
+        // Se devuelven los permisos ya resueltos (guardados sobre los de
+        // fábrica): a la pantalla le importa lo que rige hoy, no de dónde sale.
+        res.json(empleados.map(({ id, ...e }) => ({ ...e, _id: id, permisos: permisosEfectivos(e) })));
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al obtener empleados' });
+    }
+});
+
+// Permisos por sección de un empleado o entrenador. Se reemplazan enteros: el
+// formulario manda siempre las secciones completas, así que no hay updates
+// parciales que puedan dejar la mitad vieja y la mitad nueva.
+router.put('/empleados/:id/permisos', verificarToken, requierePermiso('empleados', 'edicion'), async (req, res) => {
+    try {
+        const permisos = sanearPermisos(req.body?.permisos);
+
+        // El filtro por rol es lo que evita que por esta vía se le toquen los
+        // permisos a un socio, a otro admin o a alguien de otro gimnasio.
+        const filtro = { id: req.params.id, gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } };
+        const empleado = await prisma.user.findFirst({ where: filtro, select: { id: true, role: true, cargo: true } });
+        if (!empleado) return res.status(404).json({ mensaje: 'Empleado no encontrado' });
+
+        await prisma.user.update({ where: { id: empleado.id }, data: { permisos } });
+        await registrarAuditoria(req, 'CAMBIAR_PERMISOS', { recurso: 'User', recursoId: empleado.id, detalle: permisos });
+
+        res.json({ mensaje: 'Permisos actualizados', permisos: permisosEfectivos({ ...empleado, permisos }) });
+    } catch (error) {
+        console.error('Error al guardar permisos:', error);
+        res.status(500).json({ mensaje: 'Error al guardar los permisos' });
     }
 });
 
@@ -550,7 +626,7 @@ router.put('/asignar-entrenador/:socioId', verificarToken, soloAdmin, async (req
 });
 
 // ✅ RENOVAR MEMBRESÍA (SOLO ADMINS)
-router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
+router.put('/renovar/:id', verificarToken, requierePermiso('socios', 'edicion'), async (req, res) => {
     try {
         const dias = Number.parseInt(req.body.dias, 10);
         if (!Number.isInteger(dias) || dias <= 0) {
@@ -587,7 +663,7 @@ router.put('/renovar/:id', verificarToken, soloAdmin, async (req, res) => {
 });
 
 // ✅ LIMPIAR MEMBRESÍA (SOLO ADMINS)
-router.put('/limpiar-membresia/:id', verificarToken, soloAdmin, async (req, res) => {
+router.put('/limpiar-membresia/:id', verificarToken, requierePermiso('socios', 'edicion'), async (req, res) => {
     try {
         const usuarioActual = await prisma.user.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
         if (!usuarioActual) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
@@ -636,6 +712,45 @@ router.put('/cambiar-password', verificarToken, async (req, res) => {
 
         res.json({ mensaje: 'Contraseña actualizada correctamente' });
     } catch (error) {
+        res.status(500).json({ mensaje: 'Error al cambiar la contraseña' });
+    }
+});
+
+// Cambio forzado del primer ingreso. A diferencia de /cambiar-password, no
+// pide la contraseña vieja: quien llega acá acaba de escribirla en el login
+// para obtener este mismo token, y volver a pedirla no prueba nada nuevo.
+// Solo responde mientras `debeCambiarPassword` siga en pie, así que deja de
+// servir apenas se usa una vez.
+router.put('/cambiar-password-inicial', verificarToken, async (req, res) => {
+    try {
+        const { nueva } = req.body;
+
+        if (typeof nueva !== 'string' || nueva.length < 8) {
+            return res.status(400).json({ mensaje: 'La nueva contraseña debe tener al menos 8 caracteres' });
+        }
+
+        const usuario = await prisma.user.findUnique({ where: { id: req.userId }, omit: { password: false } });
+        if (!usuario) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        if (!usuario.debeCambiarPassword) {
+            return res.status(403).json({ mensaje: 'Esta cuenta ya definió su contraseña' });
+        }
+
+        // Se compara contra el hash en vez de pedirle que la escriba: la
+        // temporal la conoce quien dio el alta, así que reutilizarla dejaría
+        // la cuenta en manos de esa persona.
+        if (usuario.password && await bcrypt.compare(nueva, usuario.password)) {
+            return res.status(400).json({ mensaje: 'La nueva contraseña debe ser distinta de la temporal' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const nuevoHash = await bcrypt.hash(nueva, salt);
+        await prisma.user.update({ where: { id: usuario.id }, data: { password: nuevoHash, debeCambiarPassword: false } });
+
+        await registrarAuditoria(req, 'CAMBIAR_PASSWORD_INICIAL', { recurso: 'User', recursoId: usuario.id });
+
+        res.json({ mensaje: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        console.error('Error en el cambio de contraseña inicial:', error);
         res.status(500).json({ mensaje: 'Error al cambiar la contraseña' });
     }
 });
@@ -873,11 +988,13 @@ router.post('/login', async (req, res) => {
 // ✅ PERFIL DEL SOCIO
 router.get('/perfil/:id', verificarToken, async (req, res) => {
     try {
-        // El socio sólo puede ver su propio perfil; el admin, los de su gym.
-        if (!esAdmin(req) && req.userId !== req.params.id) {
+        // El socio sólo puede ver su propio perfil; el admin y quien tenga la
+        // sección de socios, los de su gimnasio.
+        const veAjenos = await tienePermiso(req, 'socios');
+        if (!veAjenos && req.userId !== req.params.id) {
             return res.status(403).json({ mensaje: 'No autorizado para ver este perfil' });
         }
-        const where = esAdmin(req)
+        const where = veAjenos
             ? { id: req.params.id, gymId: req.gymId }
             : { id: req.params.id };
         const usuario = await prisma.user.findFirst({ where });

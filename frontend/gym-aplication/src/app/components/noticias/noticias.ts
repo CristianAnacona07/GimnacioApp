@@ -6,6 +6,7 @@ import { NoticiaService } from '../../services/noticia.service';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { UserStateService } from '../../services/user-state.service';
+import { PermisosService } from '../../services/permisos.service';
 
 @Component({
   selector: 'app-noticias',
@@ -29,8 +30,17 @@ export class Noticias implements OnInit {
     private toast: ToastService,
     private confirm: ConfirmService,
     private userStateService: UserStateService,
+    private permisos: PermisosService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  get puedeEditar(): boolean {
+    return this.permisos.puede('noticias', 'edicion');
+  }
+
+  get puedeBorrar(): boolean {
+    return this.permisos.puedeBorrar;
+  }
 
   ngOnInit() {
     this.role = this.userStateService.getRole()?.toLowerCase().trim() || '';

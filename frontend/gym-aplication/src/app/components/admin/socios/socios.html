@@ -30,13 +30,14 @@
             <th>Socio</th>
             <th>Email</th>
             <th>Membresía</th>
-            <th class="text-center">Renovar días</th>
+            <th>Entrenador</th>
+            @if (puedeEditarMembresia) { <th class="text-center">Renovar días</th> }
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
           <ng-container
-            *ngTemplateOutlet="filasPersonas; context: { $implicit: socios, vacio: 'No hay socios registrados' }" />
+            *ngTemplateOutlet="filasPersonas; context: { $implicit: socios, vacio: 'No hay socios registrados', conEntrenador: true }" />
         </tbody>
       </table>
     </div>
@@ -62,7 +63,7 @@
             <th>Entrenador</th>
             <th>Email</th>
             <th>Membresía</th>
-            <th class="text-center">Renovar días</th>
+            @if (puedeEditarMembresia) { <th class="text-center">Renovar días</th> }
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
@@ -189,7 +190,7 @@
 
 <!-- Filas de una tabla de personas. Socios y trabajadores comparten columnas y
      acciones, así que comparten también la plantilla. -->
-<ng-template #filasPersonas let-lista let-vacio="vacio">
+<ng-template #filasPersonas let-lista let-vacio="vacio" let-conEntrenador="conEntrenador">
   @for (u of lista; track u._id) {
   <tr [class.row-active]="u.fechaVencimiento && !esVencido(u.fechaVencimiento)"
       [class.row-expired]="u.fechaVencimiento && esVencido(u.fechaVencimiento)"
@@ -214,22 +215,42 @@
       }
     </td>
 
-    <td>
-      <div class="renew-group">
-        <button type="button" (click)="renovar(u._id, 7, u.nombre)"
-                [disabled]="loadingId === u._id"
-                aria-label="Renovar 7 días"
-                class="btn-days btn-7">+7</button>
-        <button type="button" (click)="renovar(u._id, 15, u.nombre)"
-                [disabled]="loadingId === u._id"
-                aria-label="Renovar 15 días"
-                class="btn-days btn-15">+15</button>
-        <button type="button" (click)="renovar(u._id, 30, u.nombre)"
-                [disabled]="loadingId === u._id"
-                aria-label="Renovar 30 días"
-                class="btn-days btn-30">+30</button>
-      </div>
-    </td>
+    @if (conEntrenador) {
+      <td>
+        @if (puedeAsignarEntrenador) {
+          <select class="select-entrenador"
+                  [ngModel]="u.entrenadorId || ''"
+                  (ngModelChange)="cambiarEntrenador(u, $event)"
+                  [disabled]="loadingId === u._id"
+                  [attr.aria-label]="'Entrenador de ' + u.nombre">
+            <option value="">Sin asignar</option>
+            @for (e of entrenadores; track e._id) {
+              <option [value]="e._id">{{ e.nombre }}</option>
+            }
+          </select>
+        } @else {
+          <span class="entrenador-texto">{{ nombreEntrenador(u) }}</span>
+        }
+      </td>
+    }
+    @if (puedeEditarMembresia) {
+      <td>
+        <div class="renew-group">
+          <button type="button" (click)="renovar(u._id, 7, u.nombre)"
+                  [disabled]="loadingId === u._id"
+                  aria-label="Renovar 7 días"
+                  class="btn-days btn-7">+7</button>
+          <button type="button" (click)="renovar(u._id, 15, u.nombre)"
+                  [disabled]="loadingId === u._id"
+                  aria-label="Renovar 15 días"
+                  class="btn-days btn-15">+15</button>
+          <button type="button" (click)="renovar(u._id, 30, u.nombre)"
+                  [disabled]="loadingId === u._id"
+                  aria-label="Renovar 30 días"
+                  class="btn-days btn-30">+30</button>
+        </div>
+      </td>
+    }
 
     <td>
       <div class="action-group">
@@ -237,24 +258,28 @@
           <span aria-hidden="true">ℹ️</span> Info
         </button>
         @if (u.fechaVencimiento) {
-          <button [routerLink]="['/admin/detalle-rutina', u._id]" class="btn-rutina" [attr.aria-label]="'Ver rutina de ' + u.nombre">
+          <button [routerLink]="[zona + '/detalle-rutina', u._id]" class="btn-rutina" [attr.aria-label]="'Ver rutina de ' + u.nombre">
             <span aria-hidden="true">🏋️</span> Rutina
           </button>
-          <button type="button" (click)="limpiarMembresia(u._id, u.nombre)"
-                  [disabled]="loadingId === u._id"
-                  class="btn-delete" title="Limpiar membresía" aria-label="Limpiar membresía">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          @if (puedeEditarMembresia) {
+            <button type="button" (click)="limpiarMembresia(u._id, u.nombre)"
+                    [disabled]="loadingId === u._id"
+                    class="btn-delete" title="Limpiar membresía" aria-label="Limpiar membresía">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          }
+        } @else {
+          <span class="text-slate-300 text-xs italic">—</span>
         }
       </div>
     </td>
   </tr>
   } @empty {
   <tr>
-    <td colspan="5" class="empty-row">{{ vacio }}</td>
+    <td [attr.colspan]="columnas(conEntrenador)" class="empty-row">{{ vacio }}</td>
   </tr>
   }
 </ng-template>

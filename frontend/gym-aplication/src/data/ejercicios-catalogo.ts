@@ -25,10 +25,10 @@ export interface diasRutina {
 export const DIAS_RUTINA: diasRutina = {
   lunes: 'Lunes',
   martes: 'Martes',
-  miercoles: 'Miércoles',
+  miercoles: 'Miercoles',
   jueves: 'Jueves',
   viernes: 'Viernes',
-  sabado: 'Sábado',
+  sabado: 'Sabado',
   domingo: 'Domingo'
 };
 

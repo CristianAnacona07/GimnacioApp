@@ -6,7 +6,7 @@
       <h1 class="header-titulo">Noticias</h1>
       <p class="header-sub">Novedades y avisos del gimnasio</p>
     </div>
-    @if (role === 'admin') {
+    @if (puedeEditar) {
       <button type="button" (click)="abrirFormulario()" class="btn-agregar">
         + Nueva noticia
       </button>
@@ -58,9 +58,13 @@
             <label>Día</label>
             <select [(ngModel)]="formulario.dia" name="dia">
               <option value="">Sin día específico</option>
-              @for (dia of dias; track dia) {
-                <option [value]="dia">{{ dia }}</option>
-              }
+              <option value="Lunes">Lunes</option>
+              <option value="Martes">Martes</option>
+              <option value="Miercoles">Miércoles</option>
+              <option value="Jueves">Jueves</option>
+              <option value="Viernes">Viernes</option>
+              <option value="Sabado">Sábado</option>
+              <option value="Domingo">Domingo</option>
             </select>
           </div>
 
@@ -107,10 +111,14 @@
                 <span class="placeholder-icon">🏋️</span>
               </div>
             }
-            @if (role === 'admin') {
+            @if (puedeEditar || puedeBorrar) {
               <div class="card-acciones">
-                <button type="button" (click)="editarNoticia(noticia)" class="btn-accion btn-editar">✏️</button>
-                <button type="button" (click)="eliminarNoticia(noticia._id)" class="btn-accion btn-eliminar">🗑️</button>
+                @if (puedeEditar) {
+                  <button type="button" (click)="editarNoticia(noticia)" class="btn-accion btn-editar">✏️</button>
+                }
+                @if (puedeBorrar) {
+                  <button type="button" (click)="eliminarNoticia(noticia._id)" class="btn-accion btn-eliminar">🗑️</button>
+                }
               </div>
             }
           </div>

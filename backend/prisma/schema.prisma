@@ -185,6 +185,13 @@ model User {
   // updates por posición, así que JSONB es más simple que una tabla hija.
   disponibilidad Json @default("[]")
 
+  // Qué secciones ve esta cuenta, cuando el admin las cambió desde la pantalla
+  // de permisos: {seccion: 'ninguno'|'lectura'|'edicion'}. NULL = lo de fábrica
+  // según rol y cargo, que es lo que el código hacía fijo antes (ver
+  // lib/permisos.js). Se guarda y se reemplaza entera desde un solo formulario,
+  // así que JSONB alcanza — nada consulta por dentro.
+  permisos Json?
+
   fechaRegistro    DateTime  @default(now()) @map("fecha_registro")
   fechaVencimiento DateTime? @map("fecha_vencimiento")
 

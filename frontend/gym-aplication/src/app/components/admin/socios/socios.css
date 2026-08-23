@@ -147,10 +147,12 @@
   display: flex;
   gap: 6px;
   justify-content: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .btn-days {
+  white-space: nowrap;
   padding: 5px 12px;
   border-radius: 99px;
   font-size: 12px;
@@ -436,3 +438,24 @@
   background: var(--sup-3, #e5e7eb);
   color: var(--txt-1, #1f2937);
 }
+
+/* Selector de entrenador de cada fila */
+.select-entrenador {
+  width: 100%;
+  max-width: 9rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--txt-1, #1e293b);
+  background: var(--sup-2, #f8fafc);
+  border: 1.5px solid var(--bde, #e2e8f0);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.select-entrenador:focus { outline: none; border-color: var(--color-secundario, #1d4ed8); }
+.select-entrenador:disabled { opacity: 0.55; cursor: wait; }
+
+/* Cuando la cuenta sólo puede mirar */
+.entrenador-texto { font-size: 0.78rem; font-weight: 600; color: var(--txt-3, #94a3b8); }

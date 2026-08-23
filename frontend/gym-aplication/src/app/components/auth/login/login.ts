@@ -43,9 +43,6 @@ export class Login implements OnInit, AfterViewInit {
   /** Token de Google a la espera de que el usuario elija gimnasio. */
   private googlePendiente: { tipo: 'credential' | 'access_token'; valor: string } | null = null;
   readonly esNativo = Capacitor.isNativePlatform();
-  /** Enlace de primer ingreso reusado con esa misma sesión todavía viva. */
-  yaActivada = false;
-
   // Primer ingreso (se llegó por el botón del correo de contraseña temporal,
   // que trae ?email=): acá mismo se aceptan los documentos legales, para no
   // meter una pantalla extra entre el correo y el cambio de contraseña.
@@ -84,13 +81,14 @@ export class Login implements OnInit, AfterViewInit {
     if (email) {
       this.usuario.email = email;
       this.esPrimerIngreso = true;
-    }
 
-    // Mismo enlace reusado con la sesión de esa activación todavía viva
-    // (noAuthGuard lo dejó pasar a propósito por traer ?email=) — no se
-    // vuelve a iniciar sesión en silencio, se avisa explícitamente.
-    if (email && this.storageService.getToken() && !this.storageService.isTokenExpired()) {
-      this.yaActivada = true;
+      // El enlace suele abrirse con otra sesión viva: la de quien dio el
+      // alta, en el mismo navegador. Se cierra sin preguntar para dejar el
+      // formulario limpio — el enlace lleva al login, no al panel de quien
+      // ya estaba dentro (noAuthGuard deja pasar el ?email= a propósito).
+      if (this.storageService.getToken() && !this.storageService.isTokenExpired()) {
+        this.authService.logout();
+      }
     }
   }
 
@@ -369,6 +367,7 @@ export class Login implements OnInit, AfterViewInit {
 
     if (role === 'superadmin') this.router.navigate(['/plataforma']);
     else if (role === 'admin') this.router.navigate(['admin/noticias']);
+    else if (role === 'entrenador') this.router.navigate(['/entrenador']);
     else if (role === 'empleado') this.router.navigate(['/empleado']);
     else this.router.navigate(['/socio']);
   }
@@ -412,15 +411,5 @@ export class Login implements OnInit, AfterViewInit {
   cancelarEleccion() {
     this.gimnasiosMultiples = null;
     this.googlePendiente = null;
-  }
-
-  // El enlace de primer ingreso es de un solo uso: acá no se ofrece un atajo
-  // directo al panel — cierra esa sesión y deja el login limpio de siempre,
-  // para que quien quiera entrar lo haga por el camino normal.
-  irALoginLimpio() {
-    this.authService.logout();
-    this.yaActivada = false;
-    this.usuario = { email: '', password: '' };
-    this.router.navigate(['/login']);
   }
 }

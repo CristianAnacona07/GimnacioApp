@@ -6,7 +6,7 @@
 
   <div class="planes-header">
     <h1>⚡ Planes Disponibles</h1>
-    @if (role === 'admin') {
+    @if (puedeEditar) {
       <button type="button" (click)="abrirFormulario()" class="btn-agregar">
         + Agregar Nuevo Plan
       </button>
@@ -59,10 +59,14 @@
         <div class="plan-card">
           <div class="card-header">
             <h3>{{ plan.nombre }}</h3>
-            @if (role === 'admin') {
+            @if (puedeEditar || puedeBorrar) {
               <div class="acciones-admin">
-                <button (click)="prepararEdicion(plan)" class="btn-mini-edit">✏️</button>
-                <button (click)="eliminarPlan(plan._id)" class="btn-mini-delete">🗑️</button>
+                @if (puedeEditar) {
+                  <button (click)="prepararEdicion(plan)" class="btn-mini-edit">✏️</button>
+                }
+                @if (puedeBorrar) {
+                  <button (click)="eliminarPlan(plan._id)" class="btn-mini-delete">🗑️</button>
+                }
               </div>
             }
           </div>

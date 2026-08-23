@@ -89,8 +89,17 @@ export class AuthService {
     return this.http.get<any[]>(`${this.apiUrl}/empleados`);
   }
 
-  crearEmpleado(datos: { nombre: string; email: string; password: string; cargo: string }): Observable<any> {
+  crearEmpleado(datos: { nombre: string; email: string; identificacion: string; telefono?: string; cargo: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/crear-empleado`, datos);
+  }
+
+  /** `entrenadorId` en null desasigna: el socio queda sin entrenador. */
+  asignarEntrenador(socioId: string, entrenadorId: string | null): Observable<any> {
+    return this.http.put(`${this.apiUrl}/asignar-entrenador/${socioId}`, { entrenadorId });
+  }
+
+  guardarPermisos(id: string, permisos: Record<string, string>): Observable<any> {
+    return this.http.put(`${this.apiUrl}/empleados/${id}/permisos`, { permisos });
   }
 
   eliminarEmpleado(id: string): Observable<any> {

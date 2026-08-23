@@ -17,6 +17,7 @@ describe('authGuard', () => {
     isTokenExpired: ReturnType<typeof vi.fn>;
     decodeTokenPayload: ReturnType<typeof vi.fn>;
     clearSessionPreservingData: ReturnType<typeof vi.fn>;
+    getDebeCambiarPassword: ReturnType<typeof vi.fn>;
   };
   let router: { navigate: ReturnType<typeof vi.fn>; navigateByUrl: ReturnType<typeof vi.fn> };
   let gymService: { rutaSalida: ReturnType<typeof vi.fn> };
@@ -36,6 +37,8 @@ describe('authGuard', () => {
       isTokenExpired: vi.fn(),
       decodeTokenPayload: vi.fn(),
       clearSessionPreservingData: vi.fn(),
+      // Por defecto, cuenta normal: ya cambió la contraseña temporal.
+      getDebeCambiarPassword: vi.fn().mockReturnValue(false),
     };
     router = { navigate: vi.fn(), navigateByUrl: vi.fn() };
     gymService = { rutaSalida: vi.fn().mockReturnValue(SALIDA) };

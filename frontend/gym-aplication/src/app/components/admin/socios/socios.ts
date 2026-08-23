@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +7,7 @@ import { takeUntil } from 'rxjs/operators';
 
 import { AuthService } from '../../../services/auth';
 import { UserStateService } from '../../../services/user-state.service';
+import { PermisosService } from '../../../services/permisos.service';
 import { ToastService } from '../../../services/toast.service';
 import { ConfirmService } from '../../../services/confirm.service';
 
@@ -44,6 +45,69 @@ export class Socios implements OnInit, OnDestroy {
   get admins() { return this.filtrar(this.usuarios.filter(u => u.role === 'admin')); }
 
   private destroy$ = new Subject<void>();
+  private permisos = inject(PermisosService);
+
+  /**
+   * Renovar días y limpiar la membresía tocan la plata del socio, así que
+   * piden edición sobre la sección. Un entrenador con lectura ve la tabla
+   * entera pero sin esos controles.
+   */
+  get puedeEditarMembresia(): boolean {
+    return this.permisos.puede('socios', 'edicion');
+  }
+
+  /** Entrenadores del gimnasio, para el selector de cada fila. */
+  entrenadores: any[] = [];
+
+  /** Repartir socios entre entrenadores es del admin. */
+  get puedeAsignarEntrenador(): boolean {
+    return this.permisos.esAdmin;
+  }
+
+  /** Nombre a mostrar cuando la cuenta no puede cambiar la asignación. */
+  nombreEntrenador(u: any): string {
+    const e = this.entrenadores.find(e => e._id === u.entrenadorId);
+    return e ? e.nombre : 'Sin asignar';
+  }
+
+  /** Columnas de la tabla: varían con lo que esta cuenta puede ver y tocar. */
+  columnas(conEntrenador: boolean): number {
+    return 4 + (conEntrenador ? 1 : 0) + (this.puedeEditarMembresia ? 1 : 0);
+  }
+
+  cambiarEntrenador(socio: any, entrenadorId: string): void {
+    const anterior = socio.entrenadorId || '';
+    if (entrenadorId === anterior) return;
+
+    // Se pinta al instante y se deshace si el servidor dice que no: esperar la
+    // respuesta con el desplegable congelado se siente roto.
+    socio.entrenadorId = entrenadorId || null;
+    this.loadingId = socio._id;
+
+    this.authService.asignarEntrenador(socio._id, entrenadorId || null).subscribe({
+      next: () => {
+        this.loadingId = null;
+        const e = this.entrenadores.find(e => e._id === entrenadorId);
+        this.toast.success(e ? `${socio.nombre} ahora entrena con ${e.nombre}` : `${socio.nombre} quedó sin entrenador`);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        socio.entrenadorId = anterior || null;
+        this.loadingId = null;
+        this.toast.error(err.error?.mensaje || 'No se pudo asignar el entrenador');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  /**
+   * Esta pantalla la comparten el admin y el entrenador, y cada uno vive en su
+   * propia zona de rutas: enlazar a /admin fijo mandaría al entrenador contra
+   * el guard, que lo devolvería a su panel.
+   */
+  get zona(): string {
+    return this.permisos.esAdmin ? '/admin' : '/entrenador';
+  }
 
   constructor(
     private authService: AuthService,
@@ -69,6 +133,23 @@ export class Socios implements OnInit, OnDestroy {
       });
 
     this.cargarUsuarios();
+    this.cargarEntrenadores();
+  }
+
+  /**
+   * Para el selector de cada fila. Si falla se deja vacío y la tabla sigue
+   * funcionando: repartir entrenadores no es lo principal de esta pantalla.
+   */
+  private cargarEntrenadores(): void {
+    this.authService.getEmpleados()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (lista) => {
+          this.entrenadores = (lista || []).filter((e: any) => e.role === 'entrenador');
+          this.cdr.detectChanges();
+        },
+        error: () => {}
+      });
   }
 
   /** Filtra por nombre, correo o cédula, ignorando tildes. */

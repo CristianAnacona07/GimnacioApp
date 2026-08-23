@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { permisosEfectivos, puede } = require('../lib/permisos');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -38,15 +39,53 @@ const soloSuperAdmin = (req, res, next) => {
 
 const esAdmin = (req) => req.userRole === 'admin' || req.userRole === 'superadmin';
 
-// Recepción (check-in, búsqueda de socios, historial de asistencia): el admin
-// o un empleado con cargo de recepcionista.
-const soloRecepcion = (req, res, next) => {
-    const esRecepcionista = req.userRole === 'empleado' && req.userCargo === 'recepcionista';
-    if (!esAdmin(req) && !esRecepcionista) {
-        return res.status(403).json({ mensaje: 'Acceso denegado.' });
-    }
-    next();
+// Exige un nivel de permiso en una sección. El admin y el superadmin pasan
+// sin consultar nada: mandan sobre todo su gimnasio.
+//
+// Los permisos se leen de la base en cada petición, no del token: si vinieran
+// firmados dentro, quitarle una sección a alguien no surtiría efecto hasta que
+// caducara su sesión, y esas duran ocho horas. Es una lectura por clave
+// primaria y sólo para cuentas que no son admin.
+// Carga los permisos de quien pide, una sola vez por petición aunque se
+// consulten varias veces.
+const cargarPermisos = async (req) => {
+    if (req.permisos) return req.permisos;
+    const { getPrismaClient } = require('../prisma/client');
+    const usuario = await getPrismaClient().user.findUnique({
+        where: { id: req.userId },
+        select: { role: true, cargo: true, permisos: true }
+    });
+    req.permisos = usuario ? permisosEfectivos(usuario) : null;
+    return req.permisos;
 };
+
+// Versión consultable desde dentro de una ruta, para cuando el permiso no
+// decide si se entra sino qué se devuelve (ver rutinas GET /:usuarioId).
+const tienePermiso = async (req, seccion, nivel = 'lectura') => {
+    if (esAdmin(req)) return true;
+    return puede(await cargarPermisos(req), seccion, nivel);
+};
+
+const requierePermiso = (seccion, nivel = 'lectura') => async (req, res, next) => {
+    if (esAdmin(req)) return next();
+    try {
+        const permisos = await cargarPermisos(req);
+        if (!permisos) return res.status(401).json({ mensaje: 'Token inválido o expirado' });
+        if (!puede(permisos, seccion, nivel)) {
+            return res.status(403).json({ mensaje: 'Acceso denegado.' });
+        }
+        next();
+    } catch (error) {
+        console.error('Error al comprobar permisos:', error);
+        res.status(500).json({ mensaje: 'Error al comprobar permisos' });
+    }
+};
+
+// Recepción (check-in, búsqueda de socios, historial de asistencia). Delega en
+// el permiso de sección: el cargo 'recepcionista' lo trae de fábrica, así que
+// quien entraba antes sigue entrando, pero ahora el admin puede dárselo a
+// cualquier otra cuenta sin cambiarle el cargo.
+const soloRecepcion = (req, res, next) => requierePermiso('recepcion', 'edicion')(req, res, next);
 
 // Resuelve el usuarioId que el solicitante puede consultar/escribir.
 // Admin/superadmin: el solicitado (param/body) o el propio si no se indica.
@@ -63,6 +102,8 @@ module.exports = {
     soloAdmin,
     soloSuperAdmin,
     soloRecepcion,
+    requierePermiso,
+    tienePermiso,
     esAdmin,
     resolverUsuarioId,
     filtroPropiedad

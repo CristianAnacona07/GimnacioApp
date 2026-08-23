@@ -74,7 +74,7 @@ export class MiRutina implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
     this.diaActivo = diasSemana[new Date().getDay()];
 
     const usuario = this.userState.getCurrentUser();
