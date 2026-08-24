@@ -9,7 +9,7 @@
     <!-- Fuera de la tarjeta, flotando directo sobre el fondo oscuro de la
          página (igual que en el login) — la tarjeta blanca empieza abajo. -->
     <div class="card-header">
-      <div class="brand-logo-ring">
+      <div class="brand-logo-ring" [class.brand-logo-ring--gym]="!!gym?.logo">
         @if (gym?.logo) {
           <img [src]="gym!.logo" [alt]="gym!.nombre" class="brand-logo">
         } @else if (gym) {

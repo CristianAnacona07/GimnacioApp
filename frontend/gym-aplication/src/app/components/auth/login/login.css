@@ -78,6 +78,17 @@
   margin-bottom: 0.75rem;
 }
 
+/* Marco para el logo de un gimnasio. El logo de la plataforma es un PNG con
+   fondo transparente y se funde con el fondo oscuro, así que va sin marco;
+   el de cada gimnasio suele ser una imagen cuadrada con fondo propio, que sin
+   borde queda como pegada encima. El marco la convierte en un ícono. */
+.brand-logo-ring--gym {
+  border-radius: 1.35rem;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
 .brand-logo {
   width: 84px;
   height: 84px;
