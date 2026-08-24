@@ -2,11 +2,10 @@
 
   <header class="sa-header">
     <div class="sa-brand">
-      @if (logoGymPiloto) {
-        <img [src]="logoGymPiloto" class="sa-brand-logo" alt="Snake Gym">
-      } @else {
-        <div class="sa-brand-logo sa-brand-logo--fallback">S</div>
-      }
+      <!-- El logo de la plataforma es un archivo propio, no el de ningún
+           gimnasio: antes se tomaba prestado del gym con slug 'snake-gym' y
+           al renombrarlo a Kodiak el encabezado se quedó sin logo. -->
+      <img src="icons/LogoGym.png" class="sa-brand-logo" alt="Snake Gym">
       <div>
         <!-- El rayo va como SVG y no como emoji ⚡: un emoji se dibuja con
              sus propios colores y no hay forma de teñirlo, así que no podía

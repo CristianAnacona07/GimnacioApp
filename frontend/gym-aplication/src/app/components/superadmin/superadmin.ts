@@ -729,12 +729,6 @@ export class SuperAdmin implements OnInit, OnDestroy {
     });
   }
 
-  // Logo del encabezado — Snake Gym (antes Kodiak Gym) es el gimnasio piloto,
-  // así que el panel central se marca con su logo en vez de un ícono genérico.
-  get logoGymPiloto(): string | null {
-    return this.gyms.find(g => g.slug === 'snake-gym')?.logo || null;
-  }
-
   // --- Panel "Información" de cada tarjeta de gimnasio ---
   moduloLabels: Record<string, string> = {
     rutinas: 'Rutinas', progreso: 'Progreso', medidas: 'Medidas',

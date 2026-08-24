@@ -248,18 +248,11 @@
 .sa-brand-logo {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
+  /* contain y sin recorte circular: el logo es más alto que ancho y con
+     cover se le comían los costados de la cabeza — mismo motivo que en
+     .brand-logo del login. */
+  object-fit: contain;
   flex-shrink: 0;
-}
-.sa-brand-logo--fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f97316;
-  color: #fff;
-  font-weight: 800;
-  font-size: 1.2rem;
 }
 
 /* Mismo degradado dorado que el logo y que el nombre del login
