@@ -30,7 +30,11 @@
         }
       </div>
       <h1 class="brand-name">{{ gym?.nombre || 'Snake Gym' }}</h1>
-      <p class="brand-sub">{{ gym?.slogan || 'Construye tu mejor versión' }}</p>
+      <!-- Dos respaldos distintos: sin ningún gimnasio cargado (la marca de
+           la plataforma) se usa el de Snake Gym; con un gimnasio real que
+           todavía no cargó el suyo, el genérico en inglés — ver feedback del
+           24-ago: "para los otros... en inglés se ven mejor". -->
+      <p class="brand-sub">{{ !gym ? 'Construye tu mejor versión' : (gym.slogan || 'Strength · Discipline · Power') }}</p>
     </div>
 
     <div class="login-card">
