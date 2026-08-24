@@ -9,6 +9,7 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmService } from '../../services/confirm.service';
+import { GymService } from '../../services/gym.service';
 
 @Component({
   selector: 'app-superadmin',
@@ -246,7 +247,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
     private toast: ToastService,
     private confirm: ConfirmService,
     private cdr: ChangeDetectorRef,
-    private router: Router
+    private router: Router,
+    private gymService: GymService
   ) {}
 
   ngOnInit() {
@@ -755,6 +757,13 @@ export class SuperAdmin implements OnInit, OnDestroy {
 
   cerrarSesion() {
     this.auth.logout();
+    // El superadmin no pertenece a ningún gimnasio, así que no hay ninguna
+    // marca "suya" que conservar en el login — a diferencia de un socio o
+    // admin cerrando sesión de SU gym (ahí sí se preserva a propósito, ver
+    // clearSessionPreservingData). Sin esto, el login de después mostraba la
+    // marca de cualquier gimnasio que se hubiera visitado antes en este
+    // navegador (ej. probando Total Gym), en vez de la de la plataforma.
+    this.gymService.limpiarGym();
     // No a /sa: es la pantalla "Panel Central" vestigial de antes del login
     // universal. El superadmin ya se loguea por el mismo /login que todos.
     this.router.navigate(['/login']);
