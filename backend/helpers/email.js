@@ -8,12 +8,14 @@ const nodemailer = require('nodemailer');
  * devuelven false en vez de lanzar, porque un correo que no sale nunca debe
  * tumbar la operación de negocio que sí tuvo éxito.
  *
- * Dos modos:
- *  - SMTP genérico, si está definido SMTP_HOST. Es el que se usa en desarrollo
- *    con Mailpit (`SMTP_HOST=127.0.0.1`, `SMTP_PORT=1025`), que captura los
- *    correos en una bandeja web en vez de entregarlos a nadie. Sin auth: si
- *    SMTP_USER está vacío no se manda ninguna credencial.
- *  - Gmail, si no hay SMTP_HOST pero sí EMAIL_USER/EMAIL_PASS. Es producción.
+ * Dos modos, con las MISMAS credenciales (EMAIL_USER/EMAIL_PASS) en los dos:
+ *  - SMTP genérico, si está definido SMTP_HOST. En desarrollo es Mailpit
+ *    (`SMTP_HOST=mailpit`, `SMTP_PORT=1025`), que no pide auth y captura los
+ *    correos en una bandeja web en vez de entregarlos a nadie — sin auth: si
+ *    EMAIL_USER está vacío no se manda ninguna credencial. En producción es
+ *    cualquier SMTP con autenticación real (Brevo, etc.), que si necesita
+ *    EMAIL_USER/EMAIL_PASS.
+ *  - Gmail, si no hay SMTP_HOST pero sí EMAIL_USER/EMAIL_PASS.
  */
 const usaSmtpPropio = () => !!process.env.SMTP_HOST;
 
@@ -26,8 +28,13 @@ const construirTransporter = () => {
       // Mailpit y demás capturadores locales hablan SMTP en claro.
       secure: process.env.SMTP_SECURE === 'true',
       ignoreTLS: process.env.SMTP_SECURE !== 'true',
-      auth: process.env.SMTP_USER
-        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      // Mismas variables que la rama de Gmail: un SMTP con auth real
+      // (Brevo, etc.) usa EMAIL_USER/EMAIL_PASS igual que Gmail — no hay
+      // ningún SMTP_USER/SMTP_PASS definido en .env.prod.example ni en los
+      // docker-compose, así que leerlos de ahí dejaba la auth vacía en
+      // cualquier SMTP de producción que la exigiera.
+      auth: process.env.EMAIL_USER
+        ? { user: process.env.EMAIL_USER, pass: (process.env.EMAIL_PASS || '').trim() }
         : undefined,
     });
   }
