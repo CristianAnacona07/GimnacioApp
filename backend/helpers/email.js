@@ -66,9 +66,17 @@ const transporter = construirTransporter();
 
 const emailConfigurado = () => usaSmtpPropio() || !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
+// Nombre y lema de la plataforma en los correos. Estaban escritos a mano como
+// "Kodiak Gym" en seis lugares distintos (encabezados, asuntos y remitente), y
+// quedaron desactualizados cuando la plataforma pasó a llamarse Snake Gym: los
+// socios recibían correos con una marca que ya no existe. Centralizados acá
+// para que el próximo cambio de nombre sea una línea y no una cacería.
+const MARCA = process.env.MARCA_NOMBRE || 'Snake Gym';
+const MARCA_LEMA = process.env.MARCA_LEMA || 'CONSTRUYE TU MEJOR VERSIÓN';
+
 // Remitente único para todos los correos. Con Mailpit no hay cuenta de Gmail,
 // así que se usa una dirección de relleno: el buzón local acepta cualquiera.
-const remitente = () => `"Kodiak Gym" <${process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@kodiak.local'}>`;
+const remitente = () => `"${MARCA}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@kodiak.local'}>`;
 
 const urlFrontend = () => process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app';
 
@@ -140,4 +148,4 @@ async function enviarPasswordTemporal({ email, nombre, gymNombre, password }) {
   }
 }
 
-module.exports = { transporter, emailConfigurado, remitente, enviarPasswordTemporal };
+module.exports = { transporter, emailConfigurado, remitente, enviarPasswordTemporal, MARCA, MARCA_LEMA };

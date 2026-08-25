@@ -21,7 +21,7 @@ const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
 // de administradores) comparta exactamente la misma configuración.
 const { hashToken } = require('../helpers/tokens');
-const { transporter, emailConfigurado, remitente, enviarPasswordTemporal } = require('../helpers/email');
+const { transporter, emailConfigurado, remitente, enviarPasswordTemporal, MARCA, MARCA_LEMA } = require('../helpers/email');
 
 const SELECT_GYM_LOGIN = {
   id: true, nombre: true, slug: true, logo: true, slogan: true,
@@ -34,8 +34,8 @@ const SELECT_GYM_LOGIN = {
 const emailTemplate = (nombre, resetUrl) => `
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12)">
   <div style="background:linear-gradient(160deg,#1e3a8a,#0f172a);padding:28px;text-align:center">
-    <h1 style="color:#ffffff;font-size:22px;margin:0;letter-spacing:-0.5px">KODIAK GYM</h1>
-    <p style="color:#93c5fd;font-size:11px;margin:4px 0 0;letter-spacing:2px">STRENGTH · DISCIPLINE · POWER</p>
+    <h1 style="color:#ffffff;font-size:22px;margin:0;letter-spacing:-0.5px">${MARCA.toUpperCase()}</h1>
+    <p style="color:#93c5fd;font-size:11px;margin:4px 0 0;letter-spacing:2px">${MARCA_LEMA}</p>
   </div>
   <div style="background:#f8fbff;padding:32px">
     <h2 style="color:#1e293b;font-size:18px;margin:0 0 12px">Recuperar contraseña</h2>
@@ -54,8 +54,8 @@ const emailTemplate = (nombre, resetUrl) => `
 const verifyEmailTemplate = (nombre, verifyUrl) => `
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12)">
   <div style="background:linear-gradient(160deg,#1e3a8a,#0f172a);padding:28px;text-align:center">
-    <h1 style="color:#ffffff;font-size:22px;margin:0;letter-spacing:-0.5px">KODIAK GYM</h1>
-    <p style="color:#93c5fd;font-size:11px;margin:4px 0 0;letter-spacing:2px">STRENGTH · DISCIPLINE · POWER</p>
+    <h1 style="color:#ffffff;font-size:22px;margin:0;letter-spacing:-0.5px">${MARCA.toUpperCase()}</h1>
+    <p style="color:#93c5fd;font-size:11px;margin:4px 0 0;letter-spacing:2px">${MARCA_LEMA}</p>
   </div>
   <div style="background:#f8fbff;padding:32px">
     <h2 style="color:#1e293b;font-size:18px;margin:0 0 12px">Verifica tu cuenta</h2>
@@ -82,7 +82,7 @@ async function enviarVerificacion(usuario) {
         await transporter.sendMail({
             from: remitente(),
             to: usuario.email,
-            subject: 'Verifica tu cuenta — Kodiak Gym',
+            subject: `Verifica tu cuenta — ${MARCA}`,
             html: verifyEmailTemplate(usuario.nombre, verifyUrl)
         });
     } catch (err) {
@@ -119,7 +119,7 @@ router.post('/forgot-password', async (req, res) => {
         await transporter.sendMail({
             from: remitente(),
             to: usuario.email,
-            subject: 'Recuperar contraseña — Kodiak Gym',
+            subject: `Recuperar contraseña — ${MARCA}`,
             html: emailTemplate(usuario.nombre, resetUrl)
         });
 
@@ -1116,7 +1116,7 @@ router.post('/superadmins', verificarToken, soloSuperAdmin, async (req, res) => 
         // correo precargado); solo se muestra en pantalla si el envío falló
         // o no hay correo configurado.
         const invitacionEnviada = await enviarPasswordTemporal({
-            email: emailNorm, nombre: nuevo.nombre, gymNombre: 'Kodiak Gym', password: passPlano
+            email: emailNorm, nombre: nuevo.nombre, gymNombre: MARCA, password: passPlano
         });
 
         res.status(201).json({
