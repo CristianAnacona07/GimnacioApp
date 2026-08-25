@@ -944,11 +944,14 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ mensaje: 'Credenciales inválidas' });
         }
 
-        // Superadmin: cuenta global, fuera de los gimnasios.
+        // Superadmin: cuenta global, fuera de los gimnasios. Se prueba primero
+        // porque es el camino más común, pero si la contraseña NO coincide no
+        // se corta acá: la misma persona puede tener, con el mismo correo, una
+        // cuenta de gimnasio (admin/socio) con otra contraseña — cortar acá
+        // dejaba esa cuenta inentrable aunque la contraseña fuera correcta,
+        // porque nunca se llegaba a comparar contra ella.
         const superadmin = await prisma.user.findFirst({ where: { email: emailNorm, role: 'superadmin' }, omit: { password: false } });
-        if (superadmin) {
-            const ok = await bcrypt.compare(password, superadmin.password);
-            if (!ok) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
+        if (superadmin && await bcrypt.compare(password, superadmin.password)) {
             return responderLogin(res, superadmin);
         }
 
