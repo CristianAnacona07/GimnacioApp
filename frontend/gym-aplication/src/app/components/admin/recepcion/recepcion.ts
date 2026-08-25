@@ -21,6 +21,7 @@ import { AsistenciaService } from '../../../services/asistencia.service';
 import { ToastService } from '../../../services/toast.service';
 import { TiempoRealService } from '../../../services/tiempo-real.service';
 import { PagoService } from '../../../services/pago.service';
+import { GymService } from '../../../services/gym.service';
 
 interface SocioBusqueda {
   _id: string;
@@ -79,6 +80,7 @@ export class Recepcion implements OnInit, OnDestroy {
   private tiempoReal = inject(TiempoRealService);
   private http = inject(HttpClient);
   private pagoService = inject(PagoService);
+  private gymService = inject(GymService);
 
   // --- Invitación de registro (link/QR de un solo uso) ---
   invitandoSocio = false;
@@ -150,6 +152,27 @@ export class Recepcion implements OnInit, OnDestroy {
       .subscribe(() => this.cargarHoy());
   }
 
+  /**
+   * Dominio con el que se arma el link de invitación: el subdominio propio del
+   * gimnasio (kodiak.snakegym.cloud), no el dominio desde el que navega quien
+   * lo genera.
+   *
+   * Antes usaba `window.location.origin` a secas, así que un admin entrando
+   * por el dominio raíz repartía links con ese dominio y el socio nuevo se
+   * registraba en una página sin la marca de su gimnasio.
+   *
+   * Se conserva `window.location.origin` cuando no hay slug o el dominio raíz
+   * no está configurado (dev en localhost, app nativa en Capacitor): ahí no
+   * existe subdominio que usar y el link igual funciona, porque el token de
+   * invitación ya determina el gimnasio del lado del servidor.
+   */
+  private baseInvitacion(): string {
+    const slug = this.gymService.getGym()?.slug;
+    const raiz = environment.tenantRootDomain;
+    const esWebConDominio = raiz && !raiz.includes('localhost') && window.location.protocol.startsWith('http');
+    return slug && esWebConDominio ? `https://${slug}.${raiz}` : window.location.origin;
+  }
+
   // ---- Invitar socio ----
   // Genera el link de un solo uso (48 h) con el que el socio nuevo se registra
   // en ESTE gimnasio, y su QR para mostrarlo en pantalla o imprimirlo.
@@ -160,7 +183,7 @@ export class Recepcion implements OnInit, OnDestroy {
     this.http.post<{ token: string }>(`${environment.apiUrl}/api/invitaciones`, {})
       .subscribe({
         next: async (res) => {
-          this.invitacionUrl = `${window.location.origin}/invitacion/${res.token}`;
+          this.invitacionUrl = `${this.baseInvitacion()}/invitacion/${res.token}`;
           try {
             this.invitacionQr = await QRCode.toDataURL(this.invitacionUrl, { width: 240, margin: 1 });
           } catch { this.invitacionQr = null; }

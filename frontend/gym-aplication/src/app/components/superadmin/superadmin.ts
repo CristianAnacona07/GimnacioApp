@@ -193,8 +193,15 @@ export class SuperAdmin implements OnInit, OnDestroy {
   reinvitandoAdminId: string | null = null;
 
   // Dominio raíz de la plataforma para los subdominios por gimnasio.
-  // Ej: slug "sogafit" → sogafit.micro-gimnacios.com (al desplegar en el VPS).
-  readonly dominioBase = 'micro-gimnacios.com';
+  // Ej: slug "sogafit" → sogafit.snakegym.cloud.
+  //
+  // Sale de environment, NO escrito a mano: estuvo fijo en el dominio de
+  // ejemplo 'micro-gimnacios.com' y siguió mostrando esa dirección al crear y
+  // editar gimnasios mucho después de que el dominio real existiera — el
+  // superadmin veía (y le pasaba al cliente) una URL que no lleva a ningún
+  // lado. El Dockerfile del frontend reescribe tenantRootDomain al construir
+  // la imagen, así que este valor acompaña al dominio que tenga el servidor.
+  readonly dominioBase = environment.tenantRootDomain;
 
   // Simplificación de colores: el color PRINCIPAL (navbar) se aplica también a
   // botones (primario), menú lateral y días de rutina — así solo hay que elegir
