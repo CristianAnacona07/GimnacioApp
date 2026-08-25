@@ -1,11 +1,13 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://gimnacio-app-backend.vercel.app',
-  // Dominio raíz para subdominios por gimnasio: https://<slug>.gimnasios.co
-  // ⚠️ Actualizar con el dominio real cuando se compre (ver docs/SUBDOMINIOS.md).
-  // Mientras el dominio no exista, este valor no tiene ningún efecto:
-  // en gimnacio-app.vercel.app la app funciona igual que siempre (selector de gyms).
-  tenantRootDomain: 'micro-gimnacios.com',
+  // El backend real es el VPS propio (docker-compose.prod.yml + Caddy), no
+  // Vercel — ese destino está retirado. Esto es lo que hornea CUALQUIER build
+  // nativo (Capacitor/APK), porque android-build.yml corre `npm run build` a
+  // secas sin sed como el Dockerfile del frontend: si esta URL queda vieja,
+  // el APK apunta a un backend caído aunque el sitio web funcione bien.
+  apiUrl: 'https://snakegym.cloud',
+  // Dominio raíz para subdominios por gimnasio: https://<slug>.snakegym.cloud
+  tenantRootDomain: 'snakegym.cloud',
   // Slug fijo para builds nativos (Capacitor) de un solo gimnasio: al no
   // haber subdominio en la WebView, la ruta raíz abre su landing directo
   // en vez del login universal. null = comportamiento normal (multi-tenant).
