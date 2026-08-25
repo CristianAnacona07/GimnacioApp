@@ -442,6 +442,21 @@
 .finput:focus { border-color: #f97316; }
 .finput-solo-lectura { color: var(--txt-3, #64748b); cursor: not-allowed; }
 
+.pass-wrap-sa { position: relative; display: flex; }
+.pass-wrap-sa .finput { flex: 1; padding-right: 2.4rem; }
+.toggle-pass-sa {
+  position: absolute;
+  right: .4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: .2rem;
+}
+
 /* Colores */
 .colores-row {
   display: flex;

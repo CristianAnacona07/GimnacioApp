@@ -297,8 +297,14 @@ export class SuperAdmin implements OnInit, OnDestroy {
     return this.storage.decodeTokenPayload(this.storage.getToken())?.id ?? null;
   }
 
+  /** ojito de mostrar/ocultar, igual que en el login (verPass) */
+  verActual = false;
+  verNueva = false;
+
   abrirEditarSuperadmin(s: any) {
     this.editandoSuperadmin = { _id: s._id, nombre: s.nombre, email: s.email, password: '', actual: '' };
+    this.verActual = false;
+    this.verNueva = false;
   }
 
   cerrarEditarSuperadmin() {

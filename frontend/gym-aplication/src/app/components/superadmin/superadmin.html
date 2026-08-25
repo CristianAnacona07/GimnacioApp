@@ -304,13 +304,25 @@
               @if (editandoSuperadmin._id === miPropioId) {
                 <div class="field">
                   <label class="flabel">Tu contraseña actual</label>
-                  <input [(ngModel)]="editandoSuperadmin.actual" type="password" class="finput"
-                         placeholder="Solo para cambiar la contraseña" autocomplete="new-password">
+                  <div class="pass-wrap-sa">
+                    <input [type]="verActual ? 'text' : 'password'" [(ngModel)]="editandoSuperadmin.actual" class="finput"
+                           placeholder="Solo para cambiar la contraseña" autocomplete="new-password">
+                    <button type="button" class="toggle-pass-sa" [attr.aria-label]="verActual ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                            (click)="verActual = !verActual">
+                      <span aria-hidden="true">{{ verActual ? '🙉' : '🙈' }}</span>
+                    </button>
+                  </div>
                 </div>
                 <div class="field">
                   <label class="flabel">Nueva contraseña</label>
-                  <input [(ngModel)]="editandoSuperadmin.password" type="password" class="finput"
-                         placeholder="Dejar en blanco para no cambiarla" autocomplete="new-password">
+                  <div class="pass-wrap-sa">
+                    <input [type]="verNueva ? 'text' : 'password'" [(ngModel)]="editandoSuperadmin.password" class="finput"
+                           placeholder="Dejar en blanco para no cambiarla" autocomplete="new-password">
+                    <button type="button" class="toggle-pass-sa" [attr.aria-label]="verNueva ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                            (click)="verNueva = !verNueva">
+                      <span aria-hidden="true">{{ verNueva ? '🙉' : '🙈' }}</span>
+                    </button>
+                  </div>
                 </div>
               }
               <div class="edit-actions">
