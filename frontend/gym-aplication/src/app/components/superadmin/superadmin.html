@@ -294,6 +294,25 @@
                 <label class="flabel">Correo</label>
                 <input [(ngModel)]="editandoSuperadmin.email" type="email" class="finput">
               </div>
+              <!-- La contraseña solo se cambia sobre la propia cuenta: nadie
+                   puede fijársela a otro superadmin (ver el PUT en auth.js).
+                   Los dos campos van con autocomplete="new-password" a
+                   propósito, aunque el primero sea la contraseña vieja: con
+                   "current-password" el navegador la rellena solo, y un campo
+                   ya lleno no confirma nada — cualquiera que agarre la sesión
+                   abierta le daría a Guardar y listo. -->
+              @if (editandoSuperadmin._id === miPropioId) {
+                <div class="field">
+                  <label class="flabel">Tu contraseña actual</label>
+                  <input [(ngModel)]="editandoSuperadmin.actual" type="password" class="finput"
+                         placeholder="Solo para cambiar la contraseña" autocomplete="new-password">
+                </div>
+                <div class="field">
+                  <label class="flabel">Nueva contraseña</label>
+                  <input [(ngModel)]="editandoSuperadmin.password" type="password" class="finput"
+                         placeholder="Dejar en blanco para no cambiarla" autocomplete="new-password">
+                </div>
+              }
               <div class="edit-actions">
                 <button class="btn-crear" (click)="guardarEdicionSuperadmin()"
                         [disabled]="!editandoSuperadmin.nombre || !editandoSuperadmin.email || guardandoSuperadmin">

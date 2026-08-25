@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { GymService } from '../../services/gym.service';
+import { StorageService } from '../../services/storage.service';
 
 @Component({
   selector: 'app-superadmin',
@@ -248,7 +249,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
     private confirm: ConfirmService,
     private cdr: ChangeDetectorRef,
     private router: Router,
-    private gymService: GymService
+    private gymService: GymService,
+    private storage: StorageService
   ) {}
 
   ngOnInit() {
@@ -290,8 +292,13 @@ export class SuperAdmin implements OnInit, OnDestroy {
       });
   }
 
+  /** id del superadmin logueado, para saber si "Editar" apunta a su propia cuenta. */
+  get miPropioId(): string | null {
+    return this.storage.decodeTokenPayload(this.storage.getToken())?.id ?? null;
+  }
+
   abrirEditarSuperadmin(s: any) {
-    this.editandoSuperadmin = { _id: s._id, nombre: s.nombre, email: s.email };
+    this.editandoSuperadmin = { _id: s._id, nombre: s.nombre, email: s.email, password: '', actual: '' };
   }
 
   cerrarEditarSuperadmin() {
@@ -300,10 +307,26 @@ export class SuperAdmin implements OnInit, OnDestroy {
 
   guardarEdicionSuperadmin() {
     if (!this.editandoSuperadmin || this.guardandoSuperadmin) return;
+    if (this.editandoSuperadmin.password && this.editandoSuperadmin.password.length < 8) {
+      this.toast.error('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+    // Solo la propia cuenta lleva contraseña, y siempre con la actual escrita:
+    // sobre otro superadmin el formulario ni muestra esos campos.
+    const editaSuPropiaCuenta = this.editandoSuperadmin._id === this.miPropioId;
+    const cambiaPassword = editaSuPropiaCuenta && !!this.editandoSuperadmin.password;
+    if (cambiaPassword && !this.editandoSuperadmin.actual) {
+      this.toast.error('Escribí tu contraseña actual para cambiarla');
+      return;
+    }
     this.guardandoSuperadmin = true;
     this.http.put<any>(`${environment.apiUrl}/api/auth/superadmins/${this.editandoSuperadmin._id}`, {
       nombre: this.editandoSuperadmin.nombre,
-      email: this.editandoSuperadmin.email
+      email: this.editandoSuperadmin.email,
+      ...(cambiaPassword ? {
+        password: this.editandoSuperadmin.password,
+        actual: this.editandoSuperadmin.actual
+      } : {})
     }, { headers: this.headers }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.guardandoSuperadmin = false;

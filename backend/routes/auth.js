@@ -1130,19 +1130,42 @@ router.post('/superadmins', verificarToken, soloSuperAdmin, async (req, res) => 
     }
 });
 
-// ✅ EDITAR SUPERADMIN (nombre/email — la cuenta original también se puede
-// editar, solo no eliminar)
+// ✅ EDITAR SUPERADMIN (nombre/email y, opcionalmente, contraseña — la cuenta
+// original también se puede editar, solo no eliminar).
+//
+// La contraseña SOLO se cambia sobre la propia cuenta y escribiendo la actual.
+// Un superadmin no puede fijarle una nueva a otro, aunque tenga el privilegio
+// para todo lo demás: la cuenta original no se puede eliminar, así que sin
+// esta regla cualquier otro superadmin podría secuestrarla simplemente
+// cambiándole la clave, y el dueño real se quedaría afuera sin poder borrar
+// al intruso. Quien pierda su contraseña la recupera por "olvidé mi
+// contraseña", que va a su propio correo — no por la mano de un tercero.
 router.put('/superadmins/:id', verificarToken, soloSuperAdmin, async (req, res) => {
     try {
-        const { nombre, email } = req.body;
+        const { nombre, email, password, actual } = req.body;
         if (!nombre) return res.status(400).json({ mensaje: 'El nombre es obligatorio' });
         if (!EMAIL_RX.test((email || '').trim())) {
             return res.status(400).json({ mensaje: 'El correo es obligatorio y debe ser válido' });
         }
+        if (password && password.length < 8) {
+            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
+        }
         const emailNorm = email.toLowerCase().trim();
 
-        const objetivo = await prisma.user.findFirst({ where: { id: req.params.id, role: 'superadmin', gymId: null } });
+        const objetivo = await prisma.user.findFirst({
+            where: { id: req.params.id, role: 'superadmin', gymId: null },
+            omit: { password: false }
+        });
         if (!objetivo) return res.status(404).json({ mensaje: 'Superadmin no encontrado' });
+
+        if (password) {
+            if (req.params.id !== req.userId) {
+                return res.status(403).json({ mensaje: 'Solo podés cambiar la contraseña de tu propia cuenta' });
+            }
+            if (!actual) return res.status(400).json({ mensaje: 'Escribí tu contraseña actual para cambiarla' });
+            const esValida = objetivo.password && await bcrypt.compare(actual, objetivo.password);
+            if (!esValida) return res.status(401).json({ mensaje: 'La contraseña actual no es correcta' });
+        }
 
         const enUso = await prisma.user.findFirst({
             where: { email: emailNorm, gymId: null, NOT: { id: req.params.id } },
@@ -1150,11 +1173,14 @@ router.put('/superadmins/:id', verificarToken, soloSuperAdmin, async (req, res) 
         });
         if (enUso) return res.status(400).json({ mensaje: 'Ya existe una cuenta con ese correo' });
 
-        const actualizado = await prisma.user.update({
-            where: { id: req.params.id },
-            data: { nombre, email: emailNorm }
-        });
-        await registrarAuditoria(req, 'EDITAR_SUPERADMIN', { recurso: 'User', recursoId: req.params.id });
+        const data = { nombre, email: emailNorm };
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            data.password = await bcrypt.hash(password, salt);
+        }
+
+        const actualizado = await prisma.user.update({ where: { id: req.params.id }, data });
+        await registrarAuditoria(req, 'EDITAR_SUPERADMIN', { recurso: 'User', recursoId: req.params.id, detalle: password ? 'nombre/email/password' : 'nombre/email' });
 
         res.json({ mensaje: 'Superadmin actualizado', superadmin: { _id: actualizado.id, nombre: actualizado.nombre, email: actualizado.email } });
     } catch (error) {
