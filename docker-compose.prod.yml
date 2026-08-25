@@ -84,6 +84,11 @@ services:
       # Correo real (no Mailpit). Con SMTP_HOST definido se ignora Gmail.
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
+      # Normalmente no hace falta: helpers/email.js deduce TLS del puerto (465
+      # directo, 587 por STARTTLS). Está acá para poder forzarlo si algún
+      # proveedor lo necesita — antes no se pasaba, y al quedar indefinida el
+      # transporte desactivaba TLS y ningún SMTP real aceptaba el envío.
+      SMTP_SECURE: ${SMTP_SECURE:-}
       EMAIL_USER: ${EMAIL_USER:-}
       EMAIL_PASS: ${EMAIL_PASS:-}
       EMAIL_FROM: ${EMAIL_FROM:-no-reply@${DOMINIO}}

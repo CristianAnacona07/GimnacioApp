@@ -22,12 +22,22 @@ const usaSmtpPropio = () => !!process.env.SMTP_HOST;
 const construirTransporter = () => {
   if (usaSmtpPropio()) {
     const puerto = Number(process.env.SMTP_PORT) || 1025;
+    // Tener credenciales es lo que distingue un SMTP real (Brevo, etc.) de un
+    // capturador local (Mailpit), que no pide auth y habla en claro.
+    const conAuth = !!process.env.EMAIL_USER;
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: puerto,
-      // Mailpit y demás capturadores locales hablan SMTP en claro.
-      secure: process.env.SMTP_SECURE === 'true',
-      ignoreTLS: process.env.SMTP_SECURE !== 'true',
+      // 465 es TLS directo; 587 y 25 lo negocian por STARTTLS. SMTP_SECURE
+      // permite forzarlo a mano, pero por defecto se deduce del puerto en vez
+      // de exigir que alguien se acuerde de definir la variable.
+      secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : puerto === 465,
+      // Ignorar TLS solo tiene sentido contra un capturador sin auth. Un
+      // proveedor real exige STARTTLS antes del AUTH: con ignoreTLS en true
+      // rechaza la conexión y todo envío muere en "Error al enviar el correo"
+      // — que es exactamente lo que pasaba en producción con Brevo, porque
+      // SMTP_SECURE no existía y `!== 'true'` daba true.
+      ignoreTLS: !conAuth,
       // Mismas variables que la rama de Gmail: un SMTP con auth real
       // (Brevo, etc.) usa EMAIL_USER/EMAIL_PASS igual que Gmail — no hay
       // ningún SMTP_USER/SMTP_PASS definido en .env.prod.example ni en los
