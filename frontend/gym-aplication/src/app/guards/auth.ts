@@ -10,9 +10,17 @@ export const authGuard: CanActivateFn = (route, state) => {
   const token = storageService.getToken();
   const gym   = storageService.getGym();
 
+  // El superadmin es una cuenta global (gymId null): al entrar, la respuesta
+  // del login trae `gym: null` y por eso nunca queda un gimnasio fijado.
+  const esSuperadmin = storageService.decodeTokenPayload(token)?.role?.toLowerCase().trim() === 'superadmin';
+
   // Sin gym en memoria → al login universal (al entrar, la respuesta del
-  // servidor trae el gimnasio de la cuenta y lo deja fijado).
-  if (!gym) {
+  // servidor trae el gimnasio de la cuenta y lo deja fijado). Salvo el
+  // superadmin: exigirle un gimnasio dejaba a toda cuenta superadmin recién
+  // creada rebotando entre el login y esta guarda sin poder entrar nunca —
+  // llega acá con contraseña temporal, va a /cambiar-password-inicial (que
+  // usa este mismo guard), no tiene gym, y vuelve al login en bucle.
+  if (!gym && !esSuperadmin) {
     router.navigate(['/login']);
     return false;
   }

@@ -60,6 +60,33 @@ describe('authGuard', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/login']);
   });
 
+  // Regresión: un superadmin recién creado no podía entrar NUNCA. Su cuenta es
+  // global (gymId null), así que el login responde `gym: null` y no queda
+  // ningún gimnasio fijado; con contraseña temporal la app lo manda a
+  // /cambiar-password-inicial, que pasa por este mismo guard, y al no haber
+  // gym volvía al login: bucle infinito, con el botón en "Cargando..." para
+  // siempre aunque el servidor hubiera respondido 200.
+  it('deja pasar al superadmin sin gym fijado a cambiar su contraseña temporal', () => {
+    storage.getGym.mockReturnValue(null);
+    storage.getToken.mockReturnValue('t');
+    storage.isTokenExpired.mockReturnValue(false);
+    storage.decodeTokenPayload.mockReturnValue({ role: 'superadmin' });
+    storage.getDebeCambiarPassword.mockReturnValue(true);
+
+    expect(run('/cambiar-password-inicial')).toBe(true);
+    expect(router.navigate).not.toHaveBeenCalledWith(['/login']);
+  });
+
+  it('sigue mandando al login a una cuenta no superadmin sin gym', () => {
+    storage.getGym.mockReturnValue(null);
+    storage.getToken.mockReturnValue('t');
+    storage.isTokenExpired.mockReturnValue(false);
+    storage.decodeTokenPayload.mockReturnValue({ role: 'admin' });
+
+    expect(run('/cambiar-password-inicial')).toBe(false);
+    expect(router.navigate).toHaveBeenCalledWith(['/login']);
+  });
+
   it('saca a la página del gimnasio cuando hay gym pero no token', () => {
     storage.getGym.mockReturnValue('mi-gym');
     storage.getToken.mockReturnValue(null);
