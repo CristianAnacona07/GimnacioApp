@@ -103,6 +103,43 @@ queda disponible en `https://<slug>.midominio.com` de inmediato.
 
 ---
 
+## 7. Despliegue automático (opcional, recomendado)
+
+Sin esto, cada cambio que llega a `main` en GitHub hay que aplicarlo a mano en
+el servidor (`git pull` + reconstruir), como en los pasos de arriba. Con esto
+puesto, el servidor se actualiza solo apenas hay algo nuevo.
+
+Es un `cron` que revisa `origin/main` cada 2 minutos — no un webhook de
+GitHub, que exigiría acceso de administrador al repositorio (Settings →
+Webhooks) y no todos los que despliegan tienen ese permiso. El costo es hasta
+2 minutos de demora en vez de instantáneo; a cambio, no depende de nadie más
+que del propio servidor.
+
+```bash
+# /root/deploy.sh — resumen de lo que hace:
+#   git fetch origin main
+#   si el commit local ya coincide con origin/main, no hace nada
+#   si no, git reset --hard origin/main + docker compose up -d --build
+#   registra cada corrida en /root/deploy.log
+```
+
+Se instala una sola vez con un script — pedile a quien administre el servidor
+que lo configure, o hacelo vos mismo creando `/root/deploy.sh` (arriba) y
+`/etc/cron.d/gimnacio-deploy` con `*/2 * * * * root /root/deploy.sh`.
+
+**No toca datos**: `.env` y la base de datos están fuera de git, así que un
+`git reset --hard` nunca los pisa — solo reemplaza archivos de código.
+
+**Flujo de trabajo con esto puesto:**
+1. Trabajás en una rama propia (o en `development`), probás en local.
+2. Cuando está listo, se fusiona a `main` y se sube (`git push`).
+3. Dentro de los próximos 2 minutos, el servidor lo toma solo — sin que nadie
+   tenga que entrar por SSH.
+
+Ver el historial de despliegues: `cat /root/deploy.log` en el servidor.
+
+---
+
 ## Cómo está armado
 
 ```
