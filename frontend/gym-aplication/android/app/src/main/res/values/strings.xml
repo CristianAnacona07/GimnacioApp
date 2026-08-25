@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Kodiak Gym</string>
-    <string name="title_activity_main">Kodiak Gym</string>
+    <string name="app_name">Snake Gym</string>
+    <string name="title_activity_main">Snake Gym</string>
     <string name="package_name">com.kodiak.gym</string>
     <string name="custom_url_scheme">com.kodiak.gym</string>
 </resources>
