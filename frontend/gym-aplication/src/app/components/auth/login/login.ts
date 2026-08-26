@@ -80,7 +80,23 @@ export class Login implements OnInit, AfterViewInit {
     const email = this.ruta.snapshot.queryParamMap.get('email');
     if (email) {
       this.usuario.email = email;
-      this.esPrimerIngreso = true;
+
+      // `?email=` solo dice "vengo del correo de alta", no "es la primera
+      // vez". Quien ya activó su cuenta y reabre ese correo tenía que volver
+      // a marcar unos términos que ya había aceptado. El enlace trae además
+      // un `a=<id>.<firma>` con el que el servidor responde si la activación
+      // sigue pendiente; solo entonces se piden los documentos legales.
+      const activacion = this.ruta.snapshot.queryParamMap.get('a');
+      if (activacion) {
+        this.authService.activacionPendiente(activacion).subscribe({
+          next: (r) => { this.esPrimerIngreso = !!r?.pendiente; },
+          // Sin respuesta del servidor se asume que NO es primer ingreso: es
+          // preferible no pedir los términos que exigírselos de nuevo a
+          // alguien que ya los aceptó (el registro legal ya quedó sellado en
+          // su primer ingreso real).
+          error: () => { this.esPrimerIngreso = false; }
+        });
+      }
 
       // El enlace suele abrirse con otra sesión viva: la de quien dio el
       // alta, en el mismo navegador. Se cierra sin preguntar para dejar el

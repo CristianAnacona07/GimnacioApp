@@ -20,7 +20,7 @@ const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
 // de administradores) comparta exactamente la misma configuración.
-const { hashToken } = require('../helpers/tokens');
+const { hashToken, firmaActivacion } = require('../helpers/tokens');
 const { transporter, emailConfigurado, remitente, enviarPasswordTemporal, MARCA, MARCA_LEMA } = require('../helpers/email');
 
 const SELECT_GYM_LOGIN = {
@@ -405,7 +405,7 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
         if (invitar) {
             const gym = await prisma.gym.findUnique({ where: { id: req.gymId }, select: { nombre: true } });
             invitacionEnviada = await enviarPasswordTemporal({
-                email: emailNorm, nombre: socio.nombre, gymNombre: gym?.nombre || 'tu gimnasio', password: passPlano
+                email: emailNorm, nombre: socio.nombre, gymNombre: gym?.nombre || 'tu gimnasio', password: passPlano, userId: socio.id
             });
         }
 
@@ -524,7 +524,7 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
 
         const gym = await prisma.gym.findUnique({ where: { id: req.gymId }, select: { nombre: true } });
         const correoEnviado = await enviarPasswordTemporal({
-            email: emailNorm, nombre: empleado.nombre, gymNombre: gym?.nombre || 'tu gimnasio', password: passPlano
+            email: emailNorm, nombre: empleado.nombre, gymNombre: gym?.nombre || 'tu gimnasio', password: passPlano, userId: empleado.id
         });
 
         res.status(201).json({
@@ -869,6 +869,33 @@ router.post('/register', async (req, res) => {
 // temporal, que no pasan por /register). Deja la constancia con fecha y
 // versión del texto. Es idempotente: reaceptar solo actualiza el sello, así
 // que un reintento del cliente no rompe nada.
+// ✅ ¿La activación de esta cuenta sigue pendiente? (público, sin sesión)
+//
+// Lo consulta el login cuando la URL trae el `a=<id>.<firma>` del enlace
+// "Ingresar por primera vez". Con `pendiente: true` el formulario pide los
+// documentos legales; con false abre el login normal, porque esa persona ya
+// activó su cuenta y ya los aceptó — antes se los volvía a exigir cada vez
+// que reabría el correo.
+//
+// Responde `false` ante cualquier duda (firma inválida, id inexistente):
+// nunca confirma ni desmiente que una cuenta exista, así que no sirve para
+// averiguar quién está registrado.
+router.get('/activacion-pendiente', async (req, res) => {
+    try {
+        const [userId, firma] = String(req.query.a || '').split('.');
+        if (!userId || !firma || firma !== firmaActivacion(userId)) {
+            return res.json({ pendiente: false });
+        }
+        const usuario = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { debeCambiarPassword: true }
+        });
+        res.json({ pendiente: !!usuario?.debeCambiarPassword });
+    } catch (error) {
+        res.json({ pendiente: false });
+    }
+});
+
 router.post('/aceptar-terminos', verificarToken, async (req, res) => {
     try {
         const usuario = await prisma.user.update({
@@ -1119,7 +1146,7 @@ router.post('/superadmins', verificarToken, soloSuperAdmin, async (req, res) => 
         // correo precargado); solo se muestra en pantalla si el envío falló
         // o no hay correo configurado.
         const invitacionEnviada = await enviarPasswordTemporal({
-            email: emailNorm, nombre: nuevo.nombre, gymNombre: MARCA, password: passPlano
+            email: emailNorm, nombre: nuevo.nombre, gymNombre: MARCA, password: passPlano, userId: nuevo.id
         });
 
         res.status(201).json({

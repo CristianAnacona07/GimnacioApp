@@ -48,6 +48,16 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/aceptar-terminos`, {});
   }
 
+  /**
+   * ¿La cuenta del enlace "Ingresar por primera vez" todavía tiene la
+   * contraseña temporal sin cambiar? Es público (no hay sesión todavía) y
+   * responde false ante cualquier duda, así que no revela si una cuenta
+   * existe.
+   */
+  activacionPendiente(a: string) {
+    return this.http.get<{ pendiente: boolean }>(`${this.apiUrl}/activacion-pendiente`, { params: { a } });
+  }
+
   logout() {
     this.userStateService.clearSession();
   }

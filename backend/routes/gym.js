@@ -102,7 +102,7 @@ async function invitarAdmin({ gym, email, nombre, identificacion, telefono, req 
   // (entra por /registro), y solo se muestra en pantalla si el envío falló
   // o no hay correo configurado — nunca las dos cosas a la vez.
   const invitacionEnviada = await enviarPasswordTemporal({
-    email: emailNorm, nombre: usuario.nombre, gymNombre: gym.nombre, password: passPlano
+    email: emailNorm, nombre: usuario.nombre, gymNombre: gym.nombre, password: passPlano, userId: usuario.id
   });
 
   return {
