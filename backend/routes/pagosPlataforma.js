@@ -9,7 +9,7 @@ const { verificarToken, soloSuperAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 
 const prisma = getPrismaClient();
-const { sumarUnMes, restarUnMes, finDeGracia } = require('../lib/planPlataformaVigencia');
+const { sumarUnMes, restarUnMes, finDeGracia, primerDiaDelMes, ultimoDiaDelMes } = require('../lib/planPlataformaVigencia');
 
 const ESTADOS_VALIDOS = ['pagada', 'vencida', 'pendiente', 'anulada'];
 
@@ -17,6 +17,55 @@ function conId(p) {
   if (!p) return p;
   const { id, gym, ...rest } = p;
   return { ...rest, _id: id, gymNombre: gym?.nombre || null };
+}
+
+// Agrega a cada fila lo que el gimnasio tiene HOY (socios activos, valor
+// unitario y el total que resulta de multiplicarlos) — a propósito distinto
+// del "monto" ya cobrado en esa fila, que es historia y no cambia. Ver acá
+// al lado si un pago viejo quedó corto respecto a lo que el gym factura hoy.
+async function conDatosVivos(prisma, pagos) {
+  const gymIds = [...new Set(pagos.map((p) => p.gymId))];
+  if (!gymIds.length) return pagos;
+
+  const [gyms, socios] = await Promise.all([
+    prisma.gym.findMany({
+      where: { id: { in: gymIds } },
+      select: { id: true, planPlataformaId: true, planPlataformaCampo: true }
+    }),
+    prisma.user.groupBy({
+      by: ['gymId'],
+      where: { gymId: { in: gymIds }, role: 'socio', deletedAt: null, fechaVencimiento: { gt: new Date() } },
+      _count: { _all: true }
+    })
+  ]);
+
+  const planIds = [...new Set(gyms.map((g) => g.planPlataformaId).filter(Boolean))];
+  const planes = planIds.length ? await prisma.planPlataforma.findMany({ where: { id: { in: planIds } } }) : [];
+  const planPorId = new Map(planes.map((pl) => [pl.id, pl]));
+  const sociosPorGym = new Map(socios.map((s) => [s.gymId, s._count._all]));
+  const gymPorId = new Map(gyms.map((g) => [g.id, g]));
+
+  return pagos.map((p) => {
+    const gym = gymPorId.get(p.gymId);
+    const plan = gym?.planPlataformaId ? planPorId.get(gym.planPlataformaId) : null;
+    const sociosActivos = sociosPorGym.get(p.gymId) || 0;
+
+    let tipoValor = null, valorUnitario = null, totalActual = null;
+    if (plan && gym.planPlataformaCampo === 'mensual') {
+      tipoValor = 'mensual';
+      valorUnitario = Number(plan.precioMensual);
+      totalActual = valorUnitario;
+    } else if (plan && gym.planPlataformaCampo === 'porSuscriptor') {
+      tipoValor = 'porSuscriptor';
+      valorUnitario = Number(plan.precioPorSuscriptor);
+      totalActual = valorUnitario * sociosActivos;
+    }
+    // Sin plan asignado (o sin campo guardado): tipoValor/valorUnitario/
+    // totalActual quedan null — mejor mostrar "sin plan" en pantalla que
+    // inventar un número.
+
+    return { ...p, sociosActivos, tipoValor, valorUnitario, totalActual };
+  });
 }
 
 // "vencida" y "pendiente" no son valores que nadie escriba a mano: se derivan
@@ -69,6 +118,7 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
     if (estado && ESTADOS_VALIDOS.includes(estado)) {
       resultado = resultado.filter(p => p.estado === estado);
     }
+    resultado = await conDatosVivos(prisma, resultado);
     res.json(resultado);
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -94,11 +144,17 @@ router.post('/', verificarToken, soloSuperAdmin, async (req, res) => {
     });
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
 
-    const fechaInicio = fecha ? new Date(fecha) : new Date();
-    // El "hasta" que elige el superadmin manda por sobre el cálculo
-    // automático — es la fecha real que va a quedar como vencimiento del
-    // gimnasio, no solo un dato informativo del pago.
-    const fechaHasta = hasta ? new Date(hasta) : sumarUnMes(fechaInicio);
+    // Desde/Vence son SIEMPRE el mes calendario completo (01 al último día
+    // real) del mes al que cae "fecha" — nunca "un mes desde ese día". El
+    // "hasta" que mande el cliente se ignora a propósito: antes un pago del
+    // 21 vencía el 21 del mes siguiente (un mes "rodante"), y ahora cualquier
+    // pago de agosto cubre el 01/08 al 31/08 entero, sin importar qué día del
+    // mes se haya registrado — así todo el sistema de facturación queda
+    // alineado al mismo "mes guía" que usa el corte automático de fin de mes
+    // (ver generarCortesDelMes).
+    const referencia = fecha ? new Date(fecha) : new Date();
+    const fechaInicio = primerDiaDelMes(referencia);
+    const fechaHasta = ultimoDiaDelMes(referencia);
 
     const pago = await prisma.pagoPlataforma.create({
       data: {

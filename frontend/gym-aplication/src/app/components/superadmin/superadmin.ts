@@ -91,10 +91,13 @@ export class SuperAdmin implements OnInit, OnDestroy {
   filtroEstadoPago: '' | 'pagada' | 'vencida' | 'pendiente' | 'anulada' = '';
   filtroDesdePago = '';
   filtroHastaPago = '';
+  // Sin "hasta": el período que cubre un pago ya no se elige a mano, es
+  // siempre el mes calendario completo de "fecha" — el backend lo calcula
+  // igual aunque se mande uno (ver POST /api/pagos-plataforma), pero ni
+  // siquiera se ofrece el campo para no sugerir que se puede elegir.
   nuevoPago = {
     gymId: '', monto: null as number | null,
     fecha: new Date().toISOString().slice(0, 10),
-    hasta: this.sumarUnMesStr(new Date().toISOString().slice(0, 10)),
     metodo: ''
   };
   // Mismas opciones que ya usa matrícula para el pago de un socio — la
@@ -156,6 +159,18 @@ export class SuperAdmin implements OnInit, OnDestroy {
   // string (Prisma serializa Decimal así) — acepta las dos formas.
   formatMoneda(n: number | string): string {
     return '$' + Math.round(Number(n)).toLocaleString('es');
+  }
+
+  /**
+   * ¿El "Total hoy" (socios × valor, en vivo) difiere de lo que esa fila
+   * realmente cobró? No es un error en sí — un pago viejo es normal que no
+   * coincida con los socios de hoy — pero conviene resaltarlo. `totalActual`
+   * y `monto` llegan como Decimal serializado (string) o number según el
+   * campo, por eso se comparan con Number() acá y no con !== directo en el
+   * template (Angular no puede llamar un global como Number() en el HTML).
+   */
+  hayDiscrepancia(p: { totalActual: number | string | null; monto: number | string }): boolean {
+    return p.totalActual != null && Math.round(Number(p.totalActual)) !== Math.round(Number(p.monto));
   }
 
   esVencido(fecha: string | Date): boolean {
@@ -424,7 +439,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
 
   abrirFormPago() {
     const hoy = new Date().toISOString().slice(0, 10);
-    this.nuevoPago = { gymId: '', monto: null, fecha: hoy, hasta: this.sumarUnMesStr(hoy), metodo: '' };
+    this.nuevoPago = { gymId: '', monto: null, fecha: hoy, metodo: '' };
     this.mostrarFormPago = true;
   }
 
@@ -441,17 +456,20 @@ export class SuperAdmin implements OnInit, OnDestroy {
     }
   }
 
-  // "Vence" arranca en un mes justo desde "Fecha inicio" — el superadmin
-  // puede pisarlo igual que cualquier otro campo, esto es solo el arranque.
-  sugerirHastaPago() {
-    this.nuevoPago.hasta = this.sumarUnMesStr(this.nuevoPago.fecha);
-  }
-
-  private sumarUnMesStr(fechaStr: string): string {
-    if (!fechaStr) return '';
-    const f = new Date(fechaStr + 'T00:00:00');
-    f.setMonth(f.getMonth() + 1);
-    return f.toISOString().slice(0, 10);
+  /**
+   * Vista previa del período que va a cubrir el pago: SIEMPRE el mes
+   * calendario completo (01 al último día real) del mes al que cae "Fecha
+   * inicio" — igual que calcula el backend, que ignora cualquier "hasta"
+   * que se le mande. Ya no es un campo editable: mostrarlo aparte deja claro
+   * que elegir un día del mes elige TODO ese mes, no solo esa fecha puntual.
+   */
+  get periodoPago(): string {
+    if (!this.nuevoPago.fecha) return '';
+    const f = new Date(this.nuevoPago.fecha + 'T00:00:00');
+    const desde = new Date(f.getFullYear(), f.getMonth(), 1);
+    const hasta = new Date(f.getFullYear(), f.getMonth() + 1, 0);
+    const fmt = (d: Date) => d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    return `${fmt(desde)} al ${fmt(hasta)}`;
   }
 
   crearPagoPlataforma() {
@@ -474,8 +492,16 @@ export class SuperAdmin implements OnInit, OnDestroy {
   }
 
   async anularPago(pago: any) {
+    // El aviso de "desactiva el gimnasio" solo aplica si el pago YA estaba
+    // pagado: anular un "pendiente" (p. ej. un corte automático que el gym
+    // no llegó a pagar) no le resta nada al gimnasio, porque nunca le había
+    // sumado vigencia — ver el PUT del backend, que solo toca planVenceEn/
+    // activo al cruzar la frontera hacia o desde "pagada".
+    const advertencia = pago.estado === 'pagada'
+      ? ' Esto también desactiva el gimnasio: sus socios y administrador no podrán ingresar hasta que se registre un pago nuevo.'
+      : '';
     const ok = await this.confirm.confirm(
-      `¿Anular el pago de ${pago.gymNombre} por ${this.formatMoneda(pago.monto)}? Esto también desactiva el gimnasio: sus socios y administrador no podrán ingresar hasta que se registre un pago nuevo.`
+      `¿Anular el pago de ${pago.gymNombre} por ${this.formatMoneda(pago.monto)}?${advertencia}`
     );
     if (!ok) return;
     this.http.put(`${environment.apiUrl}/api/pagos-plataforma/${pago._id}`, { estado: 'anulada' }, { headers: this.headers })
@@ -488,6 +514,29 @@ export class SuperAdmin implements OnInit, OnDestroy {
           this.cargar();
         },
         error: (err) => this.toast.error(err.error?.error || 'Error al anular el pago')
+      });
+  }
+
+  /**
+   * Confirma el cobro de un "pendiente" — típicamente un corte automático de
+   * fin de mes (ver planPlataformaVigencia.js) que el gimnasio ya transfirió.
+   * Sin esto no había forma de cerrar esas filas desde la pantalla.
+   */
+  async marcarPagado(pago: any) {
+    const ok = await this.confirm.confirm(
+      `¿Confirmar que ${pago.gymNombre} pagó ${this.formatMoneda(pago.monto)}?`
+    );
+    if (!ok) return;
+    this.http.put(`${environment.apiUrl}/api/pagos-plataforma/${pago._id}`, { estado: 'pagada' }, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: () => {
+          this.toast.success('Pago confirmado');
+          this.cargarPagosPlataforma();
+          // Pasar a "pagada" le suma vigencia al gimnasio — refrescar
+          // Gimnasios para que la tarjeta lo muestre sin recargar.
+          this.cargar();
+        },
+        error: (err) => this.toast.error(err.error?.error || 'Error al confirmar el pago')
       });
   }
 

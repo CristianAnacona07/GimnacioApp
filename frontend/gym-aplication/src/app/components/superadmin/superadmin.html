@@ -368,7 +368,11 @@
   <!-- Tab Facturación: lo que cada gimnasio le paga a la plataforma, no lo
        que los socios le pagan a su gimnasio (eso vive en /admin/pagos). -->
   @if (tabActiva === 'facturacion') {
-    <div class="planes-gestion">
+    <!-- planes-gestion--ancho: esta pestaña sola, no Planes ni Superadmins
+         (comparten la misma .planes-gestion de 900px, que ahí sí alcanza).
+         La tabla de facturación tiene 10 columnas y a 900px quedaba angosta
+         con toda la pantalla vacía al costado. -->
+    <div class="planes-gestion planes-gestion--ancho">
 
       @if (mostrarFormPago) {
         <div class="form-card">
@@ -388,24 +392,21 @@
               <input [(ngModel)]="nuevoPago.monto" type="number" min="0" placeholder="150000" class="finput">
             </div>
             <div class="field">
-              <label class="flabel">Fecha inicio</label>
-              <input [(ngModel)]="nuevoPago.fecha" type="date" class="finput" (ngModelChange)="sugerirHastaPago()">
+              <label class="flabel">Mes a facturar</label>
+              <input [(ngModel)]="nuevoPago.fecha" type="date" class="finput">
             </div>
           </div>
-          <div class="form-grid">
-            <div class="field">
-              <label class="flabel">Método (opcional)</label>
-              <select class="finput" [(ngModel)]="nuevoPago.metodo">
-                <option value="">— Seleccioná —</option>
-                @for (m of metodosPagoPlataforma; track m) {
-                  <option [value]="m">{{ m }}</option>
-                }
-              </select>
-            </div>
-            <div class="field">
-              <label class="flabel">Vence</label>
-              <input [(ngModel)]="nuevoPago.hasta" type="date" class="finput">
-            </div>
+          <!-- El período ya no se elige: cualquier día que caiga acá arriba
+               factura el mes calendario completo — esto solo lo confirma. -->
+          <p class="subdominio-hint">Cubre: {{ periodoPago }}</p>
+          <div class="field">
+            <label class="flabel">Método (opcional)</label>
+            <select class="finput" [(ngModel)]="nuevoPago.metodo">
+              <option value="">— Seleccioná —</option>
+              @for (m of metodosPagoPlataforma; track m) {
+                <option [value]="m">{{ m }}</option>
+              }
+            </select>
           </div>
           <button class="btn-crear" (click)="crearPagoPlataforma()"
                   [disabled]="!nuevoPago.gymId || nuevoPago.monto === null || guardandoPago">
@@ -443,7 +444,10 @@
                   <th>Gimnasio</th>
                   <th>Desde</th>
                   <th>Vence</th>
-                  <th>Monto</th>
+                  <th>Socios</th>
+                  <th>Valor</th>
+                  <th>Total hoy</th>
+                  <th>Monto cobrado</th>
                   <th>Método</th>
                   <th>Estado</th>
                   <th>Acciones</th>
@@ -453,13 +457,39 @@
                 @for (p of pagosPlataforma; track p._id) {
                   <tr>
                     <td>{{ p.gymNombre || '—' }}</td>
-                    <td>{{ p.fecha | date:'dd/MM/yy' }}</td>
-                    <td>{{ p.hasta ? (p.hasta | date:'dd/MM/yy') : '—' }}</td>
+                    <!-- 'UTC' explícito: sin esto, Angular muestra la fecha
+                         en el huso del navegador. El backend guarda el 01 y
+                         el último día del mes a medianoche UTC (server en
+                         UTC); en cualquier huso detrás de UTC (Colombia,
+                         etc.) esa medianoche cae en la tarde del día
+                         anterior, y "01/08" aparecía como "31/07". -->
+                    <td>{{ p.fecha | date:'dd/MM/yy':'UTC' }}</td>
+                    <td>{{ p.hasta ? (p.hasta | date:'dd/MM/yy':'UTC') : '—' }}</td>
+                    <!-- Los tres de acá son EN VIVO — los socios y el plan de
+                         hoy, no los que tenía el gym cuando se registró esta
+                         fila. Sirven para comparar contra "Monto cobrado",
+                         que sí es historia y no cambia solo. -->
+                    <td>{{ p.tipoValor === 'porSuscriptor' ? p.sociosActivos : '—' }}</td>
+                    <td>
+                      @if (p.tipoValor === 'porSuscriptor') {
+                        {{ formatMoneda(p.valorUnitario) }}/socio
+                      } @else if (p.tipoValor === 'mensual') {
+                        {{ formatMoneda(p.valorUnitario) }}/mes
+                      } @else {
+                        —
+                      }
+                    </td>
+                    <td [class.factura-discrepancia]="hayDiscrepancia(p)">
+                      {{ p.totalActual != null ? formatMoneda(p.totalActual) : '—' }}
+                    </td>
                     <td>{{ formatMoneda(p.monto) }}</td>
                     <td>{{ p.metodo || '—' }}</td>
                     <td><span class="estado-pago" [class]="'estado-pago--' + p.estado">{{ p.estado }}</span></td>
-                    <td>
-                      @if (p.estado === 'pagada') {
+                    <td class="factura-acciones">
+                      @if (p.estado === 'pendiente') {
+                        <button class="btn-confirmar" (click)="marcarPagado(p)">Marcar pagada</button>
+                      }
+                      @if (p.estado === 'pagada' || p.estado === 'pendiente') {
                         <button class="btn-eliminar" (click)="anularPago(p)">Anular</button>
                       }
                     </td>
@@ -759,12 +789,16 @@
               <span class="gym-vigencia"
                     [class.gym-vigencia--vencido]="esVencido(g.planVenceEn) && !enGracia(g.planVenceEn)"
                     [class.gym-vigencia--gracia]="enGracia(g.planVenceEn)">
+                <!-- 'UTC' explícito: mismo motivo que en la tabla de
+                     Facturación — sin esto, un planVenceEn a medianoche UTC
+                     (ahora siempre el último día del mes) se corre un día
+                     atrás en cualquier huso detrás de UTC. -->
                 @if (enGracia(g.planVenceEn)) {
-                  ⏳ Venció {{ g.planVenceEn | date:'dd/MM/yy' }} — {{ DIAS_GRACIA }} días de gracia para pagar
+                  ⏳ Venció {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }} — {{ DIAS_GRACIA }} días de gracia para pagar
                 } @else if (esVencido(g.planVenceEn)) {
-                  ⚠️ Vencido y desactivado desde {{ g.planVenceEn | date:'dd/MM/yy' }}
+                  ⚠️ Vencido y desactivado desde {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }}
                 } @else {
-                  ✅ Activo hasta {{ g.planVenceEn | date:'dd/MM/yy' }}
+                  ✅ Activo hasta {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }}
                 }
               </span>
             } @else {

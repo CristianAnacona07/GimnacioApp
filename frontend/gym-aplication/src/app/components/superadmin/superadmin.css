@@ -74,6 +74,12 @@
   max-width: 900px;
 }
 
+/* Solo Facturación: la tabla tiene 10 columnas y a 900px sobraba pantalla
+   vacía al costado. 1400px alcanza para verla completa en un monitor normal
+   sin que quede pegada a los bordes; .factura-tabla-wrap ya trae su propio
+   overflow-x:auto para pantallas más chicas. */
+.planes-gestion--ancho { max-width: 1400px; }
+
 /* Nombre del plan, arriba de sus dos recuadros — no es una tarjeta en sí,
    solo el rótulo que los agrupa cuando hay más de un plan en la lista. */
 .plan-nombre-titulo {
@@ -221,6 +227,24 @@
 .estado-pago--vencida { background: rgba(239,68,68,.14); color: #ef4444; }
 .estado-pago--pendiente { background: rgba(217,119,6,.14); color: #d97706; }
 .estado-pago--anulada { background: rgba(100,116,139,.14); color: #94a3b8; }
+
+/* "Total hoy" (socios × valor en vivo) no coincide con "Monto cobrado" —
+   normal en pagos viejos, pero vale la pena resaltarlo. */
+.factura-discrepancia { color: #d97706; font-weight: 700; }
+
+.factura-acciones { display: flex; gap: .4rem; }
+
+.btn-confirmar {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #22c55e;
+  padding: .45rem .7rem;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.btn-confirmar:hover { background: rgba(34,197,94,.1); border-color: #22c55e; }
 
 .sa-page {
   min-height: 100vh;
