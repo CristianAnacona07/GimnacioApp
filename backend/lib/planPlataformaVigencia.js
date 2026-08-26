@@ -1,6 +1,8 @@
 // Un mes de vigencia del plan de plataforma — usado tanto al asignar/reasignar
 // un plan (gym.js) como al registrar un pago "pagada" (pagosPlataforma.js), así
 // que vive en un solo lugar en vez de dos copias que puedan desalinearse.
+const { emitirAGym } = require('../helpers/tiempoReal');
+
 function sumarUnMes(fecha) {
   const f = new Date(fecha);
   f.setMonth(f.getMonth() + 1);
@@ -68,6 +70,48 @@ function finDeGracia(planVenceEn) {
   const f = new Date(planVenceEn);
   f.setDate(f.getDate() + DIAS_GRACIA);
   return f;
+}
+
+// "vencida" y "pendiente" no son valores que nadie escriba a mano: se derivan
+// de si la cobertura del pago ya pasó. Se usa el "hasta" propio del pago
+// cuando existe (todo pago nuevo lo trae); los pagos viejos que quedaron sin
+// "hasta" (de antes de que esa columna existiera) usan en su lugar la
+// vigencia actual del gimnasio — nunca "fecha" del pago, que es solo cuándo
+// se registró, no hasta cuándo cubre: usarla como respaldo marcaba como
+// vencidos pagos viejos de gimnasios que en realidad siguen activos por un
+// pago más reciente.
+//
+// Un pago "pendiente" cuyo plazo venció (el corte automático de fin de mes
+// arranca directo en este estado) sigue mostrándose "pendiente" mientras dure
+// la gracia, y pasa a "vencida" cuando se acaba — sin esta rama, un corte
+// nunca escalaba a "vencida" en la tabla aunque el gimnasio ya se hubiera
+// desactivado de verdad por detrás (ver desactivarGymsVencidos). Un pago
+// "anulada" es una decisión ya tomada por el superadmin, sin gracia: si su
+// plazo pasó, es "vencida" de una — coincide con que anular ya desactiva el
+// gimnasio al toque, sin esperar.
+//
+// Un pago "pagada" con su propio "hasta" es historia cerrada: ese mes se
+// cobró, y no hay nada que reevaluar solo porque el calendario siguió
+// avanzando — sin este corte, marcar pagada una factura vencida (lo normal:
+// se paga días después del corte, dentro de la gracia) la seguía mostrando
+// "pendiente" hasta que pasara la gracia, como si no se hubiera cobrado. La
+// degradación pendiente/vencida de acá abajo solo aplica entonces a pagos
+// VIEJOS que quedaron sin su propio "hasta" (de antes de que esa columna
+// existiera) y caen al respaldo de la vigencia del gimnasio: ahí sí hace
+// falta decidir si ya venció la gracia para renovar.
+//
+// Vive acá (no en pagosPlataforma.js) porque routes/notificaciones.js
+// también la necesita para el aviso de la campanita del admin — un solo
+// lugar en vez de dos copias que puedan desalinearse.
+function estadoEfectivo(p) {
+  const limite = p.hasta || p.gym?.planVenceEn;
+  if (!limite || new Date(limite) >= new Date()) return p.estado;
+  if (p.estado === 'pagada' && p.hasta) return 'pagada';
+  if (p.estado === 'pagada' || p.estado === 'pendiente') {
+    return new Date() < finDeGracia(limite) ? 'pendiente' : 'vencida';
+  }
+  if (p.estado === 'anulada') return 'vencida';
+  return p.estado;
 }
 
 // Desactiva de una todos los gimnasios cuya suscripción venció hace más de
@@ -149,6 +193,9 @@ async function generarCortesDelMes(prisma, fechaCorte = new Date()) {
     await prisma.pagoPlataforma.create({
       data: { gymId: g.id, monto, fecha: fechaCorte, hasta: fechaCorte, metodo: METODO_CORTE, estado: 'pendiente' }
     });
+    // Así el admin ve la factura pendiente en su campanita al toque, sin
+    // esperar al sondeo de 5 minutos — mismo patrón que crear-noticia.
+    emitirAGym(g.id, 'avisos:revisar');
     generados++;
   }
   return { generados };
@@ -175,5 +222,5 @@ function iniciarBarridoVigencia(prisma) {
 
 module.exports = {
   sumarUnMes, restarUnMes, primerDiaDelMes, ultimoDiaDelMes, activarPlan, DIAS_GRACIA, finDeGracia,
-  desactivarGymsVencidos, generarCortesDelMes, METODO_CORTE, iniciarBarridoVigencia
+  estadoEfectivo, desactivarGymsVencidos, generarCortesDelMes, METODO_CORTE, iniciarBarridoVigencia
 };

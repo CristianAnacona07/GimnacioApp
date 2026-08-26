@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getPrismaClient } = require('../prisma/client');
 const { verificarToken } = require('../middleware/auth');
+const { estadoEfectivo } = require('../lib/planPlataformaVigencia');
 
 const prisma = getPrismaClient();
 
@@ -38,13 +39,51 @@ function aviso({ id, grupo, nivel, icono, titulo, detalle, ruta, firma }) {
   return { id, grupo, nivel, icono, titulo, detalle, ruta, firma: firma ?? `${id}:0` };
 }
 
+/**
+ * Aviso de la factura que el GIMNASIO le debe a la PLATAFORMA (no confundir
+ * con "membresías vencidas", que son los socios que le deben al gimnasio).
+ * Se fija en la fila de PagoPlataforma más reciente del gym: si su estado
+ * efectivo (mismo cálculo que la tabla de Facturación del superadmin, ver
+ * estadoEfectivo en lib/planPlataformaVigencia.js) es "pendiente" o
+ * "vencida", el admin se entera acá en vez de tener que preguntarle al
+ * superadmin. Sin pago registrado, o al día, no hay nada que avisar.
+ */
+async function avisoFacturacion(gymId) {
+  const ultimoPago = await prisma.pagoPlataforma.findFirst({
+    where: { gymId, estado: { not: 'anulada' } },
+    orderBy: { fecha: 'desc' },
+    select: { estado: true, hasta: true, fecha: true, monto: true }
+  });
+  if (!ultimoPago) return null;
+
+  const estado = estadoEfectivo(ultimoPago);
+  if (estado !== 'pendiente' && estado !== 'vencida') return null;
+
+  const mes = new Date(ultimoPago.fecha).toLocaleDateString('es', { month: 'long', year: 'numeric' });
+  const monto = '$' + Math.round(Number(ultimoPago.monto)).toLocaleString('es');
+
+  return estado === 'pendiente'
+    ? aviso({
+        id: 'factura-plataforma', grupo: 'Tu cuenta', nivel: 'media', icono: '🟡',
+        titulo: `Factura de ${mes} pendiente`,
+        detalle: `${monto} — pagala antes de que se desactive el gimnasio`,
+        ruta: '/admin', firma: `factura-plataforma:pendiente:${ultimoPago.fecha.getTime()}`
+      })
+    : aviso({
+        id: 'factura-plataforma', grupo: 'Tu cuenta', nivel: 'alta', icono: '🔴',
+        titulo: 'La suscripción de tu gimnasio venció',
+        detalle: `Factura de ${mes} sin pagar (${monto}). El gimnasio puede quedar desactivado`,
+        ruta: '/admin', firma: `factura-plataforma:vencida:${ultimoPago.fecha.getTime()}`
+      });
+}
+
 // ── Avisos del admin ────────────────────────────────────────────────────────
 async function avisosAdmin(gymId) {
   const hoy = inicioDeHoy();
   const enUnaSemana = new Date(hoy.getTime() + 7 * DIA);
   const haceUnaSemana = new Date(hoy.getTime() - 7 * DIA);
 
-  const [vencidas, porVencer, sinMembresia, nuevos, entrenadores, sinEntrenador, conEntrenador] =
+  const [vencidas, porVencer, sinMembresia, nuevos, entrenadores, sinEntrenador, conEntrenador, facturacion] =
     await Promise.all([
       prisma.user.count({ where: { gymId, role: 'socio', fechaVencimiento: { not: null, lt: hoy } } }),
       prisma.user.count({ where: { gymId, role: 'socio', fechaVencimiento: { gte: hoy, lte: enUnaSemana } } }),
@@ -60,13 +99,15 @@ async function avisosAdmin(gymId) {
         where: { gymId, role: 'socio', entrenadorId: { not: null } },
         distinct: ['entrenadorId'],
         select: { entrenadorId: true }
-      })
+      }),
+      avisoFacturacion(gymId)
     ]);
 
   const ocupados = new Set(conEntrenador.map((u) => u.entrenadorId));
   const entrenadoresLibres = entrenadores.filter((e) => !ocupados.has(e.id)).length;
 
   return [
+    facturacion,
     vencidas > 0 && aviso({
       id: 'membresias-vencidas', grupo: 'Clientes', nivel: 'alta', icono: '🔴',
       titulo: `${vencidas} ${vencidas === 1 ? 'membresía vencida' : 'membresías vencidas'}`,

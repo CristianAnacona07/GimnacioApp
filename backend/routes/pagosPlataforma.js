@@ -7,9 +7,10 @@ const { getPrismaClient } = require('../prisma/client');
 const { esIdValido } = require('../lib/ids');
 const { verificarToken, soloSuperAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
+const { emitirAGym } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
-const { sumarUnMes, restarUnMes, finDeGracia, primerDiaDelMes, ultimoDiaDelMes } = require('../lib/planPlataformaVigencia');
+const { sumarUnMes, restarUnMes, finDeGracia, primerDiaDelMes, ultimoDiaDelMes, estadoEfectivo } = require('../lib/planPlataformaVigencia');
 
 const ESTADOS_VALIDOS = ['pagada', 'vencida', 'pendiente', 'anulada'];
 
@@ -68,28 +69,8 @@ async function conDatosVivos(prisma, pagos) {
   });
 }
 
-// "vencida" y "pendiente" no son valores que nadie escriba a mano: se derivan
-// de si la cobertura del pago ya pasó. Se usa el "hasta" propio del pago
-// cuando existe (todo pago nuevo lo trae); los pagos viejos que quedaron sin
-// "hasta" (de antes de que esa columna existiera) usan en su lugar la
-// vigencia actual del gimnasio — nunca "fecha" del pago, que es solo cuándo
-// se registró, no hasta cuándo cubre: usarla como respaldo marcaba como
-// vencidos pagos viejos de gimnasios que en realidad siguen activos por un
-// pago más reciente.
-//
-// Un pago "pagada" cuyo plazo venció entra primero a "pendiente" — los
-// DIAS_GRACIA de margen para pagar antes de que el gimnasio se desactive de
-// verdad (ver desactivarGymsVencidos) — y recién pasada la gracia pasa a
-// "vencida". Un pago "anulada" es una decisión ya tomada por el superadmin,
-// sin gracia: si su plazo pasó, es "vencida" de una — coincide con que
-// anular ya desactiva el gimnasio al toque, sin esperar.
-function estadoEfectivo(p) {
-  const limite = p.hasta || p.gym?.planVenceEn;
-  if (!limite || new Date(limite) >= new Date()) return p.estado;
-  if (p.estado === 'pagada') return new Date() < finDeGracia(limite) ? 'pendiente' : 'vencida';
-  if (p.estado === 'anulada') return 'vencida';
-  return p.estado;
-}
+// estadoEfectivo() vive en lib/planPlataformaVigencia.js (también la usa el
+// aviso de la campanita del admin en routes/notificaciones.js).
 
 // Lista con filtro opcional por estado y rango de fechas — igual que el
 // historial de un solo tenant, pero acá "el tenant" es la plataforma entera.
@@ -254,6 +235,10 @@ router.put('/:id', verificarToken, soloSuperAdmin, async (req, res) => {
           await prisma.gym.update({ where: { id: actual.gymId }, data: dataGym });
         }
       }
+      // El aviso de factura pendiente/vencida en la campanita del admin
+      // depende del estado de este pago — que se entere al toque de que ya
+      // quedó pagada, en vez de esperar el sondeo de 5 minutos.
+      emitirAGym(actual.gymId, 'avisos:revisar');
     }
 
     await registrarAuditoria(req, 'EDITAR_PAGO_PLATAFORMA', { recurso: 'PagoPlataforma', recursoId: pago.id, detalle: data });
