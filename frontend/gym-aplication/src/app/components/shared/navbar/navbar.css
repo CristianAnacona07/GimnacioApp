@@ -1,17 +1,24 @@
 /* navbar.css */
 .navbar-gym-inicial {
-  width: 80px;
-  height: 80px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 2rem;
+  font-size: 1.25rem;
   font-weight: 900;
   flex-shrink: 0;
 }
+/* w-12/h-12 de Tailwind ya fija 48px, pero un logo subido por el admin no
+   pasa por ningún redimensionado en el servidor — este tope explícito evita
+   que una foto gigante (o algo que anule la utilidad de Tailwind) desborde
+   la barra de navegación, que antes crecía en alto para acomodar la imagen. */
 .logo-blend {
+  max-width: 48px;
+  max-height: 48px;
+  flex-shrink: 0;
   transition: filter 0.3s;
 }
 
