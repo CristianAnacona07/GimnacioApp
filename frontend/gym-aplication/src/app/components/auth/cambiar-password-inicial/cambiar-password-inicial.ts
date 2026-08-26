@@ -8,6 +8,7 @@ import { ToastService } from '../../../services/toast.service';
 import { StorageService } from '../../../services/storage.service';
 import { AuthService } from '../../../services/auth';
 import { GymService, Gym } from '../../../services/gym.service';
+import { textoTerminos, textoPrivacidad, NOMBRE_APP_RESPALDO } from '../../../data/legal-textos';
 
 // Pantalla forzada para cuentas creadas con contraseña temporal (superadmin
 // o recepción la generaron y se la entregaron en persona, sin correo de por
@@ -28,6 +29,10 @@ export class CambiarPasswordInicial {
   verNueva = false;
   verConfirm = false;
   cargando = false;
+  aceptaTerminos = false;
+  aceptaPrivacidad = false;
+  mostrarTerminos = false;
+  mostrarPrivacidad = false;
 
   readonly nombre = localStorage.getItem('nombre') || '';
   /** Gimnasio en uso: la cabecera muestra su logo, no el de la plataforma. */
@@ -50,7 +55,18 @@ export class CambiarPasswordInicial {
   }
 
   get formularioValido(): boolean {
-    return this.nuevaPassword.length >= 8 && this.contrasenasCoinciden;
+    return this.nuevaPassword.length >= 8
+      && this.contrasenasCoinciden
+      && this.aceptaTerminos
+      && this.aceptaPrivacidad;
+  }
+
+  get terminosTexto(): string {
+    return textoTerminos(this.gym?.nombre || NOMBRE_APP_RESPALDO);
+  }
+
+  get privacidadTexto(): string {
+    return textoPrivacidad(this.gym?.nombre || NOMBRE_APP_RESPALDO);
   }
 
   // --- Indicador de fuerza: puramente visual, no bloquea el envío (el único
@@ -80,6 +96,13 @@ export class CambiarPasswordInicial {
     }).subscribe({
       next: () => {
         this.storageService.setDebeCambiarPassword(false);
+        // Se sella la aceptación que la persona acaba de marcar. No bloquea
+        // la entrada si falla: dejar a alguien afuera del gimnasio por no
+        // poder registrar la constancia sería peor, y el sello se reintenta
+        // solo la próxima vez que pase por acá.
+        this.auth.aceptarTerminos().subscribe({
+          error: (err) => console.warn('No se pudo registrar la aceptación de términos', err)
+        });
         this.toast.success('Contraseña actualizada');
         this.irAHome();
       },

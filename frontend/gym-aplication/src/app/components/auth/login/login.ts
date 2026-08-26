@@ -6,7 +6,6 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { GymService, Gym } from '../../../services/gym.service';
-import { textoTerminos, textoPrivacidad, NOMBRE_APP_RESPALDO } from '../../../data/legal-textos';
 import { TenantService } from '../../../services/tenant.service';
 import { ThemeService } from '../../../services/theme.service';
 import { StorageService } from '../../../services/storage.service';
@@ -43,14 +42,12 @@ export class Login implements OnInit, AfterViewInit {
   /** Token de Google a la espera de que el usuario elija gimnasio. */
   private googlePendiente: { tipo: 'credential' | 'access_token'; valor: string } | null = null;
   readonly esNativo = Capacitor.isNativePlatform();
-  // Primer ingreso (se llegó por el botón del correo de contraseña temporal,
-  // que trae ?email=): acá mismo se aceptan los documentos legales, para no
-  // meter una pantalla extra entre el correo y el cambio de contraseña.
-  esPrimerIngreso = false;
-  aceptaTerminos = false;
-  aceptaPrivacidad = false;
-  mostrarTerminos = false;
-  mostrarPrivacidad = false;
+  // Los documentos legales NO se piden en este formulario. Se aceptan en
+  // /cambiar-password-inicial, por donde pasan obligatoriamente todas las
+  // cuentas nuevas: tanto las que llegan por el enlace del correo como las
+  // que reciben la contraseña en mano y escriben su correo acá. Mientras
+  // vivieron en el login solo los veía el primer grupo, así que quien la
+  // recibía en persona nunca los aceptaba.
   private gsiCargando: Promise<void> | null = null;
 
   constructor(
@@ -80,23 +77,6 @@ export class Login implements OnInit, AfterViewInit {
     const email = this.ruta.snapshot.queryParamMap.get('email');
     if (email) {
       this.usuario.email = email;
-
-      // `?email=` solo dice "vengo del correo de alta", no "es la primera
-      // vez". Quien ya activó su cuenta y reabre ese correo tenía que volver
-      // a marcar unos términos que ya había aceptado. El enlace trae además
-      // un `a=<id>.<firma>` con el que el servidor responde si la activación
-      // sigue pendiente; solo entonces se piden los documentos legales.
-      const activacion = this.ruta.snapshot.queryParamMap.get('a');
-      if (activacion) {
-        this.authService.activacionPendiente(activacion).subscribe({
-          next: (r) => { this.esPrimerIngreso = !!r?.pendiente; },
-          // Sin respuesta del servidor se asume que NO es primer ingreso: es
-          // preferible no pedir los términos que exigírselos de nuevo a
-          // alguien que ya los aceptó (el registro legal ya quedó sellado en
-          // su primer ingreso real).
-          error: () => { this.esPrimerIngreso = false; }
-        });
-      }
 
       // El enlace suele abrirse con otra sesión viva: la de quien dio el
       // alta, en el mismo navegador. Se cierra sin preguntar para dejar el
@@ -362,15 +342,8 @@ export class Login implements OnInit, AfterViewInit {
     // 4) Sincronizar estado reactivo (escribe 'usuario' y notifica al navbar)
     this.userStateService.updateUser(res.usuario);
 
-    // 5) Primer ingreso: recién ahora hay token, así que es acá donde se
-    // sella la aceptación que la persona marcó en el formulario. No bloquea
-    // la entrada si el registro falla — la constancia se reintenta sola en el
-    // siguiente primer ingreso, y dejar a alguien afuera por esto sería peor.
-    if (this.esPrimerIngreso && this.aceptaTerminos && this.aceptaPrivacidad) {
-      this.authService.aceptarTerminos().subscribe({
-        error: (err) => console.warn('No se pudo registrar la aceptación de términos', err)
-      });
-    }
+    // 5) La aceptación de los documentos legales se pide y se sella en
+    // /cambiar-password-inicial (paso 6), no acá.
 
     // 6) Contraseña temporal sin cambiar: nada de navbar/paneles hasta que la
     // defina — el guard también lo exige, pero evita el parpadeo de entrar
@@ -386,19 +359,6 @@ export class Login implements OnInit, AfterViewInit {
     else if (role === 'entrenador') this.router.navigate(['/entrenador']);
     else if (role === 'empleado') this.router.navigate(['/empleado']);
     else this.router.navigate(['/socio']);
-  }
-
-  get terminosTexto(): string {
-    return textoTerminos(this.gym?.nombre || NOMBRE_APP_RESPALDO);
-  }
-
-  get privacidadTexto(): string {
-    return textoPrivacidad(this.gym?.nombre || NOMBRE_APP_RESPALDO);
-  }
-
-  /** En el primer ingreso no se entra sin aceptar los dos documentos. */
-  get legalesAceptados(): boolean {
-    return !this.esPrimerIngreso || (this.aceptaTerminos && this.aceptaPrivacidad);
   }
 
   /** Segunda llamada del login cuando el correo existe en varios gimnasios. */

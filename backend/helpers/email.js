@@ -1,5 +1,4 @@
 const nodemailer = require('nodemailer');
-const { firmaActivacion } = require('./tokens');
 
 /**
  * Envío de correo de la plataforma.
@@ -127,20 +126,13 @@ const plantillaPasswordTemporal = (nombre, gymNombre, email, password, url) => `
  * @returns {Promise<boolean>} true si el correo salió; false si no hay
  *          configuración de correo o si el envío falló (queda en el log).
  */
-async function enviarPasswordTemporal({ email, nombre, gymNombre, password, userId }) {
+async function enviarPasswordTemporal({ email, nombre, gymNombre, password }) {
   if (!emailConfigurado()) {
     console.error('Sin configuración de correo (SMTP_HOST o EMAIL_USER/EMAIL_PASS): no se envía la contraseña temporal');
     return false;
   }
 
-  // `a` (activación) va firmado: con él, el login le pregunta al servidor si
-  // esta cuenta todavía tiene la contraseña temporal sin cambiar. Si ya la
-  // cambió, el enlace deja de comportarse como "primer ingreso" y abre el
-  // login normal, sin volver a pedir los términos ya aceptados. Sin este
-  // parámetro el formulario no tiene forma de distinguir la primera vez de
-  // la quinta: `?email=` solo dice "vengo del correo".
-  const activacion = userId ? `&a=${userId}.${firmaActivacion(userId)}` : '';
-  const url = `${urlFrontend()}/login?email=${encodeURIComponent(email)}${activacion}`;
+  const url = `${urlFrontend()}/login?email=${encodeURIComponent(email)}`;
 
   try {
     await transporter.sendMail({

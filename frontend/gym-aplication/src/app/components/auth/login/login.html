@@ -81,37 +81,8 @@
           </div>
         </div>
 
-        @if (esPrimerIngreso) {
-          <div class="legal-item" [class.legal-item--abierto]="mostrarTerminos">
-            <div class="legal-item__fila">
-              <label class="legal-item__check">
-                <input type="checkbox" [(ngModel)]="aceptaTerminos" name="aceptaTerminos">
-                <span class="legal-item__titulo">He leído y acepto los Términos y Condiciones</span>
-              </label>
-              <button type="button" class="legal-item__flecha" (click)="mostrarTerminos = !mostrarTerminos"
-                [attr.aria-label]="mostrarTerminos ? 'Ocultar texto' : 'Mostrar texto'">▾</button>
-            </div>
-            @if (mostrarTerminos) {
-              <div class="legal-item__texto">{{ terminosTexto }}</div>
-            }
-          </div>
 
-          <div class="legal-item" [class.legal-item--abierto]="mostrarPrivacidad">
-            <div class="legal-item__fila">
-              <label class="legal-item__check">
-                <input type="checkbox" [(ngModel)]="aceptaPrivacidad" name="aceptaPrivacidad">
-                <span class="legal-item__titulo">He leído y acepto la Política de Privacidad</span>
-              </label>
-              <button type="button" class="legal-item__flecha" (click)="mostrarPrivacidad = !mostrarPrivacidad"
-                [attr.aria-label]="mostrarPrivacidad ? 'Ocultar texto' : 'Mostrar texto'">▾</button>
-            </div>
-            @if (mostrarPrivacidad) {
-              <div class="legal-item__texto">{{ privacidadTexto }}</div>
-            }
-          </div>
-        }
-
-        <button type="button" [disabled]="cargando || !legalesAceptados" (click)="iniciarSesion()" class="btn-login">
+        <button type="button" [disabled]="cargando" (click)="iniciarSesion()" class="btn-login">
           @if (!cargando) { Iniciar Sesión }
           @else {
             <span class="btn-loading">
