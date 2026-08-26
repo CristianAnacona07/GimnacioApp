@@ -109,8 +109,8 @@ export class AlertaService {
           id: this.siguienteId,
           title: titulo,
           body: cuerpo,
-          smallIcon: 'ic_stat_kodiak',
-          iconColor: '#D4AF37'
+          smallIcon: 'ic_stat_snake',
+          iconColor: '#F97316'
         }]
       });
     } catch {

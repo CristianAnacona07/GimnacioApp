@@ -338,8 +338,11 @@ export class Cronometro implements OnInit, OnDestroy {
           title: '¡Tiempo de descanso terminado! 💪',
           body: '¡A darle con todo, guerrero!',
           schedule: { at: new Date(endTime), allowWhileIdle: true },
-          smallIcon: 'ic_stat_kodiak',   // silueta del oso en la barra de estado
-          iconColor: '#D4AF37'           // tinte dorado
+          // Silueta de la serpiente. Android ignora los colores de este icono
+          // (usa solo el alfa y lo pinta con iconColor), por eso el archivo es
+          // blanco sobre transparente y no el logo naranja.
+          smallIcon: 'ic_stat_snake',
+          iconColor: '#F97316'           // naranja de la marca
         }]
       });
     } catch (e) {
