@@ -68,6 +68,10 @@ export class PagoService {
     /** true = cuenta instantánea con contraseña temporal a la vista, sin
      *  correo. Ignora `password` si viene junto (siempre se genera al azar). */
     conApp?: boolean;
+    /** false = el socio no dio su consentimiento para recibir el correo de
+     *  alta: la cuenta se crea igual, pero la contraseña temporal se entrega
+     *  en el momento en vez de enviarse. Omitirlo equivale a true. */
+    enviarCorreo?: boolean;
   }): Observable<SocioCreado> {
     return this.http.post<SocioCreado>(`${this.url}/api/auth/crear-socio`, datos);
   }

@@ -79,9 +79,22 @@ export class Matricula implements OnInit {
   telefono = '';
   correo = '';
   identificacion = '';
+  /**
+   * Consentimiento del socio para recibir el correo de alta. Arranca
+   * DESMARCADO: un consentimiento tiene que darse a propósito, no venir
+   * puesto de fábrica. Sin marcarlo la cuenta se crea igual, pero no se le
+   * envía nada — la contraseña temporal aparece en la tarjeta de
+   * confirmación ("Entrégasela al socio") para dársela en el momento.
+   */
+  enviarCorreo = false;
 
-  // Socio existente
+  // Socio existente. Dos cajas separadas (Nombre / Cédula) que alimentan la
+  // misma búsqueda combinada del backend — escribir en cualquiera de las dos
+  // dispara la misma consulta, y se vacía la otra para no dejar dos criterios
+  // sueltos que no se sabe cuál manda.
   textoBusqueda = '';
+  busquedaNombre = '';
+  busquedaCedula = '';
   resultados: SocioBuscado[] = [];
   buscando = false;
   socioSeleccionado: SocioBuscado | null = null;
@@ -158,6 +171,9 @@ export class Matricula implements OnInit {
     if (usuarioId && nombre) {
       this.tipoSocio = 'existente';
       this.textoBusqueda = nombre;
+      this.busquedaNombre = nombre;
+      // Provisorio con lo único que trae la URL, para que la tarjeta no
+      // aparezca en blanco mientras llega /perfil/:id de abajo.
       this.socioSeleccionado = {
         _id: usuarioId,
         nombre,
@@ -166,6 +182,30 @@ export class Matricula implements OnInit {
         diasRestantes: 0
       };
       this.cdr.markForCheck();
+
+      // El link de "Renovar" solo pasa id y nombre por la URL: sin esto la
+      // tarjeta quedaba pegada con "Días restantes actuales: 0" y sin cédula
+      // aunque el socio tuviera las dos cosas cargadas.
+      this.authService.getPerfilUsuario(usuarioId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (perfil: any) => {
+            if (this.socioSeleccionado?._id !== usuarioId) return; // se canceló la selección mientras tanto
+            this.socioSeleccionado = {
+              _id: usuarioId,
+              nombre: perfil?.nombre || nombre,
+              email: perfil?.email || '',
+              codigoAcceso: '',
+              identificacion: perfil?.datosPersonales?.identificacion || '',
+              diasRestantes: perfil?.cards?.vencimiento ?? 0
+            };
+            this.busquedaCedula = perfil?.datosPersonales?.identificacion || '';
+            this.cdr.markForCheck();
+          },
+          // Sin esto, la tarjeta se queda con el provisorio (nombre nada más)
+          // en vez de trabarse: sigue sirviendo para registrar el pago.
+          error: () => {}
+        });
     }
   }
 
@@ -208,11 +248,27 @@ export class Matricula implements OnInit {
     this.socioSeleccionado = null;
     this.resultados = [];
     this.textoBusqueda = '';
+    this.busquedaNombre = '';
+    this.busquedaCedula = '';
     this.cdr.markForCheck();
   }
 
   // ---- Buscador ----
-  onBuscar(): void {
+  /** Escribiendo en "Nombre": ese campo manda, se vacía "Cédula". */
+  onBuscarPorNombre(): void {
+    this.busquedaCedula = '';
+    this.textoBusqueda = this.busquedaNombre;
+    this.buscar();
+  }
+
+  /** Escribiendo en "Cédula": ese campo manda, se vacía "Nombre". */
+  onBuscarPorCedula(): void {
+    this.busquedaNombre = '';
+    this.textoBusqueda = this.busquedaCedula;
+    this.buscar();
+  }
+
+  private buscar(): void {
     const q = this.textoBusqueda.trim();
     this.socioSeleccionado = null;
     if (!q) {
@@ -228,12 +284,23 @@ export class Matricula implements OnInit {
     this.socioSeleccionado = socio;
     this.resultados = [];
     this.textoBusqueda = socio.nombre;
+    // Deja el criterio que encontró el resultado a la vista arriba, en su
+    // propia caja; la otra se vacía para no mostrar dos valores sueltos.
+    if (this.busquedaCedula) {
+      this.busquedaCedula = socio.identificacion || this.busquedaCedula;
+      this.busquedaNombre = '';
+    } else {
+      this.busquedaNombre = socio.nombre;
+      this.busquedaCedula = '';
+    }
     this.cdr.markForCheck();
   }
 
   limpiarSeleccion(): void {
     this.socioSeleccionado = null;
     this.textoBusqueda = '';
+    this.busquedaNombre = '';
+    this.busquedaCedula = '';
     this.resultados = [];
     this.cdr.markForCheck();
   }
@@ -357,7 +424,8 @@ export class Matricula implements OnInit {
         nombre: this.nombre.trim(),
         email: this.correo.trim() || undefined,
         telefono: this.telefono.trim() || undefined,
-        identificacion: this.identificacion.trim() || undefined
+        identificacion: this.identificacion.trim() || undefined,
+        enviarCorreo: this.enviarCorreo
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -457,7 +525,12 @@ export class Matricula implements OnInit {
     this.telefono = '';
     this.correo = '';
     this.identificacion = '';
+    // Vuelve a desmarcarse: el consentimiento es de cada socio, no se
+    // arrastra del que se acaba de registrar al siguiente.
+    this.enviarCorreo = false;
     this.textoBusqueda = '';
+    this.busquedaNombre = '';
+    this.busquedaCedula = '';
     this.resultados = [];
     this.socioSeleccionado = null;
     this.planId = '';

@@ -88,6 +88,39 @@
   color: var(--txt-rojo, #dc2626);
 }
 
+/* Consentimiento para enviarle el correo de alta al socio. */
+.consentimiento {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  cursor: pointer;
+  padding: 0.15rem 0;
+}
+
+.consentimiento input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--color-primario, #4f46e5);
+}
+
+.consentimiento__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--txt-2, #475569);
+}
+
+.consentimiento__texto small {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--txt-3, #94a3b8);
+}
+
 .input {
   width: 100%;
   padding: 0.65rem 0.85rem;

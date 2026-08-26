@@ -89,18 +89,43 @@
         <span class="campo__label">Correo <span class="req">*</span></span>
         <input class="input" type="email" [(ngModel)]="correo" placeholder="correo@ejemplo.com" autocomplete="off" />
       </label>
+
+      <!-- Consentimiento para escribirle. Arranca desmarcado a propósito. Si
+           no lo da, la cuenta se crea igual y la contraseña temporal se
+           muestra en la tarjeta de confirmación, al terminar el registro. -->
+      <label class="consentimiento">
+        <input type="checkbox" [(ngModel)]="enviarCorreo" />
+        <span class="consentimiento__texto">
+          Enviarle un correo para que entre a la aplicación
+          <small>Marcalo solo si el socio está de acuerdo. Si no, al terminar verás acá su contraseña temporal para dársela.</small>
+        </span>
+      </label>
     </div>
 
     <!-- Socio existente -->
     <div *ngIf="tipoSocio === 'existente'" class="campos">
+      <!-- Dos cajas separadas en vez de un buscador único: escribir en
+           cualquiera de las dos alcanza, la otra se vacía sola. -->
       <label class="campo">
-        <span class="campo__label">Buscar socio</span>
+        <span class="campo__label">Nombre</span>
         <input
           class="input"
           type="text"
-          [(ngModel)]="textoBusqueda"
-          (ngModelChange)="onBuscar()"
-          placeholder="Nombre, cédula, email o código…"
+          [(ngModel)]="busquedaNombre"
+          (ngModelChange)="onBuscarPorNombre()"
+          placeholder="Nombre del socio…"
+          autocomplete="off"
+        />
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Cédula</span>
+        <input
+          class="input"
+          type="text"
+          [(ngModel)]="busquedaCedula"
+          (ngModelChange)="onBuscarPorCedula()"
+          placeholder="Número de cédula…"
           autocomplete="off"
         />
       </label>
@@ -128,9 +153,11 @@
         </li>
       </ul>
 
+      <!-- Sin nombre ni cédula acá: ya quedan a la vista en la caja de arriba
+           que se usó para encontrarlo (Nombre o Cédula). Repetirlos en esta
+           tarjeta era información duplicada. -->
       <div *ngIf="socioSeleccionado as sel" class="seleccionado">
         <div class="seleccionado__info">
-          <span class="seleccionado__nombre">{{ sel.nombre }}</span>
           <span
             class="seleccionado__dias"
             [class.dias--activo]="(sel.diasRestantes ?? 0) > 0"
