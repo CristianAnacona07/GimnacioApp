@@ -440,6 +440,14 @@
   margin-bottom: .5rem;
 }
 
+/* Mes + año de "Registrar pago", lado a lado — el mes se lleva más espacio
+   porque sus nombres son más largos que un año de 4 dígitos. */
+.mes-facturar {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: .5rem;
+}
+
 .field { display: flex; flex-direction: column; gap: .3rem; }
 
 .flabel {

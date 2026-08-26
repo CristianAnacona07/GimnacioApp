@@ -210,6 +210,10 @@ router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
     await desactivarGymsVencidos(prisma);
     const ahora = new Date();
     const seisMesesAtras = new Date(ahora.getFullYear(), ahora.getMonth() - 5, 1);
+    // Ventana más amplia que la de los 6 meses del gráfico: sirve para hallar
+    // el último mes con corte/pago real aunque haya quedado fuera de esos 6
+    // meses (gimnasio con facturación esporádica), sin inventar un mes.
+    const doceMesesAtras = new Date(ahora.getFullYear(), ahora.getMonth() - 11, 1);
 
     // "Activo" en todo este dashboard es suscripción vigente (planVenceEn en
     // el futuro), no el interruptor activo/desactivado de la tarjeta — un gym
@@ -224,7 +228,7 @@ router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
     // SÍ pasan por la extensión de soft-delete: no hace falta agregar
     // deletedAt: null a mano. `gym: {...}` es un filtro por relación anidada,
     // que groupBy no soporta — por eso esta ruta no reusa ese helper.
-    const [sociosActivos, adminTotal, gimnasiosActivos, sociosNuevos, gymsConPlan, planes, sociosPorGym] = await Promise.all([
+    const [sociosActivos, adminTotal, gimnasiosActivos, sociosNuevos, pagosRecientes] = await Promise.all([
       prisma.user.count({
         where: { gym: gymVigente, role: 'socio', fechaVencimiento: { gt: ahora } }
       }),
@@ -236,48 +240,41 @@ router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
         where: { gym: gymVigente, role: 'socio', createdAt: { gte: seisMesesAtras } },
         select: { createdAt: true }
       }),
-      // Ingresos estimados: solo gimnasios con suscripción vigente y un plan asignado.
-      prisma.gym.findMany({
-        where: { ...gymVigente, planPlataformaId: { not: null } },
-        select: { id: true, planPlataformaId: true, planPlataformaCampo: true }
-      }),
-      // findMany SÍ filtra deletedAt sola (a diferencia de groupBy): un plan
-      // "eliminado" (soft-delete) no aparece acá, así que un gimnasio que lo
-      // tenía asignado simplemente no suma nada — igual que sin plan.
-      prisma.planPlataforma.findMany(),
-      prisma.user.groupBy({
-        by: ['gymId'],
-        where: { role: 'socio', deletedAt: null, fechaVencimiento: { gt: ahora } },
-        _count: { _all: true }
+      // Ingresos: lo que Facturación registró de verdad (corte automático o
+      // pago manual) para cada mes, no una proyección en vivo desconectada
+      // de esa tabla — "anulada" no cuenta como ingreso.
+      prisma.pagoPlataforma.findMany({
+        where: { fecha: { gte: doceMesesAtras }, estado: { not: 'anulada' } },
+        select: { monto: true, fecha: true }
       })
     ]);
 
-    const planPorId = new Map(planes.map(p => [p.id, p]));
-    const sociosPorGymId = new Map(sociosPorGym.map(g => [String(g.gymId), g._count._all]));
-    let ingresosEstimados = 0;
-    for (const g of gymsConPlan) {
-      const plan = planPorId.get(g.planPlataformaId);
-      if (!plan) continue; // plan eliminado: no inventa ingreso
-      // El gimnasio eligió UN solo valor del plan, no los dos juntos: el
-      // mensual suma fijo; el "por suscriptor" escala con sus socios activos.
-      // Sin campo guardado (asignación de antes de este cambio) no se sabe
-      // cuál de los dos quiso decir, así que no suma nada — mejor un número
-      // de menos que uno inventado.
-      if (g.planPlataformaCampo === 'mensual') {
-        ingresosEstimados += Number(plan.precioMensual);
-      } else if (g.planPlataformaCampo === 'porSuscriptor') {
-        const socios = sociosPorGymId.get(g.id) || 0;
-        ingresosEstimados += Number(plan.precioPorSuscriptor) * socios;
-      }
+    // Mismo bucketing por 'YYYY-MM' que nuevosSociosPorMes, pero sobre TODA
+    // la ventana de 12 meses primero: así se puede hallar el último mes con
+    // datos aunque haya quedado fuera de los 6 que se grafican.
+    const totalPorMes = new Map();
+    for (const p of pagosRecientes) {
+      const clave = `${p.fecha.getFullYear()}-${String(p.fecha.getMonth() + 1).padStart(2, '0')}`;
+      totalPorMes.set(clave, (totalPorMes.get(clave) || 0) + Number(p.monto));
     }
+    const mesesConDatos = [...totalPorMes.keys()].sort();
+    const claveMesActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
+    // "Último mes de corte": el mes más reciente con algún pago/corte
+    // registrado; si todavía no hay ninguno (gimnasio recién creado), cae al
+    // mes en curso con $0 en vez de inventar un mes con datos.
+    const ultimoMesConCorte = mesesConDatos.length ? mesesConDatos[mesesConDatos.length - 1] : claveMesActual;
+    const ingresosUltimoMes = { mes: ultimoMesConCorte, total: totalPorMes.get(ultimoMesConCorte) || 0 };
 
     // Bucketing en JS: no hay precedente de date_trunc/$queryRaw en el
     // backend y el volumen de filas es chico, así que alcanza con esto en
     // vez de meter SQL crudo por primera vez.
     const meses = [];
+    const ingresosPorMes = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
-      meses.push({ mes: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, cantidad: 0 });
+      const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      meses.push({ mes: clave, cantidad: 0 });
+      ingresosPorMes.push({ mes: clave, total: totalPorMes.get(clave) || 0 });
     }
     for (const s of sociosNuevos) {
       const clave = `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, '0')}`;
@@ -285,7 +282,11 @@ router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
       if (bucket) bucket.cantidad++;
     }
 
-    res.json({ sociosActivos, adminTotal, gimnasiosActivos, ingresosEstimados, nuevosSociosPorMes: meses });
+    res.json({
+      sociosActivos, adminTotal, gimnasiosActivos,
+      ingresosUltimoMes, ingresosPorMes,
+      nuevosSociosPorMes: meses
+    });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

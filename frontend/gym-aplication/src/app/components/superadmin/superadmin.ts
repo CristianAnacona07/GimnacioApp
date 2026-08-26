@@ -45,7 +45,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
     sociosActivos: number;
     adminTotal: number;
     gimnasiosActivos: number;
-    ingresosEstimados: number;
+    ingresosUltimoMes: { mes: string; total: number };
+    ingresosPorMes: { mes: string; total: number }[];
     nuevosSociosPorMes: { mes: string; cantidad: number }[];
   } | null = null;
 
@@ -91,15 +92,30 @@ export class SuperAdmin implements OnInit, OnDestroy {
   filtroEstadoPago: '' | 'pagada' | 'vencida' | 'pendiente' | 'anulada' = '';
   filtroDesdePago = '';
   filtroHastaPago = '';
-  // Sin "hasta": el período que cubre un pago ya no se elige a mano, es
-  // siempre el mes calendario completo de "fecha" — el backend lo calcula
-  // igual aunque se mande uno (ver POST /api/pagos-plataforma), pero ni
-  // siquiera se ofrece el campo para no sugerir que se puede elegir.
+  // Se elige el MES directamente (no un día): como el período que cubre un
+  // pago es siempre el mes calendario completo, pedir una fecha puntual con
+  // <input type="date"> era engañoso — parecía que el día importaba, y no.
+  // "fecha" se arma recién al enviar (ver crearPagoPlataforma).
   nuevoPago = {
     gymId: '', monto: null as number | null,
-    fecha: new Date().toISOString().slice(0, 10),
+    mes: new Date().getMonth() + 1, // 1-12
+    anio: new Date().getFullYear(),
     metodo: ''
   };
+
+  readonly MESES = [
+    { valor: 1, nombre: 'Enero' }, { valor: 2, nombre: 'Febrero' }, { valor: 3, nombre: 'Marzo' },
+    { valor: 4, nombre: 'Abril' }, { valor: 5, nombre: 'Mayo' }, { valor: 6, nombre: 'Junio' },
+    { valor: 7, nombre: 'Julio' }, { valor: 8, nombre: 'Agosto' }, { valor: 9, nombre: 'Septiembre' },
+    { valor: 10, nombre: 'Octubre' }, { valor: 11, nombre: 'Noviembre' }, { valor: 12, nombre: 'Diciembre' },
+  ];
+
+  /** Año pasado, actual y el que viene — alcanza para poner al día un pago
+   *  atrasado o cargar uno adelantado, sin una lista larga sin sentido acá. */
+  get aniosDisponibles(): number[] {
+    const actual = new Date().getFullYear();
+    return [actual - 1, actual, actual + 1];
+  }
   // Mismas opciones que ya usa matrícula para el pago de un socio — la
   // plataforma no le abre a cada gym su propia lista de métodos, es un solo
   // desplegable genérico.
@@ -154,7 +170,40 @@ export class SuperAdmin implements OnInit, OnDestroy {
     return new Date(y, m - 1, 1).toLocaleDateString('es', { month: 'short' });
   }
 
-  // `ingresosEstimados` del dashboard ya es number (el backend suma con
+  // '2026-08' → "Agosto", para el nombre completo en la tarjeta de ingresos
+  // ("Ingresos estimados de Agosto") — dashMesCorto ya existe pero abreviado,
+  // sirve para el eje del gráfico, no para el título de la tarjeta.
+  nombreMes(mes: string): string {
+    const [y, m] = mes.split('-').map(Number);
+    const nombre = new Date(y, m - 1, 1).toLocaleDateString('es', { month: 'long' });
+    return nombre.charAt(0).toUpperCase() + nombre.slice(1);
+  }
+
+  // Mismo gráfico de barras que "Socios nuevos por mes" (DASH_H/DASH_PAD/
+  // dashXBarra/dashMesCorto son genéricos, no dependen del dataset), pero
+  // para los totales en pesos de ingresosPorMes — se duplican solo los 4
+  // getters que sí dependen de qué arreglo están mirando.
+  get dashMaxIngreso(): number {
+    const valores = this.dashboard?.ingresosPorMes.map(m => m.total) || [];
+    return Math.max(1, ...valores);
+  }
+
+  dashAlturaBarraIngreso(total: number): number {
+    return (total / this.dashMaxIngreso) * this.dashInnerH;
+  }
+
+  dashYBarraIngreso(total: number): number {
+    return this.DASH_PAD.top + this.dashInnerH - this.dashAlturaBarraIngreso(total);
+  }
+
+  dashYLabelsIngreso(): { val: string; y: number }[] {
+    return [0, 0.5, 1].map(f => ({
+      val: this.formatMoneda(this.dashMaxIngreso * f),
+      y: this.DASH_PAD.top + this.dashInnerH - f * this.dashInnerH
+    }));
+  }
+
+  // Los totales del dashboard ya llegan como number (el backend suma con
   // Number()); `precioMensual`/`precioPorSuscriptor` de un plan llegan como
   // string (Prisma serializa Decimal así) — acepta las dos formas.
   formatMoneda(n: number | string): string {
@@ -438,8 +487,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
   }
 
   abrirFormPago() {
-    const hoy = new Date().toISOString().slice(0, 10);
-    this.nuevoPago = { gymId: '', monto: null, fecha: hoy, metodo: '' };
+    const hoy = new Date();
+    this.nuevoPago = { gymId: '', monto: null, mes: hoy.getMonth() + 1, anio: hoy.getFullYear(), metodo: '' };
     this.mostrarFormPago = true;
   }
 
@@ -457,17 +506,15 @@ export class SuperAdmin implements OnInit, OnDestroy {
   }
 
   /**
-   * Vista previa del período que va a cubrir el pago: SIEMPRE el mes
-   * calendario completo (01 al último día real) del mes al que cae "Fecha
-   * inicio" — igual que calcula el backend, que ignora cualquier "hasta"
-   * que se le mande. Ya no es un campo editable: mostrarlo aparte deja claro
-   * que elegir un día del mes elige TODO ese mes, no solo esa fecha puntual.
+   * Vista previa del período que va a cubrir el pago: el mes calendario
+   * completo (01 al último día real) del Mes/Año elegidos — igual que
+   * calcula el backend, que ignora cualquier "hasta" que se le mande.
    */
   get periodoPago(): string {
-    if (!this.nuevoPago.fecha) return '';
-    const f = new Date(this.nuevoPago.fecha + 'T00:00:00');
-    const desde = new Date(f.getFullYear(), f.getMonth(), 1);
-    const hasta = new Date(f.getFullYear(), f.getMonth() + 1, 0);
+    const { mes, anio } = this.nuevoPago;
+    if (!mes || !anio) return '';
+    const desde = new Date(anio, mes - 1, 1);
+    const hasta = new Date(anio, mes, 0);
     const fmt = (d: Date) => d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: '2-digit' });
     return `${fmt(desde)} al ${fmt(hasta)}`;
   }
@@ -475,7 +522,13 @@ export class SuperAdmin implements OnInit, OnDestroy {
   crearPagoPlataforma() {
     if (!this.nuevoPago.gymId || this.nuevoPago.monto == null || this.guardandoPago) return;
     this.guardandoPago = true;
-    this.http.post(`${environment.apiUrl}/api/pagos-plataforma`, this.nuevoPago, { headers: this.headers })
+    // El backend solo necesita saber a qué mes cae "fecha" (recalcula el mes
+    // calendario completo él solo) — el día 01 alcanza, no hace falta el de
+    // hoy ni ninguno en particular.
+    const { mes, anio } = this.nuevoPago;
+    const fecha = `${anio}-${String(mes).padStart(2, '0')}-01`;
+    const payload = { gymId: this.nuevoPago.gymId, monto: this.nuevoPago.monto, metodo: this.nuevoPago.metodo, fecha };
+    this.http.post(`${environment.apiUrl}/api/pagos-plataforma`, payload, { headers: this.headers })
       .pipe(takeUntil(this.destroy$)).subscribe({
         next: () => {
           this.toast.success('Pago registrado');

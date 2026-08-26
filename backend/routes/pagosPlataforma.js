@@ -118,6 +118,21 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
     if (estado && ESTADOS_VALIDOS.includes(estado)) {
       resultado = resultado.filter(p => p.estado === estado);
     }
+
+    // Orden por estado (lo que importa mirar primero) y, dentro de cada
+    // estado, por fecha más reciente — antes solo ordenaba por fecha, y una
+    // "Anulada" vieja con fecha reciente (por ejemplo un pago corregido a
+    // mano) tapaba a las "Pagada" en la vista "Todos". Se ordena DESPUÉS de
+    // calcular estadoEfectivo(): el estado guardado en la base puede no ser
+    // el real (una "pagada" vencida hace rato en realidad es "vencida"), así
+    // que Prisma no lo puede hacer solo con su propio orderBy.
+    const PRIORIDAD_ESTADO = { pagada: 0, pendiente: 1, vencida: 2, anulada: 3 };
+    resultado.sort((a, b) => {
+      const porEstado = (PRIORIDAD_ESTADO[a.estado] ?? 9) - (PRIORIDAD_ESTADO[b.estado] ?? 9);
+      if (porEstado !== 0) return porEstado;
+      return new Date(b.fecha) - new Date(a.fecha);
+    });
+
     resultado = await conDatosVivos(prisma, resultado);
     res.json(resultado);
   } catch (error) {

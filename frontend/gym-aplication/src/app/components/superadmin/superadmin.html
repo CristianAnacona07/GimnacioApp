@@ -93,9 +93,9 @@
             <p class="dash-tarjeta__hint">Con suscripción vigente</p>
           </div>
           <div class="dash-tarjeta">
-            <p class="dash-tarjeta__label">💰 Ingresos estimados</p>
-            <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosEstimados) }}</p>
-            <p class="dash-tarjeta__hint">Según el plan asignado a cada gym</p>
+            <p class="dash-tarjeta__label">💰 Ingresos estimados de {{ nombreMes(dashboard.ingresosUltimoMes.mes) }}</p>
+            <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosUltimoMes.total) }}</p>
+            <p class="dash-tarjeta__hint">Según lo facturado en Facturación ese mes</p>
           </div>
         </div>
 
@@ -128,6 +128,41 @@
                         text-anchor="middle" font-size="10" fill="#94a3b8">{{ dashMesCorto(m.mes) }}</text>
                   <text [attr.x]="x" [attr.y]="dashYBarra(m.cantidad) - 6"
                         text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">{{ m.cantidad }}</text>
+                }
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-chart-card">
+          <p class="dash-chart-titulo">Ingresos por mes</p>
+          <p class="dash-chart-sub">Últimos 6 meses, según Facturación (sin anuladas)</p>
+          <div class="dash-chart-wrap">
+            <svg class="dash-yaxis" [attr.height]="DASH_H" [attr.width]="DASH_PAD.left + 20">
+              @for (label of dashYLabelsIngreso(); track label.val) {
+                <line [attr.x1]="DASH_PAD.left - 4" [attr.x2]="DASH_PAD.left"
+                      [attr.y1]="label.y" [attr.y2]="label.y"
+                      stroke="#334155" stroke-width="1"/>
+                <text [attr.x]="DASH_PAD.left - 6" [attr.y]="label.y + 4"
+                      text-anchor="end" font-size="8" fill="#94a3b8">{{ label.val }}</text>
+              }
+            </svg>
+            <div class="dash-chart-scroll">
+              <svg [attr.width]="dashDataW" [attr.height]="DASH_H">
+                @for (label of dashYLabelsIngreso(); track label.val) {
+                  <line x1="0" [attr.x2]="dashDataW"
+                        [attr.y1]="label.y" [attr.y2]="label.y"
+                        stroke="#1e293b" stroke-width="1"/>
+                }
+                @for (m of dashboard.ingresosPorMes; track m.mes) {
+                  @let x = dashXBarra($index);
+                  <rect [attr.x]="x - 16" [attr.y]="dashYBarraIngreso(m.total)"
+                        width="32" [attr.height]="dashAlturaBarraIngreso(m.total)"
+                        rx="4" fill="#22c55e"/>
+                  <text [attr.x]="x" [attr.y]="DASH_PAD.top + dashInnerH + 16"
+                        text-anchor="middle" font-size="10" fill="#94a3b8">{{ dashMesCorto(m.mes) }}</text>
+                  <text [attr.x]="x" [attr.y]="dashYBarraIngreso(m.total) - 6"
+                        text-anchor="middle" font-size="9" font-weight="700" fill="#e2e8f0">{{ formatMoneda(m.total) }}</text>
                 }
               </svg>
             </div>
@@ -393,7 +428,22 @@
             </div>
             <div class="field">
               <label class="flabel">Mes a facturar</label>
-              <input [(ngModel)]="nuevoPago.fecha" type="date" class="finput">
+              <!-- Mes y no un día: el período que cubre siempre es el mes
+                   calendario completo (ver periodoPago abajo), así que pedir
+                   una fecha puntual con <input type="date"> sugería que el
+                   día importaba, y no. -->
+              <div class="mes-facturar">
+                <select class="finput" [(ngModel)]="nuevoPago.mes">
+                  @for (m of MESES; track m.valor) {
+                    <option [ngValue]="m.valor">{{ m.nombre }}</option>
+                  }
+                </select>
+                <select class="finput" [(ngModel)]="nuevoPago.anio">
+                  @for (a of aniosDisponibles; track a) {
+                    <option [ngValue]="a">{{ a }}</option>
+                  }
+                </select>
+              </div>
             </div>
           </div>
           <!-- El período ya no se elige: cualquier día que caiga acá arriba
@@ -420,8 +470,8 @@
           <div class="factura-filtros__estados">
             <button class="chip-filtro" [class.activo]="filtroEstadoPago === ''" (click)="filtrarEstadoPago('')">Todos</button>
             <button class="chip-filtro chip-filtro--pagada" [class.activo]="filtroEstadoPago === 'pagada'" (click)="filtrarEstadoPago('pagada')">Pagada</button>
-            <button class="chip-filtro chip-filtro--vencida" [class.activo]="filtroEstadoPago === 'vencida'" (click)="filtrarEstadoPago('vencida')">Vencida</button>
             <button class="chip-filtro chip-filtro--pendiente" [class.activo]="filtroEstadoPago === 'pendiente'" (click)="filtrarEstadoPago('pendiente')">Pendiente</button>
+            <button class="chip-filtro chip-filtro--vencida" [class.activo]="filtroEstadoPago === 'vencida'" (click)="filtrarEstadoPago('vencida')">Vencida</button>
             <button class="chip-filtro chip-filtro--anulada" [class.activo]="filtroEstadoPago === 'anulada'" (click)="filtrarEstadoPago('anulada')">Anulada</button>
           </div>
           <div class="factura-filtros__fechas">
