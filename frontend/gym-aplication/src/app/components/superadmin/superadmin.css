@@ -81,12 +81,20 @@
 .planes-gestion--ancho { max-width: 1400px; }
 
 /* Nombre del plan, arriba de sus dos recuadros — no es una tarjeta en sí,
-   solo el rótulo que los agrupa cuando hay más de un plan en la lista. */
+   solo el rótulo que los agrupa cuando hay más de un plan en la lista, junto
+   al único botón de eliminar (borra el plan entero, no un recuadro suelto). */
+.plan-nombre-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.5rem;
+}
 .plan-nombre-titulo {
   font-size: 0.85rem;
   font-weight: 700;
   color: #64748b;
-  margin: 0 0 0.5rem;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -94,15 +102,27 @@
   color: #60a5fa;
   font-weight: 900;
 }
+.btn-eliminar-plan {
+  background: transparent;
+  border: 1px solid rgba(239,68,68,.4);
+  color: #f87171;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.btn-eliminar-plan:hover { background: rgba(239,68,68,.1); border-color: #ef4444; }
 
 /* Cada valor (mensual / por suscriptor) es su propio recuadro, independiente
-   — no hay botón de eliminar: un plan, una vez creado, siempre existe, solo
-   se editan sus valores. Es un <button> de verdad (se toca en cualquier
-   parte, no solo el lápiz), así que resetea los estilos nativos del navegador
-   antes de heredar el look de .dash-tarjeta. Al tocarlo, el recuadro se
-   reemplaza por el formulario de edición en su propio lugar (ver
-   .plan-edit-inline) — nunca están los dos a la vista a la vez, así que no
-   hace falta un estado "activo" separado. */
+   — se edita por separado, pero se elimina junto (ver .btn-eliminar-plan
+   arriba). Es un <button> de verdad (se toca en cualquier parte, no solo el
+   lápiz), así que resetea los estilos nativos del navegador antes de heredar
+   el look de .dash-tarjeta. Al tocarlo, el recuadro se reemplaza por el
+   formulario de edición en su propio lugar (ver .plan-edit-inline) — nunca
+   están los dos a la vista a la vez, así que no hace falta un estado
+   "activo" separado. */
 .plan-valor-tarjeta {
   position: relative;
   display: block;

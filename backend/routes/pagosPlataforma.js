@@ -10,7 +10,7 @@ const { registrarAuditoria } = require('../helpers/audit');
 const { emitirAGym } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
-const { sumarUnMes, restarUnMes, finDeGracia, primerDiaDelMes, ultimoDiaDelMes, estadoEfectivo } = require('../lib/planPlataformaVigencia');
+const { sumarUnMes, restarUnMes, finDeGracia, primerDiaDelMes, ultimoDiaDelMes, hoyEnColombia, anularPagadasVigentes, estadoEfectivo } = require('../lib/planPlataformaVigencia');
 
 const ESTADOS_VALIDOS = ['pagada', 'vencida', 'pendiente', 'anulada'];
 
@@ -136,21 +136,41 @@ router.post('/', verificarToken, soloSuperAdmin, async (req, res) => {
     }
 
     const gym = await prisma.gym.findUnique({
-      where: { id: gymId }, select: { id: true, nombre: true, planVenceEn: true }
+      where: { id: gymId }, select: { id: true, nombre: true, planVenceEn: true, planPlataformaCampo: true }
     });
     if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
 
-    // Desde/Vence son SIEMPRE el mes calendario completo (01 al último día
-    // real) del mes al que cae "fecha" — nunca "un mes desde ese día". El
-    // "hasta" que mande el cliente se ignora a propósito: antes un pago del
-    // 21 vencía el 21 del mes siguiente (un mes "rodante"), y ahora cualquier
-    // pago de agosto cubre el 01/08 al 31/08 entero, sin importar qué día del
-    // mes se haya registrado — así todo el sistema de facturación queda
-    // alineado al mismo "mes guía" que usa el corte automático de fin de mes
-    // (ver generarCortesDelMes).
-    const referencia = fecha ? new Date(fecha) : new Date();
-    const fechaInicio = primerDiaDelMes(referencia);
-    const fechaHasta = ultimoDiaDelMes(referencia);
+    // Dos ciclos de facturación distintos según cómo le cobra la plataforma
+    // a este gimnasio (ver activarPlan/generarCortesDelMes en
+    // planPlataformaVigencia.js, que aplican la misma distinción):
+    //
+    // "porSuscriptor" se alinea al mes calendario completo (01 al último día
+    // real) del mes al que cae "fecha" — nunca "un mes desde ese día" — para
+    // poder contar socios activos justo el último día. El "hasta" que mande
+    // el cliente se ignora a propósito acá.
+    //
+    // "mensual" es un monto fijo que no depende de ningún conteo de socios,
+    // así que usa el ciclo rodante de siempre: arranca a correr el día que
+    // se registra el pago y vence exactamente un mes después, sin importar
+    // en qué día del mes calendario caiga — "fecha" tampoco se usa acá, el
+    // pago siempre se registra "hoy". hoyEnColombia() y no `new Date()`: de
+    // 7pm a medianoche hora Colombia el reloj UTC del servidor ya marca el
+    // día siguiente, y un pago registrado a esa hora quedaba fechado un día
+    // adelantado (ver el comentario de esa función).
+    let fechaInicio, fechaHasta;
+    if (gym.planPlataformaCampo === 'mensual') {
+      fechaInicio = hoyEnColombia();
+      fechaHasta = sumarUnMes(fechaInicio);
+    } else {
+      const referencia = fecha ? new Date(fecha) : new Date();
+      fechaInicio = primerDiaDelMes(referencia);
+      fechaHasta = ultimoDiaDelMes(referencia);
+    }
+
+    // Un "Registrar pago" mientras ya había otra fila "pagada" vigente para
+    // este gimnasio (típico al corregir un dato o al probar) la anula antes
+    // de crear la nueva — sin esto quedaban las dos como "Pagada" a la vez.
+    await anularPagadasVigentes(prisma, gymId, fechaInicio);
 
     const pago = await prisma.pagoPlataforma.create({
       data: {
@@ -229,6 +249,13 @@ router.put('/:id', verificarToken, soloSuperAdmin, async (req, res) => {
         if (gymActual?.planVenceEn) {
           dataGym.planVenceEn = esPagadaAhora ? sumarUnMes(gymActual.planVenceEn) : restarUnMes(gymActual.planVenceEn);
         }
+        // "Desde cuándo" que muestra la tarjeta de Gimnasios: el propio
+        // "fecha" de esta fila (el período que efectivamente se pagó), no un
+        // cálculo aparte — sin esto, marcar "Pagada" un corte automático
+        // (el camino normal desde que existe el corte) nunca actualizaba
+        // planActivadoEn, y la tarjeta seguía mostrando la última fecha de
+        // un "Registrar pago" manual, cada vez más vieja.
+        if (esPagadaAhora) dataGym.planActivadoEn = actual.fecha;
         if (data.estado === 'anulada') dataGym.activo = false;
         else if (esPagadaAhora) dataGym.activo = true;
         if (Object.keys(dataGym).length) {

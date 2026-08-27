@@ -34,14 +34,56 @@ function ultimoDiaDelMes(fecha) {
   return new Date(f.getFullYear(), f.getMonth() + 1, 0);
 }
 
+// El servidor corre en UTC y el gimnasio no (Colombia, UTC-5 todo el año,
+// sin horario de verano) — mismo problema que ya está documentado en el
+// modelo Cita. No importa mientras se comparen INSTANTES precisos (p. ej.
+// finDeGracia/estadoEfectivo), pero si se construye un "día calendario" a
+// partir de `new Date()` tal cual, entre las 19:00 y la medianoche hora
+// Colombia el reloj UTC del servidor ya marca el día siguiente — un pago
+// "mensual" registrado a esa hora quedaba fechado un día adelantado. Esta
+// función devuelve el día calendario correcto en Colombia (medianoche UTC de
+// ESE día), para usar en vez de `new Date()` en cualquier cálculo de
+// Desde/Vence rodante.
+const OFFSET_COLOMBIA_HORAS = 5;
+function hoyEnColombia() {
+  const enColombia = new Date(Date.now() - OFFSET_COLOMBIA_HORAS * 60 * 60 * 1000);
+  return new Date(Date.UTC(enColombia.getUTCFullYear(), enColombia.getUTCMonth(), enColombia.getUTCDate()));
+}
+
 /**
- * Activa un plan recién asignado (o reasignado) a un gimnasio: fija la
- * vigencia hasta el ÚLTIMO DÍA DEL MES CALENDARIO en curso — no "un mes
- * desde hoy" — y deja un registro "pagada" en Facturación por ese mismo mes
- * completo, así ningún gimnasio queda activo sin que Facturación explique
- * por qué (antes la activación era invisible: no generaba ninguna fila, y
- * un gym recién creado podía verse "Activo" sin un solo pago en su
- * historial).
+ * Antes de crear una factura "pagada" nueva para un gimnasio, anula
+ * cualquier otra fila suya que siga "pagada" y cuya cobertura llegue hasta
+ * el inicio de esta nueva (o más allá) — sin esto, reasignar un plan (o
+ * registrar otro pago) mientras el período anterior no había terminado
+ * dejaba las dos filas como "Pagada" al mismo tiempo, como si el gimnasio
+ * hubiera pagado dos veces el mismo mes. Una "pagada" de un período YA
+ * cerrado (mes anterior) no se toca: es historia real, no un duplicado.
+ *
+ * @param {Date} [refInicio] Desde cuándo arranca la factura nueva —
+ *        normalmente hoy, pero puede ser otra fecha si se está registrando
+ *        un pago con una fecha elegida a mano.
+ */
+async function anularPagadasVigentes(prisma, gymId, refInicio = hoyEnColombia()) {
+  await prisma.pagoPlataforma.updateMany({
+    where: { gymId, estado: 'pagada', hasta: { gte: refInicio } },
+    data: { estado: 'anulada' }
+  });
+}
+
+/**
+ * Activa un plan recién asignado (o reasignado) a un gimnasio, y deja un
+ * registro "pagada" en Facturación por el primer período, así ningún
+ * gimnasio queda activo sin que Facturación explique por qué (antes la
+ * activación era invisible: no generaba ninguna fila, y un gym recién
+ * creado podía verse "Activo" sin un solo pago en su historial).
+ *
+ * Dos ciclos según el campo del plan (misma distinción que
+ * generarCortesDelMes/POST pagosPlataforma):
+ * - "porSuscriptor" se alinea al MES CALENDARIO en curso (01 al último día
+ *   real) — necesita poder contar socios activos justo el último día.
+ * - "mensual" es un monto fijo que no depende de ningún conteo, así que usa
+ *   el ciclo rodante de siempre: arranca a correr HOY y vence exactamente
+ *   un mes después, sin importar en qué día del mes calendario caiga.
  */
 async function activarPlan(prisma, { gymId, planPlataforma, campo, sociosActivos = 0 }) {
   const monto = campo === 'mensual'
@@ -49,8 +91,10 @@ async function activarPlan(prisma, { gymId, planPlataforma, campo, sociosActivos
     : Number(planPlataforma.precioPorSuscriptor) * sociosActivos;
 
   const ahora = new Date();
-  const desde = primerDiaDelMes(ahora);
-  const vence = ultimoDiaDelMes(ahora);
+  const hoy = hoyEnColombia();
+  const desde = campo === 'mensual' ? hoy : primerDiaDelMes(hoy);
+  const vence = campo === 'mensual' ? sumarUnMes(hoy) : ultimoDiaDelMes(hoy);
+  await anularPagadasVigentes(prisma, gymId, hoy);
   await prisma.gym.update({
     where: { id: gymId },
     data: { planActivadoEn: ahora, planVenceEn: vence }
@@ -130,18 +174,22 @@ async function desactivarGymsVencidos(prisma) {
   });
 }
 
-// Corte automático de fin de mes: el último día de cada mes, genera UNA
-// factura "pendiente" en Facturación por cada gimnasio activo con plan
-// asignado — 17 socios activos hoy × $10.000 = $170.000, por ejemplo. No
-// marca nada como pagado ni toca planVenceEn/activo: solo dice cuánto
-// debería cobrarse ese mes, para que el superadmin no tenga que calcularlo
-// a mano ni acordarse de hacerlo. El superadmin la pasa a "Pagada" cuando el
-// gimnasio efectivamente le transfiere (mismo PUT que ya existía).
+// Corte automático — genera UNA factura "pendiente" en Facturación por cada
+// gimnasio activo con plan asignado. No marca nada como pagado ni toca
+// planVenceEn/activo: solo dice cuánto debería cobrarse, para que el
+// superadmin no tenga que calcularlo a mano ni acordarse de hacerlo. El
+// superadmin la pasa a "Pagada" cuando el gimnasio efectivamente le
+// transfiere (mismo PUT que ya existía).
 //
-// Se cuentan los socios ACTIVOS DE ESE DÍA (el último del mes), no un
-// promedio ni una foto de otro momento — así el corte de agosto refleja los
-// socios con los que el gimnasio termina agosto, sin importar cuántos entren
-// o salgan al día siguiente.
+// Dos corte distintos según el campo del plan (misma distinción que
+// activarPlan/POST pagosPlataforma):
+// - "porSuscriptor" corta el ÚLTIMO DÍA DEL MES CALENDARIO, para todos los
+//   gimnasios de ese tipo a la vez, contando los socios ACTIVOS DE ESE DÍA
+//   (no un promedio ni una foto de otro momento).
+// - "mensual" no depende de ningún conteo, así que cada gimnasio tiene su
+//   propia fecha ancla (planVenceEn) y se corta apenas esa fecha se cumple,
+//   sin importar el día del mes calendario — por eso corre en CADA barrido
+//   (cada hora), no solo el último día del mes.
 const METODO_CORTE = 'Corte automático';
 
 /**
@@ -150,19 +198,22 @@ const METODO_CORTE = 'Corte automático';
  *        scripts/generar-corte-mensual.js). Por defecto, ahora mismo.
  */
 async function generarCortesDelMes(prisma, fechaCorte = new Date()) {
+  const porSuscriptor = await generarCortePorSuscriptor(prisma, fechaCorte);
+  const mensual = await generarCorteMensualRodante(prisma, fechaCorte);
+  return { generados: porSuscriptor + mensual };
+}
+
+async function generarCortePorSuscriptor(prisma, fechaCorte) {
   const ultimoDiaDelMes = new Date(fechaCorte.getFullYear(), fechaCorte.getMonth() + 1, 0).getDate();
-  if (fechaCorte.getDate() !== ultimoDiaDelMes) return { generados: 0 }; // no es el último día: nada que hacer
+  if (fechaCorte.getDate() !== ultimoDiaDelMes) return 0; // no es el último día: nada que hacer
 
   const inicioDelDia = new Date(fechaCorte.getFullYear(), fechaCorte.getMonth(), fechaCorte.getDate());
 
-  // Mismo filtro que "sociosActivos"/ingresosEstimados del dashboard (gym.js):
-  // sin planPlataformaCampo guardado no se sabe si es mensual o por
-  // suscriptor, así que se lo salta en vez de inventar un monto.
   const gyms = await prisma.gym.findMany({
-    where: { activo: true, planPlataformaId: { not: null }, planPlataformaCampo: { not: null } },
-    select: { id: true, planPlataformaId: true, planPlataformaCampo: true }
+    where: { activo: true, planPlataformaId: { not: null }, planPlataformaCampo: 'porSuscriptor' },
+    select: { id: true, planPlataformaId: true }
   });
-  if (!gyms.length) return { generados: 0 };
+  if (!gyms.length) return 0;
 
   const planes = await prisma.planPlataforma.findMany();
   const planPorId = new Map(planes.map((p) => [p.id, p]));
@@ -180,15 +231,10 @@ async function generarCortesDelMes(prisma, fechaCorte = new Date()) {
     });
     if (yaExiste) continue;
 
-    let monto;
-    if (g.planPlataformaCampo === 'mensual') {
-      monto = Number(plan.precioMensual);
-    } else {
-      const sociosActivos = await prisma.user.count({
-        where: { gymId: g.id, role: 'socio', deletedAt: null, fechaVencimiento: { gt: fechaCorte } }
-      });
-      monto = Number(plan.precioPorSuscriptor) * sociosActivos;
-    }
+    const sociosActivos = await prisma.user.count({
+      where: { gymId: g.id, role: 'socio', deletedAt: null, fechaVencimiento: { gt: fechaCorte } }
+    });
+    const monto = Number(plan.precioPorSuscriptor) * sociosActivos;
 
     await prisma.pagoPlataforma.create({
       data: { gymId: g.id, monto, fecha: fechaCorte, hasta: fechaCorte, metodo: METODO_CORTE, estado: 'pendiente' }
@@ -198,7 +244,52 @@ async function generarCortesDelMes(prisma, fechaCorte = new Date()) {
     emitirAGym(g.id, 'avisos:revisar');
     generados++;
   }
-  return { generados };
+  return generados;
+}
+
+// A diferencia del corte por suscriptor (todos el mismo día), acá cada
+// gimnasio "mensual" tiene su propia fecha ancla: apenas su planVenceEn se
+// cumple, se le genera la factura pendiente por otro mes rodante desde esa
+// misma fecha — sin importar el día del mes calendario en que caiga.
+async function generarCorteMensualRodante(prisma, ahora) {
+  const gyms = await prisma.gym.findMany({
+    where: {
+      activo: true,
+      planPlataformaId: { not: null },
+      planPlataformaCampo: 'mensual',
+      planVenceEn: { not: null, lte: ahora }
+    },
+    select: { id: true, planPlataformaId: true, planVenceEn: true }
+  });
+  if (!gyms.length) return 0;
+
+  const planes = await prisma.planPlataforma.findMany();
+  const planPorId = new Map(planes.map((p) => [p.id, p]));
+
+  let generados = 0;
+  for (const g of gyms) {
+    const plan = planPorId.get(g.planPlataformaId);
+    if (!plan) continue; // plan eliminado (soft-delete): no inventa un corte
+
+    // Idempotencia: el barrido corre cada hora, así que sin esto se
+    // generaría una factura nueva en cada vuelta mientras nadie la pague —
+    // ya existe una si hay una fila que arranca justo en este planVenceEn.
+    const yaExiste = await prisma.pagoPlataforma.findFirst({
+      where: { gymId: g.id, fecha: { gte: g.planVenceEn } },
+      select: { id: true }
+    });
+    if (yaExiste) continue;
+
+    const monto = Number(plan.precioMensual);
+    const hasta = sumarUnMes(g.planVenceEn);
+
+    await prisma.pagoPlataforma.create({
+      data: { gymId: g.id, monto, fecha: g.planVenceEn, hasta, metodo: METODO_CORTE, estado: 'pendiente' }
+    });
+    emitirAGym(g.id, 'avisos:revisar');
+    generados++;
+  }
+  return generados;
 }
 
 // Arranca el barrido periódico — solo tiene sentido en un proceso
@@ -221,6 +312,7 @@ function iniciarBarridoVigencia(prisma) {
 }
 
 module.exports = {
-  sumarUnMes, restarUnMes, primerDiaDelMes, ultimoDiaDelMes, activarPlan, DIAS_GRACIA, finDeGracia,
+  sumarUnMes, restarUnMes, primerDiaDelMes, ultimoDiaDelMes, hoyEnColombia, activarPlan,
+  anularPagadasVigentes, DIAS_GRACIA, finDeGracia,
   estadoEfectivo, desactivarGymsVencidos, generarCortesDelMes, METODO_CORTE, iniciarBarridoVigencia
 };

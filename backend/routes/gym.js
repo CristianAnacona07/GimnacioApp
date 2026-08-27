@@ -242,39 +242,66 @@ router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
       }),
       // Ingresos: lo que Facturación registró de verdad (corte automático o
       // pago manual) para cada mes, no una proyección en vivo desconectada
-      // de esa tabla — "anulada" no cuenta como ingreso.
+      // de esa tabla — "anulada" no cuenta como ingreso. gymId acá para
+      // poder separar "por socio" de "mensual" más abajo (son dos negocios
+      // distintos: uno escala con la cantidad de socios, el otro es un
+      // monto fijo, sumarlos en un solo número los confundía).
       prisma.pagoPlataforma.findMany({
         where: { fecha: { gte: doceMesesAtras }, estado: { not: 'anulada' } },
-        select: { monto: true, fecha: true }
+        select: { monto: true, fecha: true, gymId: true }
       })
     ]);
 
-    // Mismo bucketing por 'YYYY-MM' que nuevosSociosPorMes, pero sobre TODA
-    // la ventana de 12 meses primero: así se puede hallar el último mes con
-    // datos aunque haya quedado fuera de los 6 que se grafican.
-    const totalPorMes = new Map();
-    for (const p of pagosRecientes) {
-      const clave = `${p.fecha.getFullYear()}-${String(p.fecha.getMonth() + 1).padStart(2, '0')}`;
-      totalPorMes.set(clave, (totalPorMes.get(clave) || 0) + Number(p.monto));
+    // El campo ("mensual"/"porSuscriptor") es del GIMNASIO, no de la fila —
+    // se usa el que tiene HOY, igual que ya hace conDatosVivos() en
+    // pagosPlataforma.js; un gym que cambió de tipo entre medio no queda
+    // registrado por período, es una simplificación consciente.
+    const gymIdsConPago = [...new Set(pagosRecientes.map(p => p.gymId))];
+    const gymsPorId = gymIdsConPago.length
+      ? await prisma.gym.findMany({ where: { id: { in: gymIdsConPago } }, select: { id: true, planPlataformaCampo: true } })
+      : [];
+    const campoPorGymId = new Map(gymsPorId.map(g => [g.id, g.planPlataformaCampo]));
+
+    const pagosPorSuscriptor = pagosRecientes.filter(p => campoPorGymId.get(p.gymId) === 'porSuscriptor');
+    const pagosMensual = pagosRecientes.filter(p => campoPorGymId.get(p.gymId) === 'mensual');
+
+    // Mismo bucketing por 'YYYY-MM', calculado dos veces (una por cada
+    // ciclo de facturación) — helper para no repetir la lógica de
+    // "último mes con datos" ni la de las 6 barras.
+    function armarSerieIngresos(pagos) {
+      const totalPorMes = new Map();
+      for (const p of pagos) {
+        const clave = `${p.fecha.getFullYear()}-${String(p.fecha.getMonth() + 1).padStart(2, '0')}`;
+        totalPorMes.set(clave, (totalPorMes.get(clave) || 0) + Number(p.monto));
+      }
+      const mesesConDatos = [...totalPorMes.keys()].sort();
+      const claveMesActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
+      // "Último mes de corte": el mes más reciente con algún pago/corte
+      // registrado; si todavía no hay ninguno, cae al mes en curso con $0
+      // en vez de inventar un mes con datos.
+      const ultimoMesConCorte = mesesConDatos.length ? mesesConDatos[mesesConDatos.length - 1] : claveMesActual;
+      const ultimoMes = { mes: ultimoMesConCorte, total: totalPorMes.get(ultimoMesConCorte) || 0 };
+
+      const porMes = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+        const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        porMes.push({ mes: clave, total: totalPorMes.get(clave) || 0 });
+      }
+      return { ultimoMes, porMes };
     }
-    const mesesConDatos = [...totalPorMes.keys()].sort();
-    const claveMesActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
-    // "Último mes de corte": el mes más reciente con algún pago/corte
-    // registrado; si todavía no hay ninguno (gimnasio recién creado), cae al
-    // mes en curso con $0 en vez de inventar un mes con datos.
-    const ultimoMesConCorte = mesesConDatos.length ? mesesConDatos[mesesConDatos.length - 1] : claveMesActual;
-    const ingresosUltimoMes = { mes: ultimoMesConCorte, total: totalPorMes.get(ultimoMesConCorte) || 0 };
+
+    const ingresosPorSuscriptor = armarSerieIngresos(pagosPorSuscriptor);
+    const ingresosMensual = armarSerieIngresos(pagosMensual);
 
     // Bucketing en JS: no hay precedente de date_trunc/$queryRaw en el
     // backend y el volumen de filas es chico, así que alcanza con esto en
     // vez de meter SQL crudo por primera vez.
     const meses = [];
-    const ingresosPorMes = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
       const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       meses.push({ mes: clave, cantidad: 0 });
-      ingresosPorMes.push({ mes: clave, total: totalPorMes.get(clave) || 0 });
     }
     for (const s of sociosNuevos) {
       const clave = `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, '0')}`;
@@ -284,7 +311,7 @@ router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
 
     res.json({
       sociosActivos, adminTotal, gimnasiosActivos,
-      ingresosUltimoMes, ingresosPorMes,
+      ingresosPorSuscriptor, ingresosMensual,
       nuevosSociosPorMes: meses
     });
   } catch (error) {

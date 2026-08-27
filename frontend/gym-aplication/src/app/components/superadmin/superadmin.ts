@@ -41,12 +41,15 @@ export class SuperAdmin implements OnInit, OnDestroy {
   editandoSuperadmin: any = null; // superadmin que se está editando (nombre/email)
 
   // --- Dashboard: métricas globales de la plataforma ---
+  // Ingresos separados en dos series — "por socio" y "mensual" son dos
+  // negocios distintos (uno escala con la cantidad de socios, el otro es un
+  // monto fijo) — sumarlos en un solo número los confundía.
   dashboard: {
     sociosActivos: number;
     adminTotal: number;
     gimnasiosActivos: number;
-    ingresosUltimoMes: { mes: string; total: number };
-    ingresosPorMes: { mes: string; total: number }[];
+    ingresosPorSuscriptor: { ultimoMes: { mes: string; total: number }; porMes: { mes: string; total: number }[] };
+    ingresosMensual: { ultimoMes: { mes: string; total: number }; porMes: { mes: string; total: number }[] };
     nuevosSociosPorMes: { mes: string; cantidad: number }[];
   } | null = null;
 
@@ -181,24 +184,25 @@ export class SuperAdmin implements OnInit, OnDestroy {
 
   // Mismo gráfico de barras que "Socios nuevos por mes" (DASH_H/DASH_PAD/
   // dashXBarra/dashMesCorto son genéricos, no dependen del dataset), pero
-  // para los totales en pesos de ingresosPorMes — se duplican solo los 4
-  // getters que sí dependen de qué arreglo están mirando.
-  get dashMaxIngreso(): number {
-    const valores = this.dashboard?.ingresosPorMes.map(m => m.total) || [];
+  // para los totales en pesos — recibe el arreglo en vez de leerlo de un
+  // único `dashboard.ingresosPorMes` porque ahora hay dos series (por
+  // socio y mensual), cada una con su propio gráfico.
+  dashMaxIngreso(porMes: { total: number }[] | undefined): number {
+    const valores = (porMes || []).map(m => m.total);
     return Math.max(1, ...valores);
   }
 
-  dashAlturaBarraIngreso(total: number): number {
-    return (total / this.dashMaxIngreso) * this.dashInnerH;
+  dashAlturaBarraIngreso(total: number, max: number): number {
+    return (total / max) * this.dashInnerH;
   }
 
-  dashYBarraIngreso(total: number): number {
-    return this.DASH_PAD.top + this.dashInnerH - this.dashAlturaBarraIngreso(total);
+  dashYBarraIngreso(total: number, max: number): number {
+    return this.DASH_PAD.top + this.dashInnerH - this.dashAlturaBarraIngreso(total, max);
   }
 
-  dashYLabelsIngreso(): { val: string; y: number }[] {
+  dashYLabelsIngreso(max: number): { val: string; y: number }[] {
     return [0, 0.5, 1].map(f => ({
-      val: this.formatMoneda(this.dashMaxIngreso * f),
+      val: this.formatMoneda(max * f),
       y: this.DASH_PAD.top + this.dashInnerH - f * this.dashInnerH
     }));
   }
@@ -494,28 +498,54 @@ export class SuperAdmin implements OnInit, OnDestroy {
 
   // Al elegir el gimnasio, sugiere el monto según su plan de plataforma
   // asignado — el superadmin lo puede pisar igual, es solo un punto de
-  // partida para no tener que ir a mirar la pestaña Planes.
+  // partida para no tener que ir a mirar la pestaña Planes. En los dos
+  // casos es el valor CRUDO del plan (mensual: precioMensual; por
+  // suscriptor: precioPorSuscriptor, el valor unitario, sin multiplicar por
+  // sociosActivos) — multiplicar acá daba $0 en gimnasios sin socios
+  // activos ahora mismo (por ejemplo uno recién reactivado), tapando el
+  // precio real de su plan justo cuando más hace falta verlo.
   sugerirMontoPago() {
     const gym = this.gyms.find(g => g._id === this.nuevoPago.gymId);
     if (!gym?.planPlataforma) return;
     if (gym.planPlataformaCampo === 'mensual') {
       this.nuevoPago.monto = Number(gym.planPlataforma.precioMensual);
     } else if (gym.planPlataformaCampo === 'porSuscriptor') {
-      this.nuevoPago.monto = Number(gym.planPlataforma.precioPorSuscriptor) * (gym.sociosActivos || 0);
+      this.nuevoPago.monto = Number(gym.planPlataforma.precioPorSuscriptor);
     }
   }
 
   /**
-   * Vista previa del período que va a cubrir el pago: el mes calendario
-   * completo (01 al último día real) del Mes/Año elegidos — igual que
-   * calcula el backend, que ignora cualquier "hasta" que se le mande.
+   * Campo del plan del gimnasio elegido en el formulario — decide si se
+   * pide Mes/Año (porSuscriptor, alineado al mes calendario) o si el
+   * período es simplemente "un mes desde hoy" (mensual, rodante). Null
+   * mientras no se elija ningún gimnasio todavía.
+   */
+  get campoPagoSeleccionado(): 'mensual' | 'porSuscriptor' | null {
+    const gym = this.gyms.find(g => g._id === this.nuevoPago.gymId);
+    return gym?.planPlataformaCampo || null;
+  }
+
+  /**
+   * Vista previa del período que va a cubrir el pago — igual que calcula el
+   * backend (que ignora cualquier "fecha"/"hasta" que no le corresponda a
+   * este tipo de plan):
+   * - porSuscriptor: el mes calendario completo (01 al último día real) del
+   *   Mes/Año elegidos.
+   * - mensual: un mes rodante desde HOY, sin selector — así se registró
+   *   siempre para este tipo de plan, antes de que existiera el "mes guía".
    */
   get periodoPago(): string {
+    const fmt = (d: Date) => d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    if (this.campoPagoSeleccionado === 'mensual') {
+      const desde = new Date();
+      const hasta = new Date(desde);
+      hasta.setMonth(hasta.getMonth() + 1);
+      return `${fmt(desde)} al ${fmt(hasta)} (un mes desde hoy)`;
+    }
     const { mes, anio } = this.nuevoPago;
     if (!mes || !anio) return '';
     const desde = new Date(anio, mes - 1, 1);
     const hasta = new Date(anio, mes, 0);
-    const fmt = (d: Date) => d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: '2-digit' });
     return `${fmt(desde)} al ${fmt(hasta)}`;
   }
 
@@ -630,6 +660,27 @@ export class SuperAdmin implements OnInit, OnDestroy {
       },
       error: (err) => { this.guardandoPlan = false; this.toast.error(err.error?.error || 'Error al actualizar el plan'); }
     });
+  }
+
+  // Borra el plan ENTERO (sus dos recuadros, Mensual y Por suscriptor, son
+  // un solo plan) — el backend lo da de baja con soft-delete, así que un
+  // gym que lo tenía asignado no se rompe: simplemente deja de facturarle
+  // hasta que el superadmin le reasigne otro plan (mismo criterio que ya
+  // usan el dashboard y el corte automático con un plan eliminado).
+  async eliminarPlanPlataforma(plan: any) {
+    const ok = await this.confirm.confirm(
+      `¿Eliminar el plan "${plan.nombre}" completo (Mensual y Por suscriptor)? Los gimnasios que lo tengan asignado se quedan sin plan hasta que les asignes otro.`
+    );
+    if (!ok) return;
+    this.http.delete(`${environment.apiUrl}/api/planes-plataforma/${plan._id}`, { headers: this.headers })
+      .pipe(takeUntil(this.destroy$)).subscribe({
+        next: () => {
+          this.toast.success('Plan eliminado');
+          this.cargarPlanesPlataforma();
+          this.cargar(); // gyms que lo tenían asignado dejan de mostrarlo
+        },
+        error: (err) => this.toast.error(err.error?.error || 'Error al eliminar el plan')
+      });
   }
 
   // Asignar/desasignar plan a un gimnasio, desde el selector de tarjetas

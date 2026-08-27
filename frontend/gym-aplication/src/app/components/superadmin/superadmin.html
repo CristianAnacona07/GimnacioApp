@@ -93,9 +93,14 @@
             <p class="dash-tarjeta__hint">Con suscripción vigente</p>
           </div>
           <div class="dash-tarjeta">
-            <p class="dash-tarjeta__label">💰 Ingresos estimados de {{ nombreMes(dashboard.ingresosUltimoMes.mes) }}</p>
-            <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosUltimoMes.total) }}</p>
-            <p class="dash-tarjeta__hint">Según lo facturado en Facturación ese mes</p>
+            <p class="dash-tarjeta__label">💰 Por socio — {{ nombreMes(dashboard.ingresosPorSuscriptor.ultimoMes.mes) }}</p>
+            <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosPorSuscriptor.ultimoMes.total) }}</p>
+            <p class="dash-tarjeta__hint">Gimnasios con plan "por socio", según Facturación</p>
+          </div>
+          <div class="dash-tarjeta">
+            <p class="dash-tarjeta__label">💵 Mensual — {{ nombreMes(dashboard.ingresosMensual.ultimoMes.mes) }}</p>
+            <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosMensual.ultimoMes.total) }}</p>
+            <p class="dash-tarjeta__hint">Gimnasios con plan "mensual", según Facturación</p>
           </div>
         </div>
 
@@ -135,11 +140,12 @@
         </div>
 
         <div class="dash-chart-card">
-          <p class="dash-chart-titulo">Ingresos por mes</p>
+          <p class="dash-chart-titulo">Ingresos por socio</p>
           <p class="dash-chart-sub">Últimos 6 meses, según Facturación (sin anuladas)</p>
           <div class="dash-chart-wrap">
+            @let maxSuscriptor = dashMaxIngreso(dashboard.ingresosPorSuscriptor.porMes);
             <svg class="dash-yaxis" [attr.height]="DASH_H" [attr.width]="DASH_PAD.left + 20">
-              @for (label of dashYLabelsIngreso(); track label.val) {
+              @for (label of dashYLabelsIngreso(maxSuscriptor); track label.val) {
                 <line [attr.x1]="DASH_PAD.left - 4" [attr.x2]="DASH_PAD.left"
                       [attr.y1]="label.y" [attr.y2]="label.y"
                       stroke="#334155" stroke-width="1"/>
@@ -149,19 +155,55 @@
             </svg>
             <div class="dash-chart-scroll">
               <svg [attr.width]="dashDataW" [attr.height]="DASH_H">
-                @for (label of dashYLabelsIngreso(); track label.val) {
+                @for (label of dashYLabelsIngreso(maxSuscriptor); track label.val) {
                   <line x1="0" [attr.x2]="dashDataW"
                         [attr.y1]="label.y" [attr.y2]="label.y"
                         stroke="#1e293b" stroke-width="1"/>
                 }
-                @for (m of dashboard.ingresosPorMes; track m.mes) {
+                @for (m of dashboard.ingresosPorSuscriptor.porMes; track m.mes) {
                   @let x = dashXBarra($index);
-                  <rect [attr.x]="x - 16" [attr.y]="dashYBarraIngreso(m.total)"
-                        width="32" [attr.height]="dashAlturaBarraIngreso(m.total)"
+                  <rect [attr.x]="x - 16" [attr.y]="dashYBarraIngreso(m.total, maxSuscriptor)"
+                        width="32" [attr.height]="dashAlturaBarraIngreso(m.total, maxSuscriptor)"
                         rx="4" fill="#22c55e"/>
                   <text [attr.x]="x" [attr.y]="DASH_PAD.top + dashInnerH + 16"
                         text-anchor="middle" font-size="10" fill="#94a3b8">{{ dashMesCorto(m.mes) }}</text>
-                  <text [attr.x]="x" [attr.y]="dashYBarraIngreso(m.total) - 6"
+                  <text [attr.x]="x" [attr.y]="dashYBarraIngreso(m.total, maxSuscriptor) - 6"
+                        text-anchor="middle" font-size="9" font-weight="700" fill="#e2e8f0">{{ formatMoneda(m.total) }}</text>
+                }
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-chart-card">
+          <p class="dash-chart-titulo">Ingresos mensuales</p>
+          <p class="dash-chart-sub">Últimos 6 meses, según Facturación (sin anuladas)</p>
+          <div class="dash-chart-wrap">
+            @let maxMensual = dashMaxIngreso(dashboard.ingresosMensual.porMes);
+            <svg class="dash-yaxis" [attr.height]="DASH_H" [attr.width]="DASH_PAD.left + 20">
+              @for (label of dashYLabelsIngreso(maxMensual); track label.val) {
+                <line [attr.x1]="DASH_PAD.left - 4" [attr.x2]="DASH_PAD.left"
+                      [attr.y1]="label.y" [attr.y2]="label.y"
+                      stroke="#334155" stroke-width="1"/>
+                <text [attr.x]="DASH_PAD.left - 6" [attr.y]="label.y + 4"
+                      text-anchor="end" font-size="8" fill="#94a3b8">{{ label.val }}</text>
+              }
+            </svg>
+            <div class="dash-chart-scroll">
+              <svg [attr.width]="dashDataW" [attr.height]="DASH_H">
+                @for (label of dashYLabelsIngreso(maxMensual); track label.val) {
+                  <line x1="0" [attr.x2]="dashDataW"
+                        [attr.y1]="label.y" [attr.y2]="label.y"
+                        stroke="#1e293b" stroke-width="1"/>
+                }
+                @for (m of dashboard.ingresosMensual.porMes; track m.mes) {
+                  @let x = dashXBarra($index);
+                  <rect [attr.x]="x - 16" [attr.y]="dashYBarraIngreso(m.total, maxMensual)"
+                        width="32" [attr.height]="dashAlturaBarraIngreso(m.total, maxMensual)"
+                        rx="4" fill="#f97316"/>
+                  <text [attr.x]="x" [attr.y]="DASH_PAD.top + dashInnerH + 16"
+                        text-anchor="middle" font-size="10" fill="#94a3b8">{{ dashMesCorto(m.mes) }}</text>
+                  <text [attr.x]="x" [attr.y]="dashYBarraIngreso(m.total, maxMensual) - 6"
                         text-anchor="middle" font-size="9" font-weight="700" fill="#e2e8f0">{{ formatMoneda(m.total) }}</text>
                 }
               </svg>
@@ -215,11 +257,16 @@
       } @else if (!planesPlataforma.length) {
         <p class="fb-empty">Todavía no hay planes de plataforma creados.</p>
       } @else {
-        <!-- Un plan, una vez creado, no se elimina (siempre tiene que haber
-             un plan válido para todo gimnasio que lo tenga asignado) — solo
-             se editan sus dos valores, cada uno en su propio recuadro. -->
         @for (plan of planesPlataforma; track plan._id) {
-          <p class="plan-nombre-titulo">Plan: <span class="plan-nombre-titulo__valor">{{ plan.nombre }}</span></p>
+          <div class="plan-nombre-fila">
+            <p class="plan-nombre-titulo">Plan: <span class="plan-nombre-titulo__valor">{{ plan.nombre }}</span></p>
+            <!-- Un solo botón para el plan entero: sus dos recuadros
+                 (Mensual y Por suscriptor) son el mismo plan, no dos. -->
+            <button type="button" class="btn-eliminar-plan" (click)="eliminarPlanPlataforma(plan)"
+                    [attr.aria-label]="'Eliminar plan ' + plan.nombre" title="Eliminar plan">
+              🗑️ Eliminar plan
+            </button>
+          </div>
 
           @if (editandoPlan?._id === plan._id) {
             <!-- Reemplaza los dos recuadros en su propio lugar — nada de
@@ -426,29 +473,36 @@
               <label class="flabel">Monto</label>
               <input [(ngModel)]="nuevoPago.monto" type="number" min="0" placeholder="150000" class="finput">
             </div>
-            <div class="field">
-              <label class="flabel">Mes a facturar</label>
-              <!-- Mes y no un día: el período que cubre siempre es el mes
-                   calendario completo (ver periodoPago abajo), así que pedir
-                   una fecha puntual con <input type="date"> sugería que el
-                   día importaba, y no. -->
-              <div class="mes-facturar">
-                <select class="finput" [(ngModel)]="nuevoPago.mes">
-                  @for (m of MESES; track m.valor) {
-                    <option [ngValue]="m.valor">{{ m.nombre }}</option>
-                  }
-                </select>
-                <select class="finput" [(ngModel)]="nuevoPago.anio">
-                  @for (a of aniosDisponibles; track a) {
-                    <option [ngValue]="a">{{ a }}</option>
-                  }
-                </select>
+            @if (campoPagoSeleccionado === 'porSuscriptor') {
+              <div class="field">
+                <label class="flabel">Mes a facturar</label>
+                <!-- Mes y no un día: el período que cubre siempre es el mes
+                     calendario completo (ver periodoPago abajo), así que pedir
+                     una fecha puntual con <input type="date"> sugería que el
+                     día importaba, y no. Solo aplica a "por suscriptor" — un
+                     gym "mensual" no tiene mes que elegir, ver abajo. -->
+                <div class="mes-facturar">
+                  <select class="finput" [(ngModel)]="nuevoPago.mes">
+                    @for (m of MESES; track m.valor) {
+                      <option [ngValue]="m.valor">{{ m.nombre }}</option>
+                    }
+                  </select>
+                  <select class="finput" [(ngModel)]="nuevoPago.anio">
+                    @for (a of aniosDisponibles; track a) {
+                      <option [ngValue]="a">{{ a }}</option>
+                    }
+                  </select>
+                </div>
               </div>
-            </div>
+            }
           </div>
-          <!-- El período ya no se elige: cualquier día que caiga acá arriba
-               factura el mes calendario completo — esto solo lo confirma. -->
-          <p class="subdominio-hint">Cubre: {{ periodoPago }}</p>
+          @if (nuevoPago.gymId) {
+            <!-- Por suscriptor: el período ya no se elige, cualquier día que
+                 caiga acá arriba factura el mes calendario completo. Mensual:
+                 no hay nada que elegir, siempre es un mes rodante desde hoy —
+                 esto solo confirma cuál es el período en cada caso. -->
+            <p class="subdominio-hint">Cubre: {{ periodoPago }}</p>
+          }
           <div class="field">
             <label class="flabel">Método (opcional)</label>
             <select class="finput" [(ngModel)]="nuevoPago.metodo">
@@ -847,6 +901,8 @@
                   ⏳ Venció {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }} — {{ DIAS_GRACIA }} días de gracia para pagar
                 } @else if (esVencido(g.planVenceEn)) {
                   ⚠️ Vencido y desactivado desde {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }}
+                } @else if (g.planActivadoEn) {
+                  ✅ Activo desde {{ g.planActivadoEn | date:'dd/MM/yy':'UTC' }} hasta {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }}
                 } @else {
                   ✅ Activo hasta {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }}
                 }
