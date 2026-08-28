@@ -12,6 +12,7 @@ export class StorageService {
     'crono_endTime',       // Estado del cronómetro
     'crono_total',
     'crono_paused',
+    'crono_series',        // Series contadas del ejercicio en curso
     'theme',               // Tema dark/light
     'ultimoResetRutina',   // Control de reset diario
     'progreso_formIdx',    // Formulario de progreso abierto
