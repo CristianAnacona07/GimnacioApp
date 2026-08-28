@@ -19,6 +19,9 @@ import { Navbar } from '../../shared/navbar/navbar';
 })
 export class EntrenadorDashboard implements OnInit {
   username = '';
+  /** El menú lateral se dibuja superpuesto: mientras está abierto el
+   *  contenido se corre a la derecha para que no le tape las tarjetas. */
+  menuAbierto = false;
 
   ngOnInit() {
     this.username = localStorage.getItem('nombre') || 'Entrenador';

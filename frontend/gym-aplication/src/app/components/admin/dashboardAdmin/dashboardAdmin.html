@@ -1,8 +1,12 @@
 @if (role === 'admin') {
 <div class="min-h-screen bg-slate-100">
-  <app-navbar></app-navbar>
+  <app-navbar (menuAbiertoCambio)="menuAbierto = $event"></app-navbar>
 
-  <div class="p-4 max-w-7xl mx-auto">
+  <!-- El menú se dibuja superpuesto (ver navbar.css): sin este corrimiento
+       tapaba las tarjetas de la izquierda, porque este panel es ancho y su
+       contenido empieza antes que el del socio. -->
+  <div class="p-4 max-w-7xl mx-auto transition-[padding] duration-300"
+       [class.lg:pl-72]="menuAbierto">
 
     <h2 class="text-2xl font-bold text-slate-800 mb-6">
       Bienvenido, {{ username }}
@@ -11,7 +15,7 @@
   <div>
       <router-outlet></router-outlet>
     </div>
-  
+
   </div>
 </div>
 }

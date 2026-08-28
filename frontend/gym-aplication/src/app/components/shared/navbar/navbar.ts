@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, HostListener, OnInit, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, OnInit, OnDestroy, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { Subject } from 'rxjs';
@@ -24,7 +24,23 @@ export class Navbar implements OnInit, OnDestroy {
   role = '';
   username = '';
   fotoUrl = 'https://ui-avatars.com/api/?name=Usuario&background=random';
-  menuOpen = false;
+
+  /**
+   * El menú se dibuja superpuesto sobre la página (absolute + z-50). En el
+   * panel del socio eso no molesta porque su contenido es angosto y queda a
+   * la derecha, pero en los paneles anchos (admin, entrenador) el menú tapaba
+   * las tarjetas de la izquierda. Cada armazón escucha este evento para
+   * correr su contenido mientras el menú está abierto.
+   */
+  @Output() menuAbiertoCambio = new EventEmitter<boolean>();
+
+  private _menuOpen = false;
+  get menuOpen(): boolean { return this._menuOpen; }
+  set menuOpen(valor: boolean) {
+    if (this._menuOpen === valor) return;
+    this._menuOpen = valor;
+    this.menuAbiertoCambio.emit(valor);
+  }
 
   private notificaciones = inject(NotificacionesService);
   private theme = inject(ThemeService);

@@ -1,9 +1,12 @@
 <!-- Mismo armazón que el panel del admin y el del socio: la barra lateral
      compartida, que ya sabe armar su menú según el rol y los permisos. -->
 <div class="min-h-screen bg-slate-100">
-  <app-navbar></app-navbar>
+  <app-navbar (menuAbiertoCambio)="menuAbierto = $event"></app-navbar>
 
-  <div class="p-4 max-w-7xl mx-auto">
+  <!-- El menú se dibuja superpuesto: sin este corrimiento tapaba las
+       tarjetas de la izquierda (mismo caso que el panel del admin). -->
+  <div class="p-4 max-w-7xl mx-auto transition-[padding] duration-300"
+       [class.lg:pl-72]="menuAbierto">
 
     <h2 class="text-2xl font-bold text-slate-800 mb-6">
       Bienvenido, {{ username }}
