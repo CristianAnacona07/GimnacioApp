@@ -9,6 +9,8 @@ import { DragDropModule } from '@angular/cdk/drag-drop';
 import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { ConfirmService } from '../../../services/confirm.service';
+import { UserStateService } from '../../../services/user-state.service';
+import { RutinaPlantillaService, RutinaPlantilla, RutinaPlantillaDia, RutinaPlantillaEjercicio } from '../../../services/rutina-plantilla.service';
 import { CATALOGO_EJERCICIOS, CATEGORIAS_UNICAS } from '../../../../data/ejercicios-catalogo';
 
 @Component({
@@ -24,8 +26,33 @@ export class Rutinas implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private toast = inject(ToastService);
   private confirm = inject(ConfirmService);
+  private userState = inject(UserStateService);
+  private plantillaService = inject(RutinaPlantillaService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
+
+  // Las rutinas plantilla son exclusivas del administrador — ver comentario
+  // del modelo RutinaPlantilla (schema.prisma). El entrenador usa esta misma
+  // pantalla pero nunca ve ni el catálogo de plantillas ni el botón para
+  // guardar una nueva.
+  esAdmin = this.userState.getRole() === 'admin';
+  plantillas: RutinaPlantilla[] = [];
+  guardandoPlantilla = false;
+  aplicandoPlantillaId: string | null = null;
+
+  /**
+   * Mientras `borradorPlantilla` no es null, la pantalla está en "modo
+   * plantilla": el panel derecho deja de ser la rutina de un socio y pasa a
+   * ser la semana de la plantilla que se está armando. `diaActivo` decide a
+   * qué día se agregan los ejercicios del catálogo.
+   *
+   * `idPlantillaEditando` es null cuando la plantilla es nueva, y trae el id
+   * cuando se abrió una existente para editarla.
+   */
+  readonly DIAS_SEMANA = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+  borradorPlantilla: { nombre: string; dias: RutinaPlantillaDia[] } | null = null;
+  idPlantillaEditando: string | null = null;
+  diaActivo = 'Lunes';
 
   categorias = CATEGORIAS_UNICAS;
   categoriaActiva = 'Pecho';
@@ -104,6 +131,165 @@ export class Rutinas implements OnInit, OnDestroy {
         },
         error: () => this.toast.error('Error al cargar socios')
       });
+
+    if (this.esAdmin) this.cargarPlantillas();
+  }
+
+  cargarPlantillas() {
+    this.plantillaService.listar()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => { this.plantillas = res; this.cdr.detectChanges(); },
+        error: () => this.toast.error('Error al cargar las plantillas')
+      });
+  }
+
+  // ── Modo plantilla ────────────────────────────────────────────────────────
+  // Mientras hay borrador, el panel derecho es la SEMANA de la plantilla (un
+  // día a la vez, elegido con las pestañas) y no la rutina de un socio.
+
+  nuevaPlantilla() {
+    this.borradorPlantilla = { nombre: '', dias: [] };
+    this.idPlantillaEditando = null;
+    this.diaActivo = 'Lunes';
+    this.cdr.detectChanges();
+  }
+
+  async abrirPlantillaParaEditar(plantilla: RutinaPlantilla) {
+    if (this.borradorPlantilla) {
+      const ok = await this.confirm.confirm('Hay una plantilla sin guardar. ¿Descartar los cambios y abrir esta otra?');
+      if (!ok) return;
+    }
+    // Copia profunda: editar el borrador no debe tocar la lista ya cargada
+    // hasta que se guarde de verdad.
+    this.borradorPlantilla = {
+      nombre: plantilla.nombre,
+      dias: plantilla.dias.map(d => ({
+        dia: d.dia,
+        enfoque: d.enfoque,
+        ejercicios: d.ejercicios.map(e => ({ ...e }))
+      }))
+    };
+    this.idPlantillaEditando = plantilla._id;
+    this.diaActivo = plantilla.dias[0]?.dia || 'Lunes';
+    this.cdr.detectChanges();
+  }
+
+  cerrarPlantilla() {
+    this.borradorPlantilla = null;
+    this.idPlantillaEditando = null;
+    this.cdr.detectChanges();
+  }
+
+  /** Ejercicios del día abierto ahora mismo en el editor (array vivo). */
+  get ejerciciosDiaActivo(): RutinaPlantillaEjercicio[] {
+    return this.borradorPlantilla?.dias.find(d => d.dia === this.diaActivo)?.ejercicios || [];
+  }
+
+  get enfoqueDiaActivo(): string {
+    return this.borradorPlantilla?.dias.find(d => d.dia === this.diaActivo)?.enfoque || '';
+  }
+
+  set enfoqueDiaActivo(valor: string) {
+    const dia = this.asegurarDia(this.diaActivo);
+    dia.enfoque = valor;
+  }
+
+  cuantosEjercicios(dia: string): number {
+    return this.borradorPlantilla?.dias.find(d => d.dia === dia)?.ejercicios.length || 0;
+  }
+
+  /** Días que van a generar una rutina real (los que tienen ejercicios). */
+  get diasConEjercicios(): RutinaPlantillaDia[] {
+    return this.borradorPlantilla?.dias.filter(d => d.ejercicios.length) || [];
+  }
+
+  /** El día existe en el borrador, creándolo vacío si hacía falta. */
+  private asegurarDia(dia: string): RutinaPlantillaDia {
+    if (!this.borradorPlantilla) throw new Error('sin borrador');
+    let entrada = this.borradorPlantilla.dias.find(d => d.dia === dia);
+    if (!entrada) {
+      entrada = { dia, enfoque: '', ejercicios: [] };
+      this.borradorPlantilla.dias.push(entrada);
+    }
+    return entrada;
+  }
+
+  quitarDePlantilla(index: number) {
+    const dia = this.borradorPlantilla?.dias.find(d => d.dia === this.diaActivo);
+    dia?.ejercicios.splice(index, 1);
+  }
+
+  guardarPlantilla() {
+    if (!this.borradorPlantilla || this.guardandoPlantilla) return;
+    const nombre = this.borradorPlantilla.nombre.trim();
+    if (!nombre) return this.toast.error('Ponele un nombre a la plantilla');
+    if (!this.diasConEjercicios.length) return this.toast.error('Agregá ejercicios a al menos un día');
+
+    this.guardandoPlantilla = true;
+    const datos = { nombre, dias: this.diasConEjercicios };
+    const peticion = this.idPlantillaEditando
+      ? this.plantillaService.actualizar(this.idPlantillaEditando, datos)
+      : this.plantillaService.crear(datos);
+
+    peticion.pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.toast.success(this.idPlantillaEditando ? 'Plantilla actualizada' : 'Plantilla guardada');
+        this.guardandoPlantilla = false;
+        this.cerrarPlantilla();
+        this.cargarPlantillas();
+      },
+      error: (err) => { this.guardandoPlantilla = false; this.toast.error(err.error?.mensaje || 'Error al guardar la plantilla'); }
+    });
+  }
+
+  /**
+   * Asigna la semana entera de la plantilla al socio elegido arriba: una
+   * rutina por cada día, de un solo toque. Si el socio ya tiene rutina en
+   * alguno de esos días el backend responde 409 y recién ahí se pregunta si
+   * se pisan — nunca se sobrescribe sin permiso.
+   */
+  usarPlantilla(plantilla: RutinaPlantilla, sobrescribir = false) {
+    if (!this.usuarioId) return this.toast.error('Primero elegí el socio arriba');
+    if (this.aplicandoPlantillaId) return;
+
+    this.aplicandoPlantillaId = plantilla._id;
+    this.plantillaService.aplicar(plantilla._id, this.usuarioId, sobrescribir)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          this.aplicandoPlantillaId = null;
+          this.toast.success(res.mensaje);
+          this.cargarRutinasDelSocio(this.usuarioId);
+        },
+        error: async (err) => {
+          this.aplicandoPlantillaId = null;
+          if (err.status === 409) {
+            const dias = (err.error?.diasEnConflicto || []).join(', ');
+            const ok = await this.confirm.confirm(
+              `El socio ya tiene rutina en: ${dias}. ¿Reemplazarlas por las de "${plantilla.nombre}"?`
+            );
+            if (ok) this.usarPlantilla(plantilla, true);
+            return;
+          }
+          this.toast.error(err.error?.mensaje || 'Error al asignar la plantilla');
+        }
+      });
+  }
+
+  async eliminarPlantilla(plantilla: RutinaPlantilla) {
+    const ok = await this.confirm.confirm(`¿Eliminar la plantilla "${plantilla.nombre}"? Esta acción no se puede deshacer.`);
+    if (!ok) return;
+    this.plantillaService.eliminar(plantilla._id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.toast.success('Plantilla eliminada');
+          if (this.idPlantillaEditando === plantilla._id) this.cerrarPlantilla();
+          this.cargarPlantillas();
+        },
+        error: (err) => this.toast.error(err.error?.mensaje || 'Error al eliminar la plantilla')
+      });
   }
 
   onSocioChange() {
@@ -171,14 +357,20 @@ export class Rutinas implements OnInit, OnDestroy {
   agregarA_Rutina(ej: any) {
     // Copiar solo los campos que persiste el modelo Rutina (no todo el catálogo:
     // gif, categoría, descripción, tips inflan innecesariamente el documento).
-    this.rutinaParaSocio.push({
+    const copia = {
       nombre: ej.nombre,
       imagenUrl: ej.imagenUrl || ej.gifUrl || '',
       instrucciones: ej.instrucciones ?? ej.tip ?? ej.descripcion ?? '',
       series: 4,
-      repeticiones: '10',
-      completado: false
-    });
+      repeticiones: '10'
+    };
+    // En modo plantilla el "+" del catálogo llena el día abierto en el
+    // editor; si no, la rutina del socio como siempre.
+    if (this.borradorPlantilla) {
+      this.asegurarDia(this.diaActivo).ejercicios.push(copia);
+    } else {
+      this.rutinaParaSocio.push({ ...copia, completado: false });
+    }
   }
 
   quitarDeRutina(index: number) {

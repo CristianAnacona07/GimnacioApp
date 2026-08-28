@@ -14,7 +14,7 @@ const { Prisma } = require('@prisma/client');
  * argsSoftDelete, argsRestore, esSoftDeletable) para poder probarla sin conexión
  * a una base de datos real, igual que se probaba el pre-hook de Mongoose antes.
  */
-const SOFT_DELETE_MODELS = ['Gym', 'Noticia', 'MetodoPago', 'Plan', 'PlanPlataforma', 'Rutina', 'Transaccion', 'User'];
+const SOFT_DELETE_MODELS = ['Gym', 'Noticia', 'MetodoPago', 'Plan', 'PlanPlataforma', 'Rutina', 'RutinaPlantilla', 'Transaccion', 'User'];
 
 function esSoftDeletable(modelName) {
   return SOFT_DELETE_MODELS.includes(modelName);

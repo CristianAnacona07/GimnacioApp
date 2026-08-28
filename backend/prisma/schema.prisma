@@ -138,6 +138,7 @@ model Gym {
   planes        Plan[]
   progresos     Progreso[]
   rutinas       Rutina[]
+  rutinaPlantillas RutinaPlantilla[]
   transacciones Transaccion[]
   citas         Cita[]
   invitaciones  Invitacion[]
@@ -533,6 +534,68 @@ model RutinaEjercicio {
 
   @@unique([rutinaId, orden])
   @@map("rutina_ejercicios")
+}
+
+// Plantilla de rutina SEMANAL, reutilizable a nivel de gimnasio (no de
+// socio): el admin arma una vez la semana completa de un perfil tipo
+// ("Principiante", "Fuerza") — lunes estos ejercicios, martes estos otros —
+// y al dar de alta a un socio nuevo se la aplica entera de un toque, en vez
+// de armar día por día desde el catálogo cada vez.
+//
+// Tres niveles: la plantilla (el nombre del perfil), sus días (cada uno con
+// su propio enfoque), y los ejercicios de cada día. Sin `usuarioId` (no es
+// de nadie hasta que se aplica) y sin `completado` (no hay ningún
+// entrenamiento en curso que marcar).
+//
+// Aplicar una plantilla COPIA sus ejercicios a Rutinas reales nuevas, igual
+// que el catálogo de ejercicios ya se copia y no se referencia (ver
+// ejercicios-catalogo.ts en el frontend) — editar después la rutina de un
+// socio no debe afectar la plantilla ni a otros socios que la hayan usado.
+model RutinaPlantilla {
+  id     String @id @db.Char(24)
+  gymId  String @db.Char(24) @map("gym_id")
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  nombre String
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  dias RutinaPlantillaDia[]
+
+  @@index([gymId])
+  @@index([deletedAt])
+  @@map("rutina_plantillas")
+}
+
+model RutinaPlantillaDia {
+  id          String          @id @db.Char(24)
+  plantillaId String          @db.Char(24) @map("plantilla_id")
+  plantilla   RutinaPlantilla @relation(fields: [plantillaId], references: [id], onDelete: Cascade)
+  dia         DiaSemana
+  enfoque     String?
+
+  ejercicios RutinaPlantillaEjercicio[]
+
+  // Un día no puede repetirse dentro de la misma plantilla — igual que un
+  // socio no puede tener dos rutinas el mismo día.
+  @@unique([plantillaId, dia])
+  @@map("rutina_plantilla_dias")
+}
+
+model RutinaPlantillaEjercicio {
+  id            String             @id @db.Char(24)
+  diaId         String             @db.Char(24) @map("dia_id")
+  dia           RutinaPlantillaDia @relation(fields: [diaId], references: [id], onDelete: Cascade)
+  nombre        String
+  series        Int                @default(0)
+  repeticiones  String             @default("0")
+  instrucciones String?
+  imagenUrl     String?            @map("imagen_url")
+  orden         Int
+
+  @@unique([diaId, orden])
+  @@map("rutina_plantilla_ejercicios")
 }
 
 // ── Transacciones ────────────────────────────────────────────────────
