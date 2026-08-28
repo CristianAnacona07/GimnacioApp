@@ -3,10 +3,16 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 
 import { NoticiaService } from '../../services/noticia.service';
+import { LandingService } from '../../services/landing.service';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { UserStateService } from '../../services/user-state.service';
 import { PermisosService } from '../../services/permisos.service';
+
+// Mismo tope que la portada de la página pública (pagina.ts): una foto de
+// celular de varios MB no se ve mejor en la tarjeta de noticia, solo tarda
+// más en subir.
+const ANCHO_MAX = 1600;
 
 @Component({
   selector: 'app-noticias',
@@ -21,12 +27,14 @@ export class Noticias implements OnInit {
   esEdicion = false;
   noticiaEditando: any = null;
   role = '';
+  subiendoImagen = false;
 
   formulario = { titulo: '', descripcion: '', dia: '', horaInicio: '', horaFin: '', imageUrl: '', whatsappUrl: '' };
   dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
   constructor(
     private noticiaService: NoticiaService,
+    private landingService: LandingService,
     private toast: ToastService,
     private confirm: ConfirmService,
     private userStateService: UserStateService,
@@ -71,6 +79,54 @@ export class Noticias implements OnInit {
   limpiarFormulario() {
     this.formulario = { titulo: '', descripcion: '', dia: '', horaInicio: '', horaFin: '', imageUrl: '', whatsappUrl: '' };
     this.noticiaEditando = null;
+  }
+
+  // ── Imagen desde el PC ───────────────────────────────────────────────────
+  // Mismo patrón que la portada de la página pública (pagina.ts): redimensiona
+  // en el navegador antes de subir, y el resultado es una URL pública como
+  // cualquier otra — se guarda en el mismo campo que "URL de imagen", no hace
+  // falta un campo aparte.
+  private redimensionarImagen(archivo: File): Promise<string> {
+    return new Promise((resolver, rechazar) => {
+      const lector = new FileReader();
+      lector.onerror = () => rechazar(new Error('No se pudo leer el archivo'));
+      lector.onload = (e: any) => {
+        const img = new Image();
+        img.onerror = () => rechazar(new Error('El archivo no es una imagen válida'));
+        img.onload = () => {
+          const escala = Math.min(1, ANCHO_MAX / Math.max(img.width, img.height));
+          const lienzo = document.createElement('canvas');
+          lienzo.width = Math.round(img.width * escala);
+          lienzo.height = Math.round(img.height * escala);
+          lienzo.getContext('2d')?.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+          resolver(lienzo.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = e.target.result;
+      };
+      lector.readAsDataURL(archivo);
+    });
+  }
+
+  async subirImagenDesdePc(evento: any): Promise<void> {
+    const archivo = evento?.target?.files?.[0];
+    if (!archivo) return;
+    // Deja el input listo para volver a elegir el mismo archivo si hace falta.
+    evento.target.value = '';
+
+    this.subiendoImagen = true;
+    this.cdr.detectChanges();
+    try {
+      const dataUrl = await this.redimensionarImagen(archivo);
+      const res = await new Promise<{ url: string }>((ok, mal) =>
+        this.landingService.subirImagen(dataUrl, 'noticias').subscribe({ next: ok, error: mal })
+      );
+      this.formulario.imageUrl = res.url;
+    } catch (e: any) {
+      this.toast.error(e?.error?.mensaje || e?.message || 'No se pudo subir la imagen');
+    } finally {
+      this.subiendoImagen = false;
+      this.cdr.detectChanges();
+    }
   }
 
   guardarNoticia(form: NgForm) {

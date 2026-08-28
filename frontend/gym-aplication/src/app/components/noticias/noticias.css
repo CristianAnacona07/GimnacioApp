@@ -332,17 +332,45 @@
 }
 .form-grupo textarea { resize: vertical; min-height: 90px; }
 
+.subir-imagen-fila { margin-top: 0.2rem; }
+.btn-subir-imagen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: 2px dashed var(--bde, #dbeafe);
+  border-radius: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--txt-azul, #1d4ed8);
+  background: var(--sup-2, #f0f5ff);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.btn-subir-imagen:hover { border-color: #1d4ed8; background: var(--sup-1, #fff); }
+.btn-subir-imagen--cargando { opacity: 0.7; cursor: wait; }
+
 .img-preview {
   margin-top: 0.6rem;
   border-radius: 0.75rem;
   overflow: hidden;
   height: 140px;
   border: 2px solid var(--bde, #dbeafe);
+  background: var(--color-fondo, #eef3ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+/* object-fit: contain, no cover — igual que la tarjeta ya publicada
+   (.card-img más abajo): una foto vertical (un producto, por ejemplo) se ve
+   entera, con una franja de fondo a los lados en vez de perder la tapa y la
+   base recortadas. Antes esta vista previa recortaba distinto de cómo se
+   ve la noticia real, así que lo que el admin veía acá no coincidía con el
+   resultado final. */
 .img-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   display: block;
 }
 

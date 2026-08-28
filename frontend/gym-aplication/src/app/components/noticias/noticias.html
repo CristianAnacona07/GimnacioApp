@@ -40,6 +40,13 @@
             <label>URL de imagen <span class="opcional">(opcional)</span></label>
             <input type="url" [(ngModel)]="formulario.imageUrl" name="imageUrl"
               placeholder="https://ejemplo.com/imagen.jpg">
+            <div class="subir-imagen-fila">
+              <label class="btn-subir-imagen" [class.btn-subir-imagen--cargando]="subiendoImagen">
+                {{ subiendoImagen ? 'Subiendo…' : '📁 Subir desde tu PC' }}
+                <input type="file" accept="image/*" (change)="subirImagenDesdePc($event)"
+                  [disabled]="subiendoImagen" hidden>
+              </label>
+            </div>
             @if (formulario.imageUrl) {
               <div class="img-preview">
                 <img [src]="formulario.imageUrl" alt="Vista previa" (error)="formulario.imageUrl=''">
