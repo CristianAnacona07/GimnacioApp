@@ -17,7 +17,9 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
         <div class="flex justify-center items-center bg-gray-100 rounded-xl p-4 border-2 border-dashed border-gray-300">
           @if (ejercicio.gifUrl) {
-            <img [src]="ejercicio.gifUrl" [alt]="ejercicio.nombre" class="max-w-full h-auto rounded-lg shadow-md">
+            <img [src]="ejercicio.gifUrl" [alt]="ejercicio.nombre"
+                 (error)="$any($event.target).style.display='none'"
+                 class="max-w-full h-auto rounded-lg shadow-md">
           } @else {
             <div class="text-gray-400 text-center">
               <p>No hay GIF disponible para este ejercicio</p>

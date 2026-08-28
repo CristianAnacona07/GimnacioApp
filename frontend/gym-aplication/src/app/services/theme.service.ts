@@ -71,14 +71,14 @@ export class ThemeService {
     const colores = gym?.colores || this.gymService.getGym()?.colores || DEFAULTS;
     const root = document.documentElement;
 
-    // Esquema simplificado: el color PRINCIPAL (navbar) rige también los botones
-    // (primario), el menú lateral y los días de rutina — así toda la app se ve
-    // coherente con un solo color, sin depender de valores viejos guardados.
+    // El color PRINCIPAL del gimnasio rige los botones y los días de rutina.
+    // La barra y el menú lateral ya NO: son fijos y solo dependen del modo
+    // (ver los tokens --barra-* en styles.css), porque su contraste con el
+    // texto y los iconos que llevan encima no puede quedar en manos de un
+    // color elegido a mano.
     const principal = colores.navbar || DEFAULTS.navbar;
 
-    root.style.setProperty('--color-navbar',     principal);
     root.style.setProperty('--color-primario',   principal);
-    root.style.setProperty('--color-menu',       principal);
     root.style.setProperty('--color-dias',       principal);
     root.style.setProperty('--color-secundario', colores.secundario || DEFAULTS.secundario);
 
@@ -95,8 +95,6 @@ export class ThemeService {
     root.style.setProperty('--color-primario',   DEFAULTS.primario);
     root.style.setProperty('--color-secundario', DEFAULTS.secundario);
     root.style.setProperty('--color-fondo',      DEFAULTS.fondo);
-    root.style.setProperty('--color-navbar',     DEFAULTS.navbar);
-    root.style.setProperty('--color-menu',       DEFAULTS.menu);
     root.style.setProperty('--color-dias',       DEFAULTS.dias);
   }
 }

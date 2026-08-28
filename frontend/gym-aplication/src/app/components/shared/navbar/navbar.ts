@@ -48,8 +48,6 @@ export class Navbar implements OnInit, OnDestroy {
 
   get gymNombre(): string { return this.gym?.nombre || 'GymApp'; }
   get gymLogo(): string | null { return this.gym?.logo || null; }
-  get navbarBg(): string { return this.gym?.colores?.navbar || '#0f172a'; }
-  get menuBg(): string { return (this.gym?.colores as any)?.menu || '#1e293b'; }
 
   constructor(
     private router: Router,

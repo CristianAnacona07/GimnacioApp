@@ -13,12 +13,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  color: #fff;
+  color: var(--barra-texto, #fff);
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 .icono-navbar:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--barra-hover, rgba(255, 255, 255, 0.12));
   color: var(--txt-azul, #22d3ee);
 }
 .icono-navbar svg {

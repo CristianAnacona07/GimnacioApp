@@ -533,46 +533,6 @@ export const CATALOGO_EJERCICIOS: EjercicioBase[] = [
   tip: 'Mantén la cadera apoyada en el banco y evita levantarla durante el movimiento. Controla la bajada para aumentar el trabajo en los femorales.'
 },
 {
-  nombre: 'Hip Thrust con Barra',
-  categoria: 'Pierna',
-  imagenUrl: 'ejercicios/piernaImagenes/hip-thrust-barra.jpeg',
-  gifUrl: 'ejercicios/piernaGif/hip-thrust-barra.gif',
-  descripcion: 'Apoya la parte superior de la espalda en un banco y coloca la barra sobre la cadera. Flexiona las rodillas con los pies apoyados en el suelo. Empuja la cadera hacia arriba contrayendo los glúteos hasta que el torso quede alineado con las piernas. Baja de forma controlada hasta la posición inicial.',
-  tip: 'Mantén el abdomen firme y evita arquear la espalda baja. Aprieta los glúteos en la parte alta del movimiento.'
-},
-{
-  nombre: 'Hip Thrust en Máquina',
-  categoria: 'Pierna',
-  imagenUrl: 'ejercicios/piernaImagenes/hip-thrust-maquina.jpeg',
-  gifUrl: 'ejercicios/piernaGif/hip-thrust-maquina.gif',
-  descripcion: 'Colócate en la máquina de hip thrust con la espalda apoyada y los pies firmes en la plataforma. Empuja la carga elevando la cadera hasta extender completamente las caderas y luego desciende de forma lenta y controlada.',
-  tip: 'Ajusta el asiento para que el movimiento sea cómodo. Controla la bajada y concéntrate en la activación de los glúteos.'
-},
-{
-  nombre: 'Abducción de Cadera en Máquina (Piernas Abiertas)',
-  categoria: 'Pierna',
-  imagenUrl: 'ejercicios/piernaImagenes/abduccion-cadera-maquina.jpeg',
-  gifUrl: 'ejercicios/piernaGif/abduccion-cadera-maquina.gif',
-  descripcion: 'Siéntate en la máquina de abducción con la espalda apoyada y las piernas juntas al inicio. Empuja las piernas hacia afuera contra las almohadillas hasta donde te sea cómodo y luego regresa lentamente a la posición inicial.',
-  tip: 'Realiza el movimiento de forma controlada y concéntrate en contraer los glúteos. No uses impulso.'
-},
-{
-  nombre: 'Aducción de Cadera en Máquina (Piernas Cerradas)',
-  categoria: 'Pierna',
-  imagenUrl: 'ejercicios/piernaImagenes/aduccion-cerrada-maquina.jpeg',
-  gifUrl: 'ejercicios/piernaGif/aduccion-cerrada-maquina.gif',
-  descripcion: 'Siéntate en la máquina de aducción con la espalda apoyada y las piernas abiertas. Junta las piernas empujando las almohadillas hacia el centro de forma controlada y luego vuelve lentamente a la posición inicial.',
-  tip: 'Mantén el torso estable y controla la bajada. Concéntrate en el trabajo de la parte interna de los muslos.'
-},
-{
-  nombre: 'Patada de Glúteo en Polea',
-  categoria: 'Pierna',
-  imagenUrl: 'ejercicios/piernaImagenes/patada-gluteo-polea.jpeg',
-  gifUrl: 'ejercicios/piernaGif/patada-gluteo-polea.gif',
-  descripcion: 'Colócate de pie frente a la polea baja y sujétate de la estructura para mantener el equilibrio. Coloca el tobillo en el agarre de la polea y extiende la pierna hacia atrás de forma controlada. Regresa lentamente a la posición inicial y luego cambia de pierna.',
-  tip: 'Aprieta el glúteo al final del movimiento, mantén el abdomen firme y evita arquear la espalda.'
-},
-{
   nombre: 'Elevación de Talones de Pie',
   categoria: 'Pierna',
   imagenUrl: 'ejercicios/piernaImagenes/elevacion-talones-pie.jpeg',
@@ -581,6 +541,97 @@ export const CATALOGO_EJERCICIOS: EjercicioBase[] = [
   tip: 'Mantén el abdomen firme y realiza el movimiento de forma controlada, subiendo y bajando lentamente para trabajar mejor los gemelos.'
 },
 // FIN PIERNA
+
+  // --- GLUTEOS ---
+{
+  nombre: 'Hip Thrust con Barra',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/hip-thrust-barra.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/hip-thrust-barra.gif',
+  descripcion: 'Apoya la parte superior de la espalda en un banco y coloca la barra sobre la cadera. Flexiona las rodillas con los pies apoyados en el suelo. Empuja la cadera hacia arriba contrayendo los glúteos hasta que el torso quede alineado con las piernas. Baja de forma controlada hasta la posición inicial.',
+  tip: 'Mantén el abdomen firme y evita arquear la espalda baja. Aprieta los glúteos en la parte alta del movimiento.'
+},
+{
+  nombre: 'Hip Thrust en Máquina',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/hip-thrust-maquina.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/hip-thrust-maquina.gif',
+  descripcion: 'Colócate en la máquina de hip thrust con la espalda apoyada y los pies firmes en la plataforma. Empuja la carga elevando la cadera hasta extender completamente las caderas y luego desciende de forma lenta y controlada.',
+  tip: 'Ajusta el asiento para que el movimiento sea cómodo. Controla la bajada y concéntrate en la activación de los glúteos.'
+},
+{
+  nombre: 'Abducción de Cadera en Máquina (Piernas Abiertas)',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/abduccion-cadera-maquina.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/abduccion-cadera-maquina.gif',
+  descripcion: 'Siéntate en la máquina de abducción con la espalda apoyada y las piernas juntas al inicio. Empuja las piernas hacia afuera contra las almohadillas hasta donde te sea cómodo y luego regresa lentamente a la posición inicial.',
+  tip: 'Realiza el movimiento de forma controlada y concéntrate en contraer los glúteos. No uses impulso.'
+},
+{
+  nombre: 'Aducción de Cadera en Máquina (Piernas Cerradas)',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/aduccion-cerrada-maquina.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/aduccion-cerrada-maquina.gif',
+  descripcion: 'Siéntate en la máquina de aducción con la espalda apoyada y las piernas abiertas. Junta las piernas empujando las almohadillas hacia el centro de forma controlada y luego vuelve lentamente a la posición inicial.',
+  tip: 'Mantén el torso estable y controla la bajada. Concéntrate en el trabajo de la parte interna de los muslos.'
+},
+{
+  nombre: 'Patada de Glúteo en Polea',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/patada-gluteo-polea.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/patada-gluteo-polea.gif',
+  descripcion: 'Colócate de pie frente a la polea baja y sujétate de la estructura para mantener el equilibrio. Coloca el tobillo en el agarre de la polea y extiende la pierna hacia atrás de forma controlada. Regresa lentamente a la posición inicial y luego cambia de pierna.',
+  tip: 'Aprieta el glúteo al final del movimiento, mantén el abdomen firme y evita arquear la espalda.'
+},
+{
+  nombre: 'Peso Muerto Rumano con Barra',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/peso-muerto-rumano.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/peso-muerto-rumano.gif',
+  descripcion: 'Colócate de pie con la barra sujeta al frente de los muslos y los pies a la anchura de la cadera. Con las rodillas apenas flexionadas, lleva la cadera hacia atrás bajando la barra pegada a las piernas hasta sentir el estiramiento en los femorales. Vuelve a subir empujando la cadera hacia adelante y contrayendo los glúteos.',
+  tip: 'La espalda se mantiene recta todo el recorrido: el movimiento nace en la cadera, no en la columna. No hace falta bajar hasta el suelo, solo hasta donde llegue el estiramiento sin redondear la espalda.'
+},
+{
+  nombre: 'Puente de Glúteo en Suelo',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/puente-gluteo-suelo.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/puente-gluteo-suelo.gif',
+  descripcion: 'Acuéstate boca arriba con las rodillas flexionadas y los pies apoyados en el suelo a la anchura de la cadera. Empuja con los talones para elevar la cadera hasta alinear rodillas, cadera y hombros. Sostén un segundo arriba y baja de forma controlada sin apoyar del todo.',
+  tip: 'Aprieta los glúteos en la parte alta en lugar de arquear la espalda baja. Es el ejercicio ideal para aprender el patrón antes de pasar al hip thrust con carga.'
+},
+{
+  nombre: 'Zancadas con Mancuernas',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/zancadas-mancuernas.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/zancadas-mancuernas.gif',
+  descripcion: 'De pie con una mancuerna en cada mano, da un paso largo hacia adelante y baja flexionando ambas rodillas hasta que la rodilla de atrás quede cerca del suelo. Empuja con el talón de la pierna adelantada para volver a la posición inicial y alterna de pierna.',
+  tip: 'Cuanto más largo el paso, más trabajan los glúteos; un paso corto carga el cuádriceps. Mantén el torso erguido y la rodilla de adelante alineada con el pie.'
+},
+{
+  nombre: 'Subida al Cajón',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/subida-cajon.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/subida-cajon.gif',
+  descripcion: 'Frente a un cajón o banco estable, apoya un pie completo sobre la superficie y sube empujando con ese talón hasta extender la cadera. Baja de forma controlada con la misma pierna y repite antes de cambiar de lado.',
+  tip: 'Que la pierna de abajo no dé impulso: todo el trabajo lo hace la pierna que está arriba. Elegí una altura donde el muslo quede paralelo al suelo o un poco más abajo.'
+},
+{
+  nombre: 'Sentadilla Sumo con Mancuerna',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/sentadilla-sumo-mancuerna.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/sentadilla-sumo-mancuerna.gif',
+  descripcion: 'Párate con los pies más abiertos que los hombros y las puntas ligeramente hacia afuera, sujetando una mancuerna con ambas manos frente al cuerpo. Baja flexionando rodillas y cadera manteniendo el pecho erguido, y sube empujando con los talones.',
+  tip: 'Las rodillas siguen la dirección de las puntas de los pies, hacia afuera. Al subir, apretá los glúteos en la parte final del movimiento.'
+},
+{
+  nombre: 'Patada de Glúteo en Máquina',
+  categoria: 'Gluteos',
+  imagenUrl: 'ejercicios/gluteosImagenes/patada-gluteo-maquina.jpeg',
+  gifUrl: 'ejercicios/gluteosGif/patada-gluteo-maquina.gif',
+  descripcion: 'Colócate en la máquina de patada de glúteo apoyando el torso y sujetando las agarraderas. Empuja la plataforma hacia atrás con una pierna hasta extender la cadera y regresa lentamente sin dejar caer el peso. Completa las repeticiones y cambia de pierna.',
+  tip: 'Evita arquear la espalda baja para ganar recorrido: el rango lo da la cadera. Sostén un instante en la extensión para sentir el glúteo.'
+},
+// FIN GLUTEOS
 
   // --- ABDOMINALES ---
   {

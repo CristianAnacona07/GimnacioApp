@@ -37,7 +37,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   --color-primario:   #f97316;
   --color-secundario: #1d4ed8;
   --color-fondo:      #eef3ff;
-  --color-navbar:     #0f172a;
 }
 
 /* ============================================
@@ -60,6 +59,16 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   --txt-1: #1e293b;   /* títulos */
   --txt-2: #475569;   /* texto corrido */
   --txt-3: #94a3b8;   /* etiquetas y texto tenue */
+
+  /* Barra superior y menu lateral. Son fijos a proposito: no dependen del
+     color del gimnasio, solo del modo, para que el texto y los iconos que van
+     encima tengan siempre contraste garantizado. */
+  --barra-fondo:  #ffffff;
+  --barra-texto:  #1e293b;
+  --barra-tenue:  #64748b;   /* nombre del gym, etiquetas */
+  --barra-borde:  #e2e8f0;
+  --barra-hover:  rgba(15, 23, 42, 0.06);
+  --barra-chip:   #f1f5f9;   /* fondo del rol (ADMIN) */
 
   --bde: #c8dcff;     /* bordes y separadores */
   --sombra: rgba(29, 78, 216, 0.07);
@@ -84,6 +93,13 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   --txt-1: #eef2f8;
   --txt-2: #b6c2d3;
   --txt-3: #8b98ad;
+
+  --barra-fondo:  #1e293b;
+  --barra-texto:  #ffffff;
+  --barra-tenue:  #94a3b8;
+  --barra-borde:  rgba(255, 255, 255, 0.10);
+  --barra-hover:  rgba(255, 255, 255, 0.12);
+  --barra-chip:   rgba(255, 255, 255, 0.08);
 
   --bde: #2a3543;
   --sombra: rgba(0, 0, 0, 0.5);

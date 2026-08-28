@@ -1,4 +1,62 @@
 /* navbar.css */
+
+/* ── Barra y menú ──────────────────────────────────────────────────────────
+   El fondo ya no lo pinta el gimnasio: es fijo y solo depende del modo
+   (oscuro #1e293b / claro blanco), definido en styles.css. Así el blanco de
+   los textos e iconos deja de ser una apuesta y pasa a acompañar al fondo.  */
+.barra,
+.barra-movil,
+.menu-container {
+  background: var(--barra-fondo, #1e293b);
+  color: var(--barra-texto, #fff);
+}
+
+/* En claro, blanco sobre un fondo casi blanco se pierde: hace falta el borde. */
+.barra {
+  border-bottom: 1px solid var(--barra-borde, transparent);
+}
+
+.barra-movil {
+  border-top: 1px solid var(--barra-borde, transparent);
+}
+
+.menu-container {
+  border-color: var(--barra-borde, transparent);
+}
+
+.menu-link {
+  color: var(--barra-texto, #fff);
+  border-color: var(--barra-borde, transparent);
+}
+
+.menu-link:hover {
+  background: var(--barra-hover, rgba(255, 255, 255, 0.12));
+}
+
+/* ☰ y el sol/luna: heredan el color de la barra en vez de ser blancos fijos. */
+.icono-barra {
+  color: var(--barra-texto, #fff);
+  transition: background 0.2s, color 0.2s;
+}
+
+.icono-barra:hover {
+  background: var(--barra-hover, rgba(255, 255, 255, 0.12));
+  color: var(--txt-azul, #22d3ee);
+}
+
+/* El rol (ADMIN) era una etiqueta oscura sobre barra oscura. */
+.rol-chip {
+  color: var(--barra-tenue, #94a3b8);
+  background: var(--barra-chip, rgba(255, 255, 255, 0.08));
+  border-color: var(--barra-borde, transparent);
+}
+
+/* El anillo del punto verde imita el fondo de la barra para recortarse
+   sobre la foto; con un negro fijo quedaba un cerco sucio en modo claro. */
+.punto-activo {
+  border-color: var(--barra-fondo, #1e293b);
+}
+
 .navbar-gym-inicial {
   width: 48px;
   height: 48px;
@@ -10,6 +68,7 @@
   font-size: 1.25rem;
   font-weight: 900;
   flex-shrink: 0;
+  border: 1px solid #000;
 }
 /* w-12/h-12 de Tailwind ya fija 48px, pero un logo subido por el admin no
    pasa por ningún redimensionado en el servidor — este tope explícito evita
@@ -19,6 +78,10 @@
   max-width: 48px;
   max-height: 48px;
   flex-shrink: 0;
+  /* Un logo blanco o muy claro se perdía sobre la barra blanca del modo
+     claro: el borde negro le da silueta con cualquier fondo. */
+  border: 1px solid #000;
+  background: #fff;
   transition: filter 0.3s;
 }
 

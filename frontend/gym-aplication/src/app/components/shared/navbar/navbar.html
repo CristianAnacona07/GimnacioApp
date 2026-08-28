@@ -1,11 +1,11 @@
-<nav [style.background]="navbarBg" class="text-center text-white shadow-xl relative">
+<nav class="barra text-center shadow-xl relative">
   <div class="flex items-center justify-between px-4 md:px-6 py-1">
     <div class="flex items-center gap-2">
       @if (menuLinks.length) {
       <button type="button" (click)="menuOpen = !menuOpen"
         [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'"
         [attr.aria-expanded]="menuOpen"
-        class="menu-button text-white text-2xl font-bold cursor-pointer hover:text-cyan-500 p-1 transition-colors">
+        class="menu-button icono-barra text-2xl font-bold cursor-pointer p-1 transition-colors">
         <span aria-hidden="true">☰</span>
       </button>
       }
@@ -27,36 +27,36 @@
       <button type="button" (click)="alternarTema()"
         [attr.aria-label]="esOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
         [title]="esOscuro ? 'Modo claro' : 'Modo oscuro'"
-        class="text-white text-lg cursor-pointer p-1.5 rounded-lg hover:bg-white/15 transition-colors">
+        class="icono-barra text-lg cursor-pointer p-1.5 rounded-lg transition-colors">
         <span aria-hidden="true">{{ esOscuro ? '☀️' : '🌙' }}</span>
       </button>
 
       <span
-        class="hidden sm:block ml-1 text-slate-400 text-[9px] font-black uppercase bg-slate-800 px-2 py-1 rounded border border-slate-700">
+        class="rol-chip hidden sm:block ml-1 text-[9px] font-black uppercase px-2 py-1 rounded border">
         {{ role }}
       </span>
 
       <a [routerLink]="rutaPerfil" aria-label="Ir a mi perfil" class="relative w-10 h-10 group block ml-1">
         <img [src]="fotoUrl ||'assets/default-avatar.png'" alt="Foto de perfil"
           class="w-10 h-10 rounded-full object-cover cursor-pointer" (error)="manejarErrorFoto($event)">
-        <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-900 rounded-full" aria-hidden="true"></div>
+        <div class="punto-activo absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 rounded-full" aria-hidden="true"></div>
       </a>
     </div>
   </div>
-  <div class="md:hidden px-6 pb-2 border-t border-slate-800/50 pt-2" [style.background]="navbarBg">
+  <div class="barra-movil md:hidden px-6 pb-2 pt-2">
     <div class="flex items-center gap-2">
       <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" aria-hidden="true"></div>
-      <span class="text-white font-medium text-xs tracking-wide">
-        Bienvenido, <span style="color: #ffffff" class="font-bold">{{ username }}</span>
+      <span class="font-medium text-xs tracking-wide">
+        Bienvenido, <span class="font-bold">{{ username }}</span>
       </span>
     </div>
   </div>
 
   <div class="hidden md:block absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
     <div class="flex flex-col items-center">
-      <span class="text-white font-black text-xs uppercase tracking-widest opacity-60">{{ gymNombre }}</span>
-      <span class="text-white font-semibold text-sm whitespace-nowrap">
-        Bienvenido, <span style="color: #ffffff">{{ username }}</span>
+      <span class="font-black text-xs uppercase tracking-widest opacity-60">{{ gymNombre }}</span>
+      <span class="font-semibold text-sm whitespace-nowrap">
+        Bienvenido, <span>{{ username }}</span>
       </span>
     </div>
   </div>
@@ -64,15 +64,13 @@
   <!-- Menú Desplegable -->
   @if (menuLinks.length) {
   <ul
-    class="menu-container absolute left-0 top-full w-64 border-t border-slate-800 transition-all duration-300 overflow-hidden z-50 shadow-2xl rounded-b-lg"
-    [style.background]="menuBg"
+    class="menu-container absolute left-0 top-full w-64 border-t transition-all duration-300 overflow-hidden z-50 shadow-2xl rounded-b-lg"
     [class.max-h-0]="!menuOpen" [class.max-h-screen]="menuOpen">
 
     @for (link of menuLinks; track link.route) {
     <li>
       <a (click)="handleMenuClick(link)" [attr.aria-label]="link.name"
-        class="flex items-center gap-3 p-4 cursor-pointer hover:bg-slate-800 transition-all uppercase text-xs font-black tracking-widest border-b border-slate-800/50"
-        style="color: #ffffff">
+        class="menu-link flex items-center gap-3 p-4 cursor-pointer transition-all uppercase text-xs font-black tracking-widest border-b">
         <span class="text-lg" aria-hidden="true">{{ link.icon }}</span>
         <span>{{ link.name }}</span>
       </a>

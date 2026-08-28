@@ -27,7 +27,13 @@ const SELECT_GYM_LOGIN = {
   id: true, nombre: true, slug: true, logo: true, slogan: true,
   colorPrimario: true, colorSecundario: true, colorFondo: true, colorNavbar: true, colorMenu: true, colorDias: true,
   moduloRutinas: true, moduloProgreso: true, moduloMedidas: true, moduloPagos: true, moduloNoticias: true, moduloCronometro: true,
-  spotifyPlaylist: true
+  spotifyPlaylist: true,
+  // La página pública va incluida a propósito: el frontend guarda este gym
+  // en localStorage y el editor de Configuración → Página lo lee de ahí.
+  // Sin `landing`, el formulario se abría con el interruptor apagado y los
+  // campos vacíos aunque la página estuviera publicada — y guardar así la
+  // despublicaba y borraba su contenido.
+  landing: true
 };
 
 // Template del email
