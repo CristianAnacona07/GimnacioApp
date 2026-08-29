@@ -297,6 +297,70 @@
 }
 .pulsando .tiempo-numero { animation: parpadeo-numero 0.5s ease infinite; }
 
+/* Reemplaza al 00:00 los 3 segundos que el panel queda en "terminado", antes
+   de rearmarse solo para la serie siguiente. */
+.tiempo-fin {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--txt-verde, #22c55e);
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+/* Cuenta de series, entre el reloj y los controles. El número va grande
+   porque se mira de reojo en medio del ejercicio, no de cerca. */
+.series-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 0.9rem 0 0.4rem;
+}
+
+.series-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: var(--txt-3, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.series-num {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #f97316;
+  line-height: 1;
+  min-width: 1.4rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.series-reset {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.series-reset:hover:not(:disabled) { border-color: #f97316; color: #f97316; }
+.series-reset:disabled { opacity: 0.35; cursor: default; }
+
+/* En el mini flotante alcanza con un renglón chico. */
+.mini-series {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #f97316;
+  margin-top: 0.2rem;
+  letter-spacing: 0.03em;
+}
+
 .controles-row {
   display: flex;
   align-items: center;

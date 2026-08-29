@@ -19,6 +19,7 @@ interface ConfettiPieza {
 const KEY_END  = 'crono_endTime';
 const KEY_TOTAL = 'crono_total';
 const KEY_PAUSE = 'crono_paused';
+const KEY_SERIES = 'crono_series';
 const NOTIF_ID = 9001; // id fijo de la notificación nativa del cronómetro
 
 @Component({
@@ -48,6 +49,17 @@ export class Cronometro implements OnInit, OnDestroy {
   permisoNotif: NotificationPermission = 'default';
   ultimoPresetUsado = 60; // Guardar último preset para reinicio rápido
 
+  /**
+   * Series completadas del ejercicio en curso. Sube UNA vez cada vez que
+   * termina un descanso — o sea "hice la serie, descansé, va una" — no al
+   * arrancar el cronómetro: si contara al arrancar, un descanso empezado por
+   * error y cancelado ya habría sumado.
+   *
+   * Sin meta a propósito: cuenta libre (1, 2, 3, 4, 5…) y el socio la vuelve
+   * a cero al pasar al siguiente ejercicio.
+   */
+  series = 0;
+
   private intervalo: any = null;
   private routeSub: any = null;
   private notifTimeout: any = null;
@@ -74,6 +86,12 @@ export class Cronometro implements OnInit, OnDestroy {
 
     this.pedirPermisosNotificacion();
 
+    // La cuenta de series se restaura ANTES que el temporizador: si al abrir
+    // la app el descanso ya había vencido, la restauración llama a
+    // alTerminar() y esa serie tiene que sumarse sobre las anteriores, no
+    // sobre cero.
+    this.series = Number(localStorage.getItem(KEY_SERIES)) || 0;
+
     // Primero intentar restaurar desde IndexedDB (más confiable)
     await this.restaurarDesdeIndexedDB();
 
@@ -95,7 +113,13 @@ export class Cronometro implements OnInit, OnDestroy {
     return this.tiempoTotal > 0 ? this.tiempoRestante / this.tiempoTotal : 1;
   }
   get circunferencia(): number { return 2 * Math.PI * 44; }
-  get dashOffset(): number { return this.circunferencia * (1 - this.progreso); }
+  get dashOffset(): number {
+    // Al terminar el anillo se dibuja entero en vez de quedar vacío: ahora que
+    // el panel se queda abierto, un círculo completo acompaña al "¡Listo!"
+    // mejor que el aro apagado que dejaba el 0 de tiempo restante.
+    if (this.terminado) return 0;
+    return this.circunferencia * (1 - this.progreso);
+  }
   get minutos(): string { return String(Math.floor(this.tiempoRestante / 60)).padStart(2, '0'); }
   get segundosDisplay(): string { return String(this.tiempoRestante % 60).padStart(2, '0'); }
   get casiTerminado(): boolean { return this.tiempoRestante <= 10 && this.activo && !this.terminado; }
@@ -187,6 +211,18 @@ export class Cronometro implements OnInit, OnDestroy {
     this.tiempoRestante = this.tiempoTotal;
     this.terminado = false;
     this.confettiPiezas = [];
+  }
+
+  /**
+   * Vuelve la cuenta de series a cero — al pasar al siguiente ejercicio.
+   * Aparte del ↺ del tiempo a propósito: reiniciar el descanso en medio de un
+   * ejercicio es normal y no debería borrar las series que ya hizo.
+   */
+  reiniciarSeries(event?: MouseEvent) {
+    event?.stopPropagation();
+    this.series = 0;
+    localStorage.removeItem(KEY_SERIES);
+    this.cdr.detectChanges();
   }
 
   private sincronizarDesdeStorage() {
@@ -439,6 +475,16 @@ export class Cronometro implements OnInit, OnDestroy {
     this.detener(false); // no cancelar la notificación nativa que debe sonar ahora
     this.terminado = true;
 
+    // Único punto por el que pasa un descanso completado, venga del intervalo
+    // en pantalla, de volver a la app con el temporizador ya vencido
+    // (sincronizarDesdeStorage) o de reabrirla directamente
+    // (restaurarDeStorage / restaurarDesdeIndexedDB). Contar acá es lo que
+    // evita que la cuenta se desincronice si el celular quedó bloqueado a
+    // mitad del descanso. No hay riesgo de contar dos veces: detener() borra
+    // el estado guardado, así que las otras vías ya no encuentran nada.
+    this.series++;
+    localStorage.setItem(KEY_SERIES, String(this.series));
+
     // Confetti siempre (animación breve en el fondo)
     this.generarConfetti();
 
@@ -453,17 +499,19 @@ export class Cronometro implements OnInit, OnDestroy {
 
     // Comportamiento diferente según si está en ruta de socio
     if (this.enRutaSocio) {
-      // En rutina: reinicio automático al mismo preset
+      // En rutina: reinicio automático al mismo preset, listo para la serie
+      // siguiente. NO se toca `minimizado`: si el socio lo tenía abierto se
+      // queda abierto (antes se minimizaba solo y había que reabrirlo entre
+      // serie y serie); si lo tenía minimizado, sigue minimizado.
       setTimeout(() => {
         if (this.terminado) {
           this.tiempoTotal = this.ultimoPresetUsado;
           this.tiempoRestante = this.ultimoPresetUsado;
           this.terminado = false;
           this.confettiPiezas = [];
-          this.minimizado = true; // Mantener minimizado
           this.cdr.detectChanges();
         }
-      }, 3000); // 3 segundos para leer "¡Listo! Toca para repetir"
+      }, 5000); // 5 segundos para ver el "¡Listo!" antes de rearmarse
     } else {
       // Fuera de rutina: comportamiento normal
       setTimeout(() => {

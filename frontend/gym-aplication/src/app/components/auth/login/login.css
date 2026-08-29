@@ -89,12 +89,17 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
+/* Sin caja cuadrada fija: el logo de cada gimnasio puede tener cualquier
+   proporción (el de FULL GYM es 200x131, apaisado). Con un cuadro cuadrado y
+   object-fit: contain quedaban franjas de fondo vacías arriba y abajo dentro
+   del marco; con alto máximo y ancho automático el marco se ajusta a la
+   forma real de la imagen y nunca sobra fondo — y sin recortar nada, que es
+   lo que pasaría con cover. */
 .brand-logo {
-  width: 84px;
-  height: 84px;
-  /* contain, no cover: el logo es más alto que ancho y con cover se le
-     recortarían los costados de la cabeza. */
-  object-fit: contain;
+  max-height: 84px;
+  max-width: 190px;
+  width: auto;
+  height: auto;
   display: block;
 }
 

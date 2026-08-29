@@ -38,12 +38,21 @@
     @if (activo && !terminado) {
       <span class="mini-estado">Descansando...</span>
     }
+
+    <!-- Para ver en qué serie va sin tener que abrir el cronómetro. -->
+    @if (series > 0) {
+      <span class="mini-series">{{ series }}ª serie</span>
+    }
   </div>
 }
 
 
-<!-- ===== ESTADO EXPANDIDO ===== -->
-@if (!minimizado && !terminado) {
+<!-- ===== ESTADO EXPANDIDO =====
+     Se mantiene visible también al terminar (antes se ocultaba mientras
+     `terminado`, así que el panel abierto desaparecía de golpe al llegar a
+     cero y volvía solo, ya minimizado). Solo se cierra si el socio lo
+     minimiza. -->
+@if (!minimizado) {
   <div class="crono-wrapper" (click)="onClickInterno($event)">
 
     <div class="crono-handle">
@@ -71,8 +80,23 @@
             [class.casi-terminado]="casiTerminado"/>
         </svg>
         <div class="crono-tiempo" [class.pulsando]="casiTerminado">
-          <span class="tiempo-numero">{{ minutos }}:{{ segundosDisplay }}</span>
+          @if (terminado) {
+            <span class="tiempo-fin">¡Listo! 💪</span>
+          } @else {
+            <span class="tiempo-numero">{{ minutos }}:{{ segundosDisplay }}</span>
+          }
         </div>
+      </div>
+
+      <!-- Series completadas: sube sola cada vez que termina un descanso.
+           El ↺ de acá borra solo la cuenta (para el siguiente ejercicio), no
+           el tiempo — ese es el ↺ de abajo. -->
+      <div class="series-row">
+        <span class="series-label">Series</span>
+        <span class="series-num">{{ series }}</span>
+        <button class="series-reset" (click)="reiniciarSeries($event)" [disabled]="series === 0"
+                title="Poner la cuenta en cero para el siguiente ejercicio"
+                aria-label="Reiniciar la cuenta de series">↺</button>
       </div>
 
       <div class="controles-row">

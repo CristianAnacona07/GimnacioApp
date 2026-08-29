@@ -128,6 +128,7 @@ app.use('/api', apiLimiter);
 // --- RUTAS DE API ---
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/rutinas', require('./routes/rutina'));
+app.use('/api/rutina-plantillas', require('./routes/rutinaPlantilla'));
 app.use('/api/noticias', require('./routes/noticia'));
 app.use('/api/planes', require('./routes/planes'));
 app.use('/api/planes-plataforma', require('./routes/planesPlataforma'));
