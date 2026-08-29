@@ -55,6 +55,7 @@ Los workflows viven en `.github/workflows/` y se disparan solo cuando cambia el
 
 Empieza por [CLAUDE.md](CLAUDE.md), que describe la arquitectura completa:
 roles, aislamiento por gimnasio (`gymId`), flujo de autenticación y modelos de
-datos. En [docs/](docs/) están las historias de usuario, la guía de
+datos. En [docs/arquitectura/](docs/arquitectura/) está cómo está construido el
+sistema y por qué, con diagramas. En [docs/](docs/) están las historias de usuario, la guía de
 [subdominios por gimnasio](docs/SUBDOMINIOS.md) y las notas de
 [despliegue y móvil](docs/DESPLIEGUE-Y-MOVIL.md).

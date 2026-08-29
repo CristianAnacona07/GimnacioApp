@@ -48,9 +48,9 @@
 }
 
 .tab--activo {
-  background: #4f46e5;
-  border-color: #4f46e5;
-  color: #fff;
+  background: var(--btn-degradado);
+  border-color: transparent;
+  color: var(--btn-texto);
 }
 
 /* Campos */
@@ -164,8 +164,8 @@
 }
 
 .btn--primary {
-  background: #4f46e5;
-  color: #fff;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
 }
 
 .btn--full {

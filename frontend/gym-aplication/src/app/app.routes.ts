@@ -50,6 +50,13 @@ export const routes: Routes = [
     loadComponent: () => import('./components/landing/landing').then(m => m.Landing)
   },
 
+  // Todas las tarjetas de una sección: a donde lleva el "Ver más" de la página
+  // pública, que ahí solo muestra las primeras seis.
+  {
+    path: 'g/:slug/seccion/:id',
+    loadComponent: () => import('./components/landing/seccion/seccion').then(m => m.LandingSeccion)
+  },
+
   // El viejo selector de gimnasios: queda como alias por si hay enlaces
   // guardados, pero la entrada es el login universal.
   { path: 'gimnasios', redirectTo: 'login', pathMatch: 'full' },

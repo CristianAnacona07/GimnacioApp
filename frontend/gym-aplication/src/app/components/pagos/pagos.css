@@ -22,11 +22,11 @@
 
 /* BOTÓN + NUEVO MÉTODO */
 .btn-agregar {
-  background: linear-gradient(135deg, #4a59bd 0%, #5a367d 100%);
-  color: white;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.75rem;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
@@ -35,7 +35,8 @@
 }
 
 .btn-agregar:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--btn-degradado);
+  filter: brightness(1.08);
   transform: translateY(-2px);
 }
 

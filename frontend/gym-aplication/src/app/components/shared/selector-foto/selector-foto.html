@@ -1,0 +1,26 @@
+<div class="selector">
+  <button type="button" class="selector__btn" (click)="alPulsar()"
+          [attr.aria-expanded]="menuAbierto">
+    <span class="selector__icono" aria-hidden="true">📷</span>
+    <span>{{ etiqueta }}</span>
+    @if (!esNativo) { <span class="selector__flecha" aria-hidden="true">▾</span> }
+  </button>
+
+  @if (menuAbierto) {
+    <div class="selector__menu" role="menu">
+      <button type="button" class="selector__opcion" role="menuitem" (click)="abrirArchivos()">
+        🖼️ Subir un archivo
+      </button>
+      <button type="button" class="selector__opcion" role="menuitem" (click)="abrirCamara()">
+        📷 Tomar con la cámara
+      </button>
+    </div>
+  }
+
+  <input type="file" [id]="idInput" accept="image/*" [attr.capture]="captura" hidden
+         (change)="alElegirArchivo($event)" />
+</div>
+
+@if (camaraAbierta) {
+  <app-camara-foto (capturada)="alTomarFoto($event)" (cancelada)="camaraAbierta = false" />
+}

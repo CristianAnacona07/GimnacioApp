@@ -1,0 +1,22 @@
+<div class="camara-fondo" (click)="cerrar()" role="presentation">
+  <div class="camara-panel" (click)="$event.stopPropagation()" role="dialog" aria-modal="true"
+       aria-label="Tomar una foto">
+
+    <p class="camara-titulo">Tomar una foto</p>
+
+    @if (cargando) {
+      <p class="camara-estado">Abriendo la cámara…</p>
+    } @else if (error) {
+      <p class="camara-error">{{ error }}</p>
+    } @else {
+      <video #video class="camara-video" playsinline muted></video>
+    }
+
+    <div class="camara-acciones">
+      <button type="button" class="camara-btn camara-btn--claro" (click)="cerrar()">Cancelar</button>
+      @if (!error && !cargando) {
+        <button type="button" class="camara-btn" (click)="tomar()">📸 Tomar foto</button>
+      }
+    </div>
+  </div>
+</div>

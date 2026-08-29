@@ -6,7 +6,7 @@ import { Gym, Landing } from './gym.service';
 
 // El contenido de la página vive en gym.service (es parte del gimnasio); aquí
 // se re-exporta para que quien consuma este servicio no tenga que saberlo.
-export type { Landing, FilaHorario, FotoGaleria } from './gym.service';
+export type { Landing, FilaHorario, SeccionLanding, TarjetaSeccion } from './gym.service';
 export { landingVacia } from './gym.service';
 
 export interface PlanPublico {

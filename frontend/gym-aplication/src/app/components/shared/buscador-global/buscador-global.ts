@@ -286,7 +286,7 @@ export class BuscadorGlobal implements OnInit {
         { icono: '🚪', nombre: 'Control de acceso', ruta: '/admin/configuracion/acceso', alias: 'huella torniquete lector dispositivos' },
         { icono: '📊', nombre: 'Datos y respaldo', ruta: '/admin/configuracion/datos', alias: 'exportar importar excel csv copia' },
         { icono: '🛡️', nombre: 'Auditoría', ruta: '/admin/configuracion/auditoria', alias: 'registro historial quien hizo' },
-        { icono: '👤', nombre: 'Mi cuenta', ruta: '/admin/configuracion/cuenta', alias: 'perfil contrasena clave 2fa doble factor' }
+        { icono: '👤', nombre: 'Mi perfil', ruta: '/admin/configuracion/cuenta', alias: 'cuenta contrasena clave foto cedula telefono' }
       ],
       entrenador: [
         { icono: '👥', nombre: 'Mis socios', ruta: '/entrenador/socios', alias: 'clientes alumnos' }

@@ -33,6 +33,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Tomar la foto de perfil desde la app. Capacitor solo ofrece la camara
+         en un <input type="file"> si este permiso esta declarado; lo pide en
+         el momento, no al instalar. La camara NO es obligatoria: sin ella la
+         app funciona igual eligiendo un archivo, y sin uses-feature el Play
+         Store la ocultaria en tablets que no tienen. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <!-- Notificaciones (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Alarmas exactas para que el cronómetro avise a la hora justa (Android 12+) -->

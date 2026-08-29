@@ -28,32 +28,21 @@
       <p class="card-hint">Este es el enlace para compartir por WhatsApp o poner en Instagram.</p>
     </div>
 
-    <!-- El logo y el nombre del menú de arriba son datos generales del gym (los usa
-         toda la app, no solo esta página), así que se editan en un solo lugar. -->
-    <div class="card">
-      <p class="card-title">Logo y nombre del menú</p>
-      <p class="card-hint" style="margin-bottom:0">
-        El logo y el nombre que aparecen arriba de esta página (y en toda la app) son
-        los datos generales del gimnasio, no algo propio de esta sección.
-      </p>
-      <a class="enlace-editar" routerLink="/admin/configuracion/gimnasio">✏️ Editar nombre y logo del gimnasio →</a>
-    </div>
-
     <!-- Portada -->
     <div class="card">
       <p class="card-title">Portada</p>
-      <p class="card-hint">Lo primero que se ve: una foto grande con el nombre encima.</p>
+      <p class="card-hint">Lo primero que se ve: una foto grande con el nombre encima. Acepta JPG, PNG, WebP y GIF animado (hasta 6&nbsp;MB).</p>
 
       <span class="campo__label">Foto de fondo</span>
       <div class="foto-zona">
-        <label for="portadaInput" class="foto-caja">
+        <div class="foto-caja">
           @if (landing.portada.imagen) {
             <img class="foto-preview" [src]="landing.portada.imagen" alt="Portada">
           } @else {
-            <span class="foto-vacia">+ Elegir foto</span>
+            <span class="foto-vacia">Sin foto</span>
           }
-        </label>
-        <input type="file" id="portadaInput" accept="image/*" hidden (change)="cambiarPortada($event)">
+        </div>
+        <app-selector-foto etiqueta="Cambiar portada" (elegida)="usarFoto('portada', $event)" />
         @if (subiendo === 'portada') { <span class="subiendo">Subiendo…</span> }
       </div>
 
@@ -76,14 +65,10 @@
       </label>
     </div>
 
-    <!-- Sobre nosotros -->
+    <!-- Sobre nosotros: bloque fijo de la página -->
     <div class="card">
-      <label class="interruptor">
-        <input type="checkbox" [(ngModel)]="landing.sobreNosotros.activo" name="nosotrosActivo">
-        <span class="interruptor__texto"><strong>Sobre nosotros</strong></span>
-      </label>
-
-      @if (landing.sobreNosotros.activo) {
+      <p class="card-title">Sobre nosotros</p>
+      @if (true) {
         <label class="campo">
           <span class="campo__label">Título</span>
           <input class="input" type="text" maxlength="60" [(ngModel)]="landing.sobreNosotros.titulo"
@@ -99,61 +84,73 @@
 
         <span class="campo__label">Foto</span>
         <div class="foto-zona">
-          <label for="nosotrosInput" class="foto-caja foto-caja--chica">
+          <div class="foto-caja foto-caja--chica">
             @if (landing.sobreNosotros.imagen) {
               <img class="foto-preview" [src]="landing.sobreNosotros.imagen" alt="">
             } @else {
-              <span class="foto-vacia">+ Foto</span>
+              <span class="foto-vacia">Sin foto</span>
             }
-          </label>
-          <input type="file" id="nosotrosInput" accept="image/*" hidden (change)="cambiarFotoNosotros($event)">
+          </div>
+          <app-selector-foto etiqueta="Cambiar foto" (elegida)="usarFoto('nosotros', $event)" />
           @if (subiendo === 'nosotros') { <span class="subiendo">Subiendo…</span> }
         </div>
       }
     </div>
 
-    <!-- Galería -->
+    <!-- Secciones que crea el gimnasio -->
     <div class="card">
-      <label class="interruptor">
-        <input type="checkbox" [(ngModel)]="landing.galeria.activo" name="galeriaActivo">
-        <span class="interruptor__texto">
-          <strong>Galería de fotos</strong>
-          <small>Las instalaciones, las máquinas, las clases.</small>
-        </span>
-      </label>
+      <p class="card-title">Secciones de tu página</p>
+      <p class="card-hint">
+        Cada sección que crees aparece en el <strong>menú de arriba</strong> y como un
+        bloque de tarjetas. El nombre que le pongas es el que se lee en los dos sitios.
+        De cada tarjeta solo la foto es obligatoria.
+      </p>
 
-      @if (landing.galeria.activo) {
-        <label class="campo">
-          <span class="campo__label">Título</span>
-          <input class="input" type="text" maxlength="60" [(ngModel)]="landing.galeria.titulo"
-                 name="gTitulo" placeholder="Nuestro espacio">
-        </label>
+      @for (sec of landing.secciones; track sec.id; let iSec = $index) {
+        <div class="seccion-edit">
+          <div class="seccion-edit__cabecera">
+            <input class="input" type="text" maxlength="40" [(ngModel)]="sec.nombre"
+                   [name]="'sec' + sec.id" placeholder="Nombre de la sección (ej: Catálogo)">
+            <button class="quitar" (click)="moverSeccion(iSec, -1)" [disabled]="iSec === 0" title="Subir">↑</button>
+            <button class="quitar" (click)="moverSeccion(iSec, 1)"
+                    [disabled]="iSec === landing.secciones.length - 1" title="Bajar">↓</button>
+            <button class="quitar" (click)="quitarSeccion(iSec)" title="Quitar sección">🗑️</button>
+          </div>
 
-        <div class="galeria-grid">
-          @for (foto of landing.galeria.fotos; track $index) {
-            <div class="galeria-item">
-              <img [src]="foto.url" alt="">
-              <input class="input input--mini" type="text" maxlength="60"
-                     [(ngModel)]="foto.descripcion" [name]="'foto' + $index" placeholder="Descripción">
-              <button class="quitar" (click)="quitarFoto($index)" title="Quitar">🗑️</button>
-            </div>
-          }
-          <label for="galeriaInput" class="galeria-agregar">
-            @if (subiendo === 'galeria') { Subiendo… } @else { + Agregar foto }
-          </label>
-          <input type="file" id="galeriaInput" accept="image/*" hidden (change)="agregarFotoGaleria($event)">
+          <p class="card-hint">{{ sec.tarjetas.length }} tarjeta(s). En la página se ven las primeras 6.</p>
+
+          <div class="galeria-grid">
+            @for (t of sec.tarjetas; track $index; let iTar = $index) {
+              <div class="galeria-item">
+                @if (t.imagen) {
+                  <img [src]="t.imagen" alt="">
+                } @else {
+                  <div class="foto-caja foto-caja--chica"><span class="foto-vacia">Sin foto</span></div>
+                }
+                <app-selector-foto etiqueta="Foto" (elegida)="usarFoto('tarjeta:' + iSec + ':' + iTar, $event)" />
+                @if (subiendo === 'tarjeta:' + iSec + ':' + iTar) { <span class="subiendo">Subiendo…</span> }
+
+                <input class="input input--mini" type="text" maxlength="60" [(ngModel)]="t.titulo"
+                       [name]="'t' + sec.id + iTar" placeholder="Nombre (opcional)">
+                <input class="input input--mini" type="text" maxlength="120" [(ngModel)]="t.descripcion"
+                       [name]="'d' + sec.id + iTar" placeholder="Descripción (opcional)">
+                <input class="input input--mini" type="text" maxlength="30" [(ngModel)]="t.precio"
+                       [name]="'p' + sec.id + iTar" placeholder="Precio (opcional)">
+                <button class="quitar" (click)="quitarTarjeta(iSec, iTar)" title="Quitar">🗑️</button>
+              </div>
+            }
+            <button class="galeria-agregar" (click)="agregarTarjeta(iSec)">+ Agregar tarjeta</button>
+          </div>
         </div>
       }
+
+      <button class="btn btn--bloque" (click)="agregarSeccion()">+ Crear sección</button>
     </div>
 
     <!-- Horarios -->
     <div class="card">
-      <label class="interruptor">
-        <input type="checkbox" [(ngModel)]="landing.horarios.activo" name="horariosActivo">
-        <span class="interruptor__texto"><strong>Horarios de atención</strong></span>
-      </label>
-
-      @if (landing.horarios.activo) {
+      <p class="card-title">Horarios de atención</p>
+      @if (true) {
         <label class="campo">
           <span class="campo__label">Título</span>
           <input class="input" type="text" maxlength="60" [(ngModel)]="landing.horarios.titulo"
@@ -213,12 +210,8 @@
 
     <!-- Contacto -->
     <div class="card">
-      <label class="interruptor">
-        <input type="checkbox" [(ngModel)]="landing.contacto.activo" name="contactoActivo">
-        <span class="interruptor__texto"><strong>Contacto y ubicación</strong></span>
-      </label>
-
-      @if (landing.contacto.activo) {
+      <p class="card-title">Contacto y ubicación</p>
+      @if (true) {
         <label class="campo">
           <span class="campo__label">Dirección</span>
           <input class="input" type="text" maxlength="120" [(ngModel)]="landing.contacto.direccion"
@@ -270,3 +263,4 @@
 
   }
 </div>
+

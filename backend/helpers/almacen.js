@@ -30,7 +30,10 @@ const SECRET_KEY = process.env.S3_SECRET_KEY || '';
 const TIPOS = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
-  'image/webp': 'webp'
+  'image/webp': 'webp',
+  // El GIF llega tal cual desde el navegador: pasarlo por un canvas para
+  // reducirlo, como se hace con el resto, lo dejaria en un solo fotograma.
+  'image/gif': 'gif'
 };
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -101,7 +104,7 @@ async function guardarImagen(dataUrl, carpeta = 'landing') {
   if (!m) throw new Error('Imagen inválida');
 
   const extension = TIPOS[m[1].toLowerCase()];
-  if (!extension) throw new Error('Formato no admitido: usa JPG, PNG o WebP');
+  if (!extension) throw new Error('Formato no admitido: usa JPG, PNG, WebP o GIF');
 
   const bytes = Buffer.from(m[2], 'base64');
   if (!bytes.length) throw new Error('Imagen inválida');

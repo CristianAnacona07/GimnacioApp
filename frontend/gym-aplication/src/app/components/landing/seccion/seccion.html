@@ -1,0 +1,45 @@
+@if (cargando) {
+  <div class="cargando"><div class="spinner"></div></div>
+}
+
+@if (!cargando && seccion && gym) {
+  <header class="cabecera cabecera--solida" [style.--acento]="acento" [style.--acento-tinta]="textoAcento">
+    <div class="cabecera__inner">
+      <a class="marca" [routerLink]="['/g', gym.slug]">
+        @if (gym.logo) {
+          <img class="marca__logo" [src]="gym.logo" [alt]="gym.nombre">
+        }
+        <span class="marca__texto">
+          <span class="marca__nombre">{{ gym.nombre }}</span>
+          @if (gym.slogan) { <span class="marca__lema">{{ gym.slogan }}</span> }
+        </span>
+      </a>
+      <nav class="nav">
+        <a class="nav__link" [routerLink]="['/g', gym.slug]">← Volver</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="seccion seccion--tras-barra">
+    <div class="seccion__inner">
+      <h2 class="titulo titulo--centro">{{ seccion.nombre }}</h2>
+
+      <div class="tarjetas">
+        @for (t of seccion.tarjetas; track $index) {
+          <article class="tarjeta" [class.tarjeta--solo-foto]="!t.titulo && !t.descripcion && !t.precio">
+            @if (t.imagen) {
+              <img class="tarjeta__foto" [src]="t.imagen" [alt]="t.titulo || ''" loading="lazy">
+            }
+            @if (t.titulo || t.descripcion || t.precio) {
+              <div class="tarjeta__cuerpo">
+                @if (t.titulo) { <h3 class="tarjeta__titulo">{{ t.titulo }}</h3> }
+                @if (t.descripcion) { <p class="tarjeta__texto">{{ t.descripcion }}</p> }
+                @if (t.precio) { <p class="tarjeta__precio">{{ t.precio }}</p> }
+              </div>
+            }
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+}

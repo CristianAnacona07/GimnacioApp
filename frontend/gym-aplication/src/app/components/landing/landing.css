@@ -19,8 +19,22 @@
   /* Cuánto se oscurecen la barra y la foto de portada. El color del gimnasio
      se mantiene en los dos modos (es su marca), pero en oscuro se apaga más
      para que el cambio se note también arriba y no solo en el cuerpo. */
+  /* Superficies fijas por modo (mismo criterio que la barra de la app): el
+     color del gimnasio no las pinta, para que su texto siempre se lea. */
+  --barra-lp: #ffffff;
+  --barra-lp-tinta: #1e293b;
+  --barra-lp-borde: #e2e8f0;
+  --barra-lp-relleno: rgba(15,23,42,0.06);
+  --marca-borde: #000;
+  --oscura-lp: #eef2f8;        /* franja de contacto y pie */
+  --oscura-tinta: #1e293b;
+  --oscura-borde: #d7dfea;
+  --portada-lp: #f1f5f9;      /* fondo de la portada en claro */
+  --portada-tinta: #0f172a;
+  --lp-relleno-hover: rgba(15,23,42,0.12);
+
   --velo-barra: rgba(0,0,0,0.42);
-  --velo-foto: 0.72;
+  --velo-foto: 0.26;
 
   background: var(--papel);
   color: var(--tinta-suave);
@@ -34,8 +48,19 @@
   --tinta-tenue: #93a1b5;
   --borde: #28323f;
   --sombra: rgba(0,0,0,0.5);
+  --barra-lp: #1e293b;
+  --barra-lp-tinta: #ffffff;
+  --barra-lp-borde: rgba(255,255,255,0.12);
+  --barra-lp-relleno: rgba(255,255,255,0.08);
+  --oscura-lp: #161d27;
+  --oscura-tinta: #eef2f8;
+  --oscura-borde: rgba(255,255,255,0.12);
+  --portada-lp: #10161e;
+  --portada-tinta: #eef2f8;
+  --lp-relleno-hover: rgba(255,255,255,0.22);
+
   --velo-barra: rgba(0,0,0,0.76);
-  --velo-foto: 0.88;
+  --velo-foto: 0.38;
 }
 
 .cargando {
@@ -58,12 +83,11 @@
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 50;
-  /* La barra comparte el color del gimnasio con la portada, así que se oscurece
-     para que se lea como una barra y no como parte del fondo. */
-  background:
-    linear-gradient(var(--velo-barra), var(--velo-barra)),
-    var(--fondo, #0f172a);
-  border-bottom: 1px solid rgba(255,255,255,0.16);
+  /* Fija segun el modo, no del color del gimnasio: la barra lleva encima el
+     nombre y los enlaces, y su contraste no puede depender de una eleccion. */
+  background: var(--barra-lp, #fff);
+  color: var(--barra-lp-tinta, #1e293b);
+  border-bottom: 1px solid var(--barra-lp-borde, #e2e8f0);
   box-shadow: 0 2px 14px rgba(0,0,0,0.3);
   transition: background 0.25s, box-shadow 0.25s;
 }
@@ -76,7 +100,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.6rem;
 }
 
 .marca {
@@ -87,34 +111,55 @@
   min-width: 0;
 }
 .marca__logo {
-  width: 40px; height: 40px;
-  border-radius: 10px;
+  width: 56px; height: 56px;
+  border-radius: 12px;
+  border: 1px solid var(--marca-borde, transparent);
+  background: #fff;
   object-fit: cover;
   flex-shrink: 0;
 }
+.marca__texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.marca__lema {
+  color: var(--barra-lp-tinta, #fff);
+  opacity: 0.7;
+  font-size: 0.73rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .marca__nombre {
-  color: #fff;
+  color: var(--barra-lp-tinta, #fff);
   font-weight: 800;
   font-size: 1rem;
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 1px 8px rgba(0,0,0,0.4);
 }
 
 .nav {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  /* Empujados a la derecha para quedar junto al boton de claro/oscuro, en vez
+     de sueltos en el centro de la barra. */
+  margin-left: auto;
 }
 
 /* Cada enlace es una pastilla con borde: sin él, sobre una barra de color
    plano no se distingue de un texto cualquiera. */
 .nav__link {
-  background: rgba(255,255,255,0.08);
-  border: 1.5px solid rgba(255,255,255,0.24);
-  color: rgba(255,255,255,0.92);
+  background: var(--barra-lp-relleno, rgba(255,255,255,0.08));
+  border: 1.5px solid var(--barra-lp-borde, rgba(255,255,255,0.24));
+  color: var(--barra-lp-tinta, rgba(255,255,255,0.92));
   font-size: 0.83rem;
   font-weight: 700;
   padding: 0.5rem 1rem;
@@ -124,17 +169,15 @@
   transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
 }
 .nav__link:hover {
-  background: var(--acento, #f97316);
-  border-color: var(--acento, #f97316);
-  color: #fff;
+  background: var(--lp-relleno-hover, rgba(255,255,255,0.22));
   transform: translateY(-1px);
 }
 
 .nav__entrar {
   margin-left: 0.5rem;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.92);
-  border: 1.5px solid rgba(255,255,255,0.24);
+  background: var(--acento, #f97316);
+  color: var(--acento-tinta, #fff);
+  border: 1.5px solid transparent;
   border-radius: 999px;
   padding: 0.55rem 1.25rem;
   font-size: 0.85rem;
@@ -145,9 +188,7 @@
   transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .nav__entrar:hover {
-  background: var(--acento, #f97316);
-  border-color: var(--acento, #f97316);
-  color: #fff;
+  filter: brightness(0.86);
   transform: translateY(-1px) scale(1.03);
   box-shadow: 0 6px 22px rgba(0,0,0,0.45);
 }
@@ -160,9 +201,9 @@
 }
 
 .btn-tema, .hamburguesa {
-  background: rgba(255,255,255,0.1);
-  border: 1.5px solid rgba(255,255,255,0.28);
-  color: #fff;
+  background: var(--barra-lp-relleno, rgba(255,255,255,0.1));
+  border: 1.5px solid var(--barra-lp-borde, rgba(255,255,255,0.28));
+  color: var(--barra-lp-tinta, #fff);
   font-size: 1.05rem;
   width: 42px; height: 42px;
   border-radius: 0.7rem;
@@ -174,7 +215,8 @@
   transition: background 0.15s, transform 0.15s;
 }
 .btn-tema:hover, .hamburguesa:hover {
-  background: rgba(255,255,255,0.22);
+  background: var(--barra-lp-relleno, rgba(255,255,255,0.22));
+  filter: brightness(0.97);
   transform: translateY(-1px);
 }
 
@@ -183,13 +225,20 @@
 /* ===== PORTADA ===== */
 .portada {
   position: relative;
+  /* Separada de los bordes: se lee como un bloque y deja ver el fondo de la
+     pagina a los lados, en vez de ir pegada de punta a punta. */
+  margin: 0 clamp(0.75rem, 3vw, 2rem);
+  border-radius: 1.5rem;
+  overflow: hidden;
   /* Las dos líneas hacen falta: `svh` es de Chrome 108+ y el WebView de un
      celular sin actualizar no lo entiende. Si solo estuviera `svh`, la
      declaración se descarta entera y la portada se encoge a la altura de su
      texto en vez de llenar la pantalla. `vh` queda de reserva; donde `svh`
      funcione, gana por ir después. */
-  min-height: 100vh;
-  min-height: 100svh;
+  /* Antes ocupaba la pantalla entera y el visitante no veia que habia
+     mas abajo; con 70 se intuye la seccion siguiente. */
+  min-height: 92vh;
+  min-height: 92svh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -198,10 +247,14 @@
   padding: 6rem 1.25rem 5rem;
 }
 
+
 .portada__fondo {
   position: absolute;
   inset: 0;
   width: 100%; height: 100%;
+  /* La portada manda: la imagen se acomoda a su tamaño, no al reves. `cover`
+     la hace llenar el bloque entero sin franjas vacias; el precio es que
+     recorta lo que no entra en esa proporcion. */
   object-fit: cover;
 }
 
@@ -210,33 +263,45 @@
 .portada__velo {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
+  background: var(--portada-lp, #10161e);
   opacity: 1;
   transition: opacity 0.25s;
 }
-.portada__velo--foto { opacity: var(--velo-foto); }
+.portada__velo--foto {
+  /* Con foto detras manda el velo oscuro, no la marca: es lo que hace legible
+     el titulo encima de cualquier imagen. */
+  background: #0f172a !important;
+  opacity: var(--velo-foto);
+}
+
+.portada__contenido--foto .portada__titulo,
+.portada__contenido--foto .portada__sub {
+  color: #fff;
+  text-shadow: 0 2px 18px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.7);
+}
 
 .portada__contenido {
   position: relative;
-  max-width: 680px;
+  max-width: 560px;
 }
 
 .portada__titulo {
-  color: #fff;
-  font-size: clamp(2rem, 7vw, 3.4rem);
+  color: var(--portada-tinta, #fff);
+  font-size: clamp(1.7rem, 5vw, 2.6rem);
   font-weight: 900;
   line-height: 1.05;
   letter-spacing: -0.02em;
   margin: 0 0 0.9rem;
-  text-shadow: 0 2px 24px rgba(0,0,0,0.45);
 }
 
 .portada__sub {
-  color: rgba(255,255,255,0.92);
+  color: var(--portada-tinta, rgba(255,255,255,0.92));
+  opacity: 0.82;
   font-size: clamp(0.95rem, 2.4vw, 1.2rem);
   font-weight: 500;
   line-height: 1.5;
   margin: 0 0 2rem;
-  text-shadow: 0 1px 12px rgba(0,0,0,0.4);
 }
 
 .portada__flecha {
@@ -244,13 +309,18 @@
   bottom: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(255,255,255,0.16);
-  border: none;
-  color: #fff;
+  background: var(--barra-lp-relleno, rgba(255,255,255,0.16));
+  border: 1px solid var(--barra-lp-borde, transparent);
+  color: var(--portada-tinta, #fff);
   width: 44px; height: 44px;
   border-radius: 50%;
+  /* El glifo se apoyaba en la base de la caja; hay que centrarlo de verdad. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.5rem;
-  line-height: 1;
+  line-height: 0.8;
+  padding: 0 0 0.25rem;
   cursor: pointer;
   animation: flotar 1.8s ease-in-out infinite;
 }
@@ -260,9 +330,22 @@
 }
 
 /* ===== SECCIONES ===== */
-.seccion { padding: 4.5rem 1.25rem; background: var(--papel); }
+.seccion {
+  padding: 4.5rem 1.25rem;
+  background: var(--papel);
+  /* Alto de la cabecera fija + un respiro. */
+  scroll-margin-top: 7rem;
+}
+
+/* La primera seccion arranca casi pegada a la portada: el bloque de la portada
+   ya tiene su propio aire abajo por el margen, y sumarle 4.5rem dejaba un hueco
+   muerto entre las dos. */
+.portada + .seccion { padding-top: 1.25rem; }
 .seccion--gris { background: var(--papel-alt); }
-.seccion--oscura { color: #fff; }
+.seccion--oscura {
+  background: var(--oscura-lp, #1e293b);
+  color: var(--oscura-tinta, #fff);
+}
 
 .seccion__inner {
   max-width: 1120px;
@@ -278,7 +361,7 @@
   color: var(--tinta);
 }
 .titulo--centro { text-align: center; }
-.titulo--claro { color: #fff; }
+.titulo--claro { color: var(--oscura-tinta, #fff); }
 
 .parrafo {
   font-size: 1rem;
@@ -304,32 +387,6 @@
 }
 
 /* Galería */
-.galeria {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
-}
-.galeria__item {
-  margin: 0;
-  border-radius: 1rem;
-  overflow: hidden;
-  background: var(--papel);
-  box-shadow: 0 4px 20px var(--sombra);
-}
-.galeria__item img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.35s;
-}
-.galeria__item:hover img { transform: scale(1.05); }
-.galeria__item figcaption {
-  padding: 0.6rem 0.85rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--tinta-tenue);
-}
 
 /* Planes */
 .planes {
@@ -378,7 +435,7 @@
 }
 .plan__btn {
   background: var(--acento, #f97316);
-  color: #fff;
+  color: var(--acento-tinta, #fff);
   border-radius: 999px;
   padding: 0.7rem 1.25rem;
   font-size: 0.88rem;
@@ -445,16 +502,17 @@
   gap: 0.7rem;
   font-size: 0.95rem;
   margin: 0 0 0.85rem;
-  color: rgba(255,255,255,0.92);
+  color: var(--oscura-tinta, rgba(255,255,255,0.92));
+  opacity: 0.92;
 }
 .contacto__item a { color: inherit; text-decoration: none; }
 .contacto__item a:hover { text-decoration: underline; }
 
 .contacto__redes { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1.25rem; }
 .red {
-  background: rgba(255,255,255,0.14);
-  border: 1px solid rgba(255,255,255,0.28);
-  color: #fff;
+  background: transparent;
+  border: 1px solid var(--oscura-borde, rgba(255,255,255,0.28));
+  color: var(--oscura-tinta, #fff);
   border-radius: 999px;
   padding: 0.5rem 1.1rem;
   font-size: 0.82rem;
@@ -462,11 +520,11 @@
   text-decoration: none;
   transition: background 0.15s;
 }
-.red:hover { background: rgba(255,255,255,0.26); }
+.red:hover { background: var(--lp-relleno-hover, rgba(255,255,255,0.26)); }
 
 .contacto__mapa {
   background: var(--acento, #f97316);
-  color: #fff;
+  color: var(--acento-tinta, #fff);
   border-radius: 0.85rem;
   padding: 0.85rem 1.5rem;
   font-size: 0.9rem;
@@ -477,9 +535,10 @@
 
 /* Pie */
 .pie {
-  background: #0f172a;
-  border-top: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.65);
+  background: var(--oscura-lp, #0f172a);
+  border-top: 1px solid var(--oscura-borde, rgba(255,255,255,0.1));
+  color: var(--oscura-tinta, rgba(255,255,255,0.65));
+  opacity: 0.98;
   padding: 1.5rem 1.25rem;
   display: flex;
   align-items: center;
@@ -491,8 +550,8 @@
 .pie p { margin: 0; }
 .pie__entrar {
   background: none;
-  border: 1px solid rgba(255,255,255,0.3);
-  color: #fff;
+  border: 1px solid var(--oscura-borde, rgba(255,255,255,0.3));
+  color: var(--oscura-tinta, #fff);
   border-radius: 999px;
   padding: 0.45rem 1.1rem;
   font-size: 0.8rem;
@@ -528,3 +587,102 @@
   .seccion { padding: 3.25rem 1.15rem; }
   .contacto__mapa { width: 100%; text-align: center; }
 }
+
+
+/* ===== TARJETAS DE SECCIÓN ===== */
+/* Tres por fila en escritorio, dos en tablet, una en el teléfono. */
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 1.25rem;
+}
+
+@media (min-width: 900px) {
+  .tarjetas { grid-template-columns: repeat(3, 1fr); }
+}
+
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 16px var(--sombra);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.tarjeta:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px var(--sombra);
+}
+
+.tarjeta__foto {
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Sin texto, la foto es la tarjeta: no tiene sentido dejarle un pie vacío. */
+.tarjeta--solo-foto .tarjeta__foto {
+  height: 100%;
+  min-height: 190px;
+}
+
+.tarjeta__cuerpo {
+  padding: 1rem 1.1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tarjeta__titulo {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--tinta);
+}
+
+.tarjeta__texto {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--tinta-suave);
+}
+
+.tarjeta__precio {
+  margin: 0.2rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--acento, #f97316);
+}
+
+.tarjetas__mas {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.75rem;
+}
+
+.boton-acento {
+  background: var(--acento, #f97316);
+  color: var(--acento-tinta, #fff);
+  border: none;
+  border-radius: 0.8rem;
+  padding: 0.8rem 1.8rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+}
+
+.boton-acento:hover {
+  filter: brightness(0.86);
+  transform: translateY(-1px);
+}
+
+/* La pantalla de una sección no tiene portada: su contenido arranca justo
+   debajo de la barra fija y necesita dejarle su alto. */
+.seccion--tras-barra { padding-top: 7.5rem; }

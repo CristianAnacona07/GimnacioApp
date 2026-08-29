@@ -8,81 +8,110 @@
     <p class="vacio">No hay ningún gimnasio seleccionado.</p>
   } @else {
 
-    <div class="card">
-      <p class="card-title">Identidad</p>
+  <div class="disposicion">
 
-      <label class="campo">
-        <span class="campo__label">Nombre del gimnasio *</span>
-        <input class="input" type="text" maxlength="60" [(ngModel)]="gym.nombre" name="nombre" />
-      </label>
+    <!-- ── Columna izquierda: el formulario ────────────────────────────── -->
+    <div class="columna">
 
-      <label class="campo">
-        <span class="campo__label">Slogan</span>
-        <input class="input" type="text" maxlength="80" [(ngModel)]="gym.slogan" name="slogan"
-               placeholder="Ej: Tu mejor versión empieza hoy" />
-      </label>
+      <div class="card">
+        <p class="card-title">Identidad</p>
 
-      <span class="campo__label">Logo</span>
-      <div class="logo-zona">
-        <label for="logoInput">
+        <label class="campo">
+          <span class="campo__label">Nombre del gimnasio *</span>
+          <input class="input" type="text" maxlength="60" [(ngModel)]="gym.nombre" name="nombre" />
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">Slogan</span>
+          <input class="input" type="text" maxlength="80" [(ngModel)]="gym.slogan" name="slogan"
+                 placeholder="Ej: Tu mejor versión empieza hoy" />
+        </label>
+
+        <span class="campo__label">Logo</span>
+        <div class="logo-zona">
           @if (gym.logo) {
             <img class="logo-preview" [src]="gym.logo" [alt]="gym.nombre" />
           } @else {
-            <div class="logo-vacio" [style.background]="gym.colores.primario">{{ gym.nombre[0] }}</div>
+            <div class="logo-vacio" [style.background]="degradado" [style.color]="textoBoton">
+              {{ gym.nombre[0] }}
+            </div>
           }
-        </label>
-        <input type="file" id="logoInput" accept="image/*" (change)="onLogoChange($event)" hidden />
-        <p class="card-hint" style="margin:0">
-          Toca la imagen para cambiarla. Se reduce a 200&nbsp;px automáticamente.
-        </p>
-      </div>
-    </div>
-
-    <div class="card">
-      <p class="card-title">Color</p>
-      <p class="card-hint">
-        Un solo color define los botones y los acentos de toda la app. La barra
-        superior y el menú no se tocan: se adaptan solos al modo claro u oscuro.
-      </p>
-      <div class="color-fila">
-        <input class="color-input" type="color" [(ngModel)]="gym.colores.navbar" name="colorNavbar" />
-        <span class="switch-texto">Color principal</span>
-      </div>
-      <div class="color-fila">
-        <input class="color-input" type="color" [(ngModel)]="gym.colores.fondo" name="colorFondo" />
-        <span class="switch-texto">Fondo</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <p class="card-title">Módulos</p>
-      <p class="card-hint">
-        Apaga lo que tu gimnasio no use: desaparece del menú de los socios.
-      </p>
-      @for (modulo of modulos; track modulo.clave) {
-        <div class="switch-fila">
-          <span class="switch-texto">{{ modulo.nombre }}</span>
-          <input type="checkbox" [(ngModel)]="gym.modulos[modulo.clave]" [name]="modulo.clave" />
+          <app-selector-foto etiqueta="Cambiar logo" (elegida)="usarLogo($event)" />
         </div>
-      }
+      </div>
+
+      <div class="card">
+        <p class="card-title">Color de los botones</p>
+        <p class="card-hint">
+          Los dos colores pintan en degradado los botones de acción de toda la app.
+          El color de la letra se calcula solo para que siempre se lea, y la barra
+          superior y el menú no dependen de esto: se adaptan al modo claro u oscuro.
+        </p>
+        <div class="color-fila">
+          <input class="color-input" type="color" [(ngModel)]="gym.colores.primario" name="colorPrimario" />
+          <span class="switch-texto">Color inicial</span>
+        </div>
+        <div class="color-fila">
+          <input class="color-input" type="color" [(ngModel)]="gym.colores.secundario" name="colorSecundario" />
+          <span class="switch-texto">Color final</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Módulos</p>
+        <p class="card-hint">
+          Apaga lo que tu gimnasio no use: desaparece del menú de los socios.
+        </p>
+        @for (modulo of modulos; track modulo.clave) {
+          <div class="switch-fila">
+            <span class="switch-texto">{{ modulo.nombre }}</span>
+            <input type="checkbox" [(ngModel)]="gym.modulos[modulo.clave]" [name]="modulo.clave" />
+          </div>
+        }
+      </div>
+
+      <button class="btn btn--bloque" (click)="guardar()" [disabled]="guardando">
+        {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
+      </button>
     </div>
 
-    <div class="card">
-      <p class="card-title">Música</p>
-      <p class="card-hint">
-        ID de una playlist pública de Spotify. Si lo dejas vacío suena la de por defecto.
-      </p>
-      <label class="campo">
-        <span class="campo__label">Playlist de Spotify</span>
-        <input class="input" type="text" [(ngModel)]="gym.spotifyPlaylist" name="spotify"
-               placeholder="37i9dQZF1DX76Wlfdnj7AP" />
-      </label>
-    </div>
+    <!-- ── Columna derecha: cómo va a quedar ───────────────────────────── -->
+    <aside class="columna columna--previa">
+      <div class="card previa">
+        <p class="card-title">Vista previa</p>
+        <p class="card-hint">Se actualiza mientras editás, antes de guardar.</p>
 
-    <button class="btn btn--bloque" (click)="guardar()" [disabled]="guardando">
-      {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
-    </button>
+        <div class="previa__lienzo">
+          @if (gym.logo) {
+            <img class="previa__logo" [src]="gym.logo" [alt]="gym.nombre" />
+          } @else {
+            <div class="previa__logo previa__logo--vacio"
+                 [style.background]="degradado" [style.color]="textoBoton">
+              {{ gym.nombre[0] }}
+            </div>
+          }
+
+          <p class="previa__nombre">{{ gym.nombre || 'Nombre del gimnasio' }}</p>
+          @if (gym.slogan) {
+            <p class="previa__slogan">{{ gym.slogan }}</p>
+          }
+
+          <button type="button" class="previa__boton"
+                  [style.background]="degradado" [style.color]="textoBoton">
+            Botón de ejemplo
+          </button>
+
+          <div class="previa__hex">
+            <span>{{ gym.colores.primario }}</span>
+            <span>{{ gym.colores.secundario }}</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
 
   }
 
 </div>
+

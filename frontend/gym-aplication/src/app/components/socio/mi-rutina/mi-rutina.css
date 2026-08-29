@@ -209,8 +209,8 @@
 .btn-guardar-panel {
   width: 100%;
   padding: 0.65rem;
-  background: var(--color-secundario);
-  color: #fff;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   border: none;
   border-radius: 1rem;
   font-size: 0.8rem;

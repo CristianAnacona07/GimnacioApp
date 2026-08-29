@@ -1,0 +1,68 @@
+.camara-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.camara-panel {
+  width: min(560px, 100%);
+  background: var(--sup-1, #fff);
+  color: var(--txt-1, #1e293b);
+  border: 1px solid var(--bde, #e2e8f0);
+  border-radius: 1rem;
+  padding: 1.1rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+.camara-titulo {
+  margin: 0 0 0.8rem;
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.camara-video {
+  width: 100%;
+  border-radius: 0.75rem;
+  background: #000;
+  /* Espejada: uno espera verse como en un espejo, no al reves. */
+  transform: scaleX(-1);
+}
+
+.camara-estado,
+.camara-error {
+  margin: 0;
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--txt-2, #475569);
+}
+
+.camara-error { color: var(--txt-rojo, #dc2626); }
+
+.camara-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+.camara-btn {
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
+  border: none;
+  border-radius: 0.7rem;
+  padding: 0.6rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.camara-btn--claro {
+  background: var(--tinte-azul, #f1f5f9);
+  color: var(--txt-2, #475569);
+}

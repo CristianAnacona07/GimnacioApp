@@ -1,5 +1,5 @@
 .page {
-  max-width: 600px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 1.25rem 1rem 6rem;
 }
@@ -15,8 +15,8 @@
 
 .btn-nueva {
   padding: 0.4rem 0.9rem;
-  background: var(--color-secundario);
-  color: #fff;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   border: none;
   border-radius: 99px;
   font-size: 0.78rem;
@@ -90,8 +90,8 @@
 .btn-guardar {
   width: 100%;
   padding: .7rem;
-  background: var(--color-secundario);
-  color: #fff;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   border: none;
   border-radius: .875rem;
   font-size: .85rem;

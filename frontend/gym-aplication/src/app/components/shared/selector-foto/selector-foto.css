@@ -1,0 +1,99 @@
+.selector {
+  position: relative;
+  display: inline-block;
+}
+
+/* Estilo propio y completo: las clases .btn viven en el CSS de cada pantalla y
+   no cruzan la frontera del componente, asi que aca no llegaban y el boton se
+   veia como texto suelto. */
+.selector__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--bde, #c8dcff);
+  border-radius: 0.75rem;
+  /* Gris, no blanco: la tarjeta que lo contiene ya es clara y el boton se le
+     confundia encima. */
+  background: var(--sup-3, #e2e8f0);
+  color: var(--txt-1, #1e293b);
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 1px 3px var(--sombra, rgba(0, 0, 0, 0.08));
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s, background 0.15s;
+}
+
+.selector__btn:hover {
+  background: var(--sup-3, #e8f0ff);
+  filter: brightness(0.95);
+  border-color: var(--color-secundario, #1d4ed8);
+  box-shadow: 0 4px 12px var(--sombra, rgba(0, 0, 0, 0.12));
+  transform: translateY(-1px);
+}
+
+.selector__btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px var(--sombra, rgba(0, 0, 0, 0.08));
+}
+
+/* El foco se ve: al boton se llega tambien con el teclado. */
+.selector__btn:focus-visible {
+  outline: 2px solid var(--color-secundario, #1d4ed8);
+  outline-offset: 2px;
+}
+
+.selector__icono {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.selector__flecha {
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--txt-2, #475569);
+  transition: transform 0.15s;
+}
+
+.selector__btn[aria-expanded='true'] .selector__flecha {
+  transform: rotate(180deg);
+}
+
+.selector__menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 60;
+  min-width: 13.5rem;
+  background: var(--sup-1, #fff);
+  border: 1px solid var(--bde, #c8dcff);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 30px var(--sombra, rgba(0, 0, 0, 0.16));
+  overflow: hidden;
+  animation: aparecer 0.12s ease-out;
+}
+
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.selector__opcion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--txt-1, #1e293b);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.selector__opcion:hover {
+  background: var(--sup-3, #e8f0ff);
+}

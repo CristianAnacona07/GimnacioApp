@@ -162,3 +162,37 @@
   border-radius: 0 0 0.6rem 0.6rem;
   border-width: 1px 0 0;
 }
+
+/* ── Secciones que crea el gimnasio ────────────────────────────────────────
+   `.quitar` es absoluto porque nació para pegarse a la esquina de una foto.
+   Acá los botones van en una fila normal, así que hay que devolverlos al
+   flujo: sin esto se anclan al viewport y aparecen sobre la barra de arriba. */
+.seccion-edit {
+  border: 1px solid var(--bde, #c8dcff);
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+  margin-bottom: 1rem;
+  background: var(--sup-2, #f0f5ff);
+}
+
+.seccion-edit__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.seccion-edit__cabecera .input { flex: 1; min-width: 0; }
+
+.seccion-edit__cabecera .quitar {
+  position: static;
+  flex-shrink: 0;
+}
+
+.seccion-edit__cabecera .quitar:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* La papelera de cada tarjeta sí va en su esquina, sobre la foto. */
+.seccion-edit .galeria-item { position: relative; }

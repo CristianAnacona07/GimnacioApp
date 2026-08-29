@@ -5,34 +5,37 @@
 @if (datos && l) {
   <!-- ===== ENCABEZADO ===== -->
   <header class="cabecera" [class.cabecera--solida]="desplazado || menuAbierto"
-          [style.--acento]="acento" [style.--fondo]="color">
+          [style.--acento]="acento" [style.--acento-tinta]="textoAcento">
     <div class="cabecera__inner">
       <a class="marca" (click)="irA('portada')">
         @if (gym?.logo) {
           <img class="marca__logo" [src]="gym!.logo" [alt]="gym!.nombre">
         }
-        <span class="marca__nombre">{{ gym?.nombre }}</span>
+        <span class="marca__texto">
+          <span class="marca__nombre">{{ gym?.nombre }}</span>
+          @if (gym?.slogan) {
+            <span class="marca__lema">{{ gym!.slogan }}</span>
+          }
+        </span>
       </a>
 
       <nav class="nav" [class.nav--abierto]="menuAbierto">
-        @if (l.sobreNosotros.activo) {
-          <button class="nav__link" (click)="irA('nosotros')">Nosotros</button>
+        <button class="nav__link" (click)="irA('nosotros')">Nosotros</button>
+
+        <!-- Crear una sección crea su botón: el nombre que le puso el gimnasio
+             es el que se lee acá y el que titula el bloque más abajo. -->
+        @for (sec of secciones; track sec.id) {
+          <button class="nav__link" (click)="irA('sec-' + sec.id)">{{ sec.nombre }}</button>
         }
-        @if (hayGaleria) {
-          <button class="nav__link" (click)="irA('galeria')">Galería</button>
-        }
+
         @if (hayPlanes) {
           <button class="nav__link" (click)="irA('planes')">Planes</button>
-        }
-        @if (hayHorarios) {
-          <button class="nav__link" (click)="irA('horarios')">Horarios</button>
         }
         @if (hayNoticias) {
           <button class="nav__link" (click)="irA('noticias')">Novedades</button>
         }
-        @if (l.contacto.activo) {
-          <button class="nav__link" (click)="irA('contacto')">Contacto</button>
-        }
+        <button class="nav__link" (click)="irA('horarios')">Horarios</button>
+        <button class="nav__link" (click)="irA('contacto')">Contacto</button>
         <button class="nav__entrar" (click)="entrar()">Iniciar sesión</button>
       </nav>
 
@@ -54,25 +57,25 @@
   </header>
 
   <!-- ===== PORTADA ===== -->
-  <section class="portada" id="portada" [style.--acento]="acento">
+  <section class="portada" id="portada" [style.--acento]="acento" [style.--acento-tinta]="textoAcento">
     @if (l.portada.imagen) {
       <img class="portada__fondo" [src]="l.portada.imagen" alt="" aria-hidden="true">
     }
     <!-- La intensidad del velo la pone el CSS según el modo claro u oscuro. -->
     <div class="portada__velo" [class.portada__velo--foto]="l.portada.imagen"
-         [style.background]="color"></div>
-    <div class="portada__contenido">
+         ></div>
+    <div class="portada__contenido" [class.portada__contenido--foto]="l.portada.imagen">
       <h1 class="portada__titulo">{{ texto(l.portada.titulo, gym!.nombre) }}</h1>
       <p class="portada__sub">{{ texto(l.portada.subtitulo, gym!.slogan || 'Entrená con nosotros') }}</p>
     </div>
     @if (haySecciones) {
-      <button class="portada__flecha" (click)="irA(l.sobreNosotros.activo ? 'nosotros' : 'galeria')"
+      <button class="portada__flecha" (click)="irA('nosotros')"
               aria-label="Ver más">⌄</button>
     }
   </section>
 
   <!-- ===== NOSOTROS ===== -->
-  @if (l.sobreNosotros.activo && (l.sobreNosotros.texto || l.sobreNosotros.imagen)) {
+  @if (l.sobreNosotros.texto || l.sobreNosotros.imagen) {
     <section class="seccion" id="nosotros">
       <div class="seccion__inner nosotros">
         <div class="nosotros__texto">
@@ -86,28 +89,44 @@
     </section>
   }
 
-  <!-- ===== GALERÍA ===== -->
-  @if (hayGaleria) {
-    <section class="seccion seccion--gris" id="galeria">
+  <!-- ===== SECCIONES DEL GIMNASIO ===== -->
+  @for (sec of secciones; track sec.id; let par = $even) {
+    <section class="seccion" [class.seccion--gris]="par" [id]="'sec-' + sec.id"
+             [style.--acento]="acento" [style.--acento-tinta]="textoAcento">
       <div class="seccion__inner">
-        <h2 class="titulo titulo--centro">{{ texto(l.galeria.titulo, 'Nuestro espacio') }}</h2>
-        <div class="galeria">
-          @for (foto of l.galeria.fotos; track foto.url) {
-            <figure class="galeria__item">
-              <img [src]="foto.url" [alt]="foto.descripcion || ''" loading="lazy">
-              @if (foto.descripcion) {
-                <figcaption>{{ foto.descripcion }}</figcaption>
+        <h2 class="titulo titulo--centro">{{ sec.nombre }}</h2>
+
+        <div class="tarjetas">
+          @for (t of tarjetasVisibles(sec); track $index) {
+            <!-- Sin texto la foto ocupa la tarjeta entera; con texto va arriba
+                 y debajo solo los campos que el gimnasio llenó. -->
+            <article class="tarjeta" [class.tarjeta--solo-foto]="!t.titulo && !t.descripcion && !t.precio">
+              @if (t.imagen) {
+                <img class="tarjeta__foto" [src]="t.imagen" [alt]="t.titulo || ''" loading="lazy">
               }
-            </figure>
+              @if (t.titulo || t.descripcion || t.precio) {
+                <div class="tarjeta__cuerpo">
+                  @if (t.titulo) { <h3 class="tarjeta__titulo">{{ t.titulo }}</h3> }
+                  @if (t.descripcion) { <p class="tarjeta__texto">{{ t.descripcion }}</p> }
+                  @if (t.precio) { <p class="tarjeta__precio">{{ t.precio }}</p> }
+                </div>
+              }
+            </article>
           }
         </div>
+
+        @if (hayMas(sec)) {
+          <div class="tarjetas__mas">
+            <a class="boton-acento" [routerLink]="['/g', gym!.slug, 'seccion', sec.id]">Ver más</a>
+          </div>
+        }
       </div>
     </section>
   }
 
   <!-- ===== PLANES ===== -->
   @if (hayPlanes) {
-    <section class="seccion" id="planes" [style.--acento]="acento">
+    <section class="seccion" id="planes" [style.--acento]="acento" [style.--acento-tinta]="textoAcento">
       <div class="seccion__inner">
         <h2 class="titulo titulo--centro">{{ texto(l.planes.titulo, 'Planes y precios') }}</h2>
         <div class="planes">
@@ -137,22 +156,19 @@
   }
 
   <!-- ===== HORARIOS ===== -->
-  @if (hayHorarios) {
-    <section class="seccion seccion--gris" id="horarios">
-      <div class="seccion__inner seccion__inner--angosto">
-        <h2 class="titulo titulo--centro">{{ texto(l.horarios.titulo, 'Horarios') }}</h2>
-        <div class="horarios">
-          @for (fila of l.horarios.filas; track $index) {
-            <div class="horarios__fila">
-              <span class="horarios__dias">{{ fila.dias }}</span>
-              <span class="horarios__horas">{{ fila.horas }}</span>
-            </div>
-          }
-        </div>
+  <section class="seccion seccion--gris" id="horarios">
+    <div class="seccion__inner seccion__inner--angosto">
+      <h2 class="titulo titulo--centro">{{ texto(l.horarios.titulo, 'Horarios') }}</h2>
+      <div class="horarios">
+        @for (fila of l.horarios.filas; track $index) {
+          <div class="horarios__fila">
+            <span class="horarios__dias">{{ fila.dias }}</span>
+            <span class="horarios__horas">{{ fila.horas }}</span>
+          </div>
+        }
       </div>
-    </section>
-  }
-
+    </div>
+  </section>
   <!-- ===== NOVEDADES ===== -->
   @if (hayNoticias) {
     <section class="seccion" id="noticias">
@@ -176,47 +192,44 @@
   }
 
   <!-- ===== CONTACTO ===== -->
-  @if (l.contacto.activo) {
-    <section class="seccion seccion--oscura" id="contacto" [style.background]="color" [style.--acento]="acento">
-      <div class="seccion__inner">
-        <h2 class="titulo titulo--centro titulo--claro">Dónde encontrarnos</h2>
-        <div class="contacto">
-          <div class="contacto__datos">
-            @if (l.contacto.direccion) {
-              <p class="contacto__item"><span>📍</span>{{ l.contacto.direccion }}</p>
-            }
-            @if (l.contacto.telefono) {
-              <p class="contacto__item"><span>📞</span>
-                <a [href]="'tel:' + l.contacto.telefono">{{ l.contacto.telefono }}</a>
-              </p>
-            }
-            @if (l.contacto.email) {
-              <p class="contacto__item"><span>✉️</span>
-                <a [href]="'mailto:' + l.contacto.email">{{ l.contacto.email }}</a>
-              </p>
-            }
-            <div class="contacto__redes">
-              @if (whatsappUrl) {
-                <a class="red" [href]="whatsappUrl" target="_blank" rel="noopener">WhatsApp</a>
-              }
-              @if (l.contacto.instagram) {
-                <a class="red" [href]="l.contacto.instagram" target="_blank" rel="noopener">Instagram</a>
-              }
-              @if (l.contacto.facebook) {
-                <a class="red" [href]="l.contacto.facebook" target="_blank" rel="noopener">Facebook</a>
-              }
-            </div>
-          </div>
-          @if (l.contacto.mapaUrl) {
-            <a class="contacto__mapa" [href]="l.contacto.mapaUrl" target="_blank" rel="noopener">
-              🗺️ Ver en el mapa
-            </a>
+  <section class="seccion seccion--oscura" id="contacto" [style.--acento]="acento" [style.--acento-tinta]="textoAcento">
+    <div class="seccion__inner">
+      <h2 class="titulo titulo--centro titulo--claro">Dónde encontrarnos</h2>
+      <div class="contacto">
+        <div class="contacto__datos">
+          @if (l.contacto.direccion) {
+            <p class="contacto__item"><span>📍</span>{{ l.contacto.direccion }}</p>
           }
+          @if (l.contacto.telefono) {
+            <p class="contacto__item"><span>📞</span>
+              <a [href]="'tel:' + l.contacto.telefono">{{ l.contacto.telefono }}</a>
+            </p>
+          }
+          @if (l.contacto.email) {
+            <p class="contacto__item"><span>✉️</span>
+              <a [href]="'mailto:' + l.contacto.email">{{ l.contacto.email }}</a>
+            </p>
+          }
+          <div class="contacto__redes">
+            @if (whatsappUrl) {
+              <a class="red" [href]="whatsappUrl" target="_blank" rel="noopener">WhatsApp</a>
+            }
+            @if (l.contacto.instagram) {
+              <a class="red" [href]="l.contacto.instagram" target="_blank" rel="noopener">Instagram</a>
+            }
+            @if (l.contacto.facebook) {
+              <a class="red" [href]="l.contacto.facebook" target="_blank" rel="noopener">Facebook</a>
+            }
+          </div>
         </div>
+        @if (l.contacto.mapaUrl) {
+          <a class="contacto__mapa" [href]="l.contacto.mapaUrl" target="_blank" rel="noopener">
+            🗺️ Ver en el mapa
+          </a>
+        }
       </div>
-    </section>
-  }
-
+    </div>
+  </section>
   <footer class="pie">
     <p>© {{ gym?.nombre }}</p>
     <button class="pie__entrar" (click)="entrar()">Iniciar sesión</button>

@@ -6,8 +6,30 @@ import { StorageService } from './storage.service';
 
 /** Una franja de la tabla de horarios de la página pública. */
 export interface FilaHorario { dias: string; horas: string; }
-/** Una foto de la galería de la página pública. */
-export interface FotoGaleria { url: string; descripcion?: string; }
+/**
+ * Una tarjeta dentro de una sección de la página pública.
+ *
+ * Solo la imagen es obligatoria: una tarjeta puede ser una foto sola (una
+ * galería), una foto con nombre (un catálogo) o las cuatro cosas (un servicio
+ * con precio). La plantilla muestra únicamente los campos con contenido.
+ */
+export interface TarjetaSeccion {
+  imagen: string;
+  titulo?: string;
+  descripcion?: string;
+  precio?: string;
+}
+
+/**
+ * Una sección que el gimnasio crea a mano. Su `nombre` es a la vez el título
+ * del bloque y el texto del botón que aparece en el menú de la página: crear
+ * la sección crea el botón, no hay que configurarlo aparte.
+ */
+export interface SeccionLanding {
+  id: string;
+  nombre: string;
+  tarjetas: TarjetaSeccion[];
+}
 
 /**
  * Contenido de la página pública del gimnasio. Vive dentro del gym porque es
@@ -16,13 +38,15 @@ export interface FotoGaleria { url: string; descripcion?: string; }
 export interface Landing {
   activa: boolean;
   portada: { imagen: string; titulo: string; subtitulo: string; textoBoton: string };
-  sobreNosotros: { activo: boolean; titulo: string; texto: string; imagen: string };
-  galeria: { activo: boolean; titulo: string; fotos: FotoGaleria[] };
-  horarios: { activo: boolean; titulo: string; filas: FilaHorario[] };
+  /** Las que crea el gimnasio. Vacío = la página solo tiene lo fijo. */
+  secciones: SeccionLanding[];
+  /** Bloque fijo, como horarios y contacto: siempre está. */
+  sobreNosotros: { titulo: string; texto: string; imagen: string };
+  horarios: { activo?: boolean; titulo: string; filas: FilaHorario[] };
   planes: { activo: boolean; titulo: string };
   noticias: { activo: boolean; titulo: string };
   contacto: {
-    activo: boolean; direccion: string; telefono: string; whatsapp: string;
+    activo?: boolean; direccion: string; telefono: string; whatsapp: string;
     email: string; instagram: string; facebook: string; mapaUrl: string;
   };
 }
@@ -32,8 +56,8 @@ export function landingVacia(): Landing {
   return {
     activa: false,
     portada: { imagen: '', titulo: '', subtitulo: '', textoBoton: '' },
-    sobreNosotros: { activo: true, titulo: '', texto: '', imagen: '' },
-    galeria: { activo: true, titulo: '', fotos: [] },
+    secciones: [],
+    sobreNosotros: { titulo: '', texto: '', imagen: '' },
     horarios: { activo: true, titulo: '', filas: [] },
     planes: { activo: true, titulo: '' },
     noticias: { activo: true, titulo: '' },
@@ -49,7 +73,7 @@ export function landingVacia(): Landing {
  *
  * Lo guardado puede venir incompleto por muchas vías: un gimnasio creado antes
  * de que existiera la página, una edición parcial, o un campo nuevo añadido
- * después. Sin esto, leer `landing.galeria.fotos` de un documento viejo rompe
+ * después. Sin esto, leer `landing.horarios.filas` de un documento viejo rompe
  * la página entera, así que todo lo que la lee pasa antes por aquí.
  */
 export function normalizarLanding(guardada: Partial<Landing> | undefined | null): Landing {
@@ -58,8 +82,19 @@ export function normalizarLanding(guardada: Partial<Landing> | undefined | null)
   return {
     activa: !!guardada.activa,
     portada:       { ...base.portada,       ...(guardada.portada || {}) },
+    // Cada sección se completa a su vez: una guardada a medias (sin tarjetas)
+    // no debe romper la página entera.
+    secciones: (guardada.secciones || []).map((s) => ({
+      id: s?.id || Math.random().toString(36).slice(2, 10),
+      nombre: s?.nombre || '',
+      tarjetas: (s?.tarjetas || []).map((t) => ({
+        imagen: t?.imagen || '',
+        titulo: t?.titulo || '',
+        descripcion: t?.descripcion || '',
+        precio: t?.precio || ''
+      }))
+    })),
     sobreNosotros: { ...base.sobreNosotros, ...(guardada.sobreNosotros || {}) },
-    galeria:       { ...base.galeria,       ...(guardada.galeria || {}), fotos: guardada.galeria?.fotos || [] },
     horarios:      { ...base.horarios,      ...(guardada.horarios || {}), filas: guardada.horarios?.filas || [] },
     planes:        { ...base.planes,        ...(guardada.planes || {}) },
     noticias:      { ...base.noticias,      ...(guardada.noticias || {}) },

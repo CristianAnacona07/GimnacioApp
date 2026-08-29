@@ -31,8 +31,8 @@
 }
 
 .btn-agregar {
-  background: #1d4ed8;
-  color: white;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   border: none;
   padding: 0.65rem 1.25rem;
   border-radius: 0.75rem;
@@ -43,10 +43,11 @@
   transition: all 0.2s;
   white-space: nowrap;
 }
-.btn-agregar:hover {
-  background: #1e40af;
-  transform: translateY(-2px);
+.btn-agregar:hover {
+  background: var(--btn-degradado);
+  transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(29,78,216,0.45);
+  filter: brightness(1.08);
 }
 
 /* ===== GRID ===== */
@@ -366,11 +367,13 @@
   transition: all 0.2s;
 }
 .btn-guardar {
-  background: #1d4ed8;
-  color: white;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   box-shadow: 0 4px 12px rgba(29,78,216,0.35);
 }
-.btn-guardar:hover:not(:disabled) { background: #1e40af; transform: translateY(-1px); }
+.btn-guardar:hover:not(:disabled) { background: var(--btn-degradado); transform: translateY(-1px);
+  filter: brightness(1.08);
+}
 .btn-guardar:disabled { background: var(--sup-3, #cbd5e1); box-shadow: none; cursor: not-allowed; }
 .btn-cancelar { background: var(--tinte-azul, #f1f5f9); color: var(--txt-2, #475569); }
 .btn-cancelar:hover { background: var(--sup-3, #e2e8f0); }

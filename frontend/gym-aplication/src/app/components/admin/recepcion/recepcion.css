@@ -121,14 +121,14 @@
 }
 
 .btn--primary {
-  background: #4f46e5;
-  color: #fff;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
 }
 
 .btn--qr {
   width: 100%;
-  background: #0f172a;
-  color: #fff;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   margin-bottom: 0.75rem;
 }
 
@@ -379,20 +379,20 @@
 }
 
 .btn-invitar {
-  background: var(--color-secundario, #1d4ed8);
-  color: #fff;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   border: none;
-  border-radius: 999px;
-  padding: 0.6rem 1.25rem;
-  font-size: 0.82rem;
-  font-weight: 800;
+  border-radius: 0.75rem;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
   box-shadow: 0 4px 14px rgba(29,78,216,0.35);
   transition: transform 0.15s;
 }
-.btn-invitar:hover:not(:disabled) { transform: scale(1.04); }
+.btn-invitar:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
 .btn-invitar:disabled { opacity: 0.6; cursor: wait; }
 
 /* Alternativa a la principal: mismo tamaño, sin relleno, para no competir

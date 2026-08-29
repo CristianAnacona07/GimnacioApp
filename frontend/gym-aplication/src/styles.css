@@ -37,6 +37,12 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   --color-primario:   #f97316;
   --color-secundario: #1d4ed8;
   --color-fondo:      #eef3ff;
+
+  /* Botones de accion principal: los dos colores de marca del gimnasio,
+     con el color de la letra calculado por ThemeService segun contraste.
+     Estos valores son solo la reserva de antes de que arranque el JS. */
+  --btn-degradado: linear-gradient(135deg, #f97316 0%, #1d4ed8 100%);
+  --btn-texto:     #ffffff;
 }
 
 /* ============================================

@@ -62,12 +62,6 @@ export class Configuracion implements OnInit {
       nombre: 'Auditoría',
       desc: 'Quién hizo qué y cuándo',
       ruta: '/admin/configuracion/auditoria'
-    },
-    {
-      icono: '👤',
-      nombre: 'Mi cuenta',
-      desc: 'Tu perfil, contraseña y verificación en dos pasos',
-      ruta: '/admin/configuracion/cuenta'
     }
   ];
 

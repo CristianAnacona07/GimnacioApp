@@ -1,5 +1,5 @@
 .fb-page {
-  max-width: 540px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 1.5rem 1rem 6rem;
 }
@@ -82,8 +82,8 @@
 .fb-contador.rojo { color: var(--txt-rojo, #dc2626); }
 
 .fb-btn {
-  background: #2563eb;
-  color: #fff;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
   border: none;
   border-radius: 999px;
   padding: 0.6rem 1.5rem;
