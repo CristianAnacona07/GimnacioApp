@@ -34,15 +34,47 @@
       <p class="card-hint">Lo primero que se ve: una foto grande con el nombre encima. Acepta JPG, PNG, WebP y GIF animado (hasta 6&nbsp;MB).</p>
 
       <span class="campo__label">Foto de fondo</span>
+      @if (landing.portada.imagen) {
+        <p class="card-hint" style="margin:0 0 0.5rem">
+          Arrastrá la foto para elegir qué parte se ve. Así se recorta en la página.
+        </p>
+      }
       <div class="foto-zona">
-        <div class="foto-caja">
+        <div class="foto-caja foto-caja--encuadre" [style.aspectRatio]="proporcionPortada"
+             (pointerdown)="empezarArrastre($event)"
+             (pointermove)="moverEncuadre($event)"
+             (pointerup)="terminarArrastre()"
+             (pointercancel)="terminarArrastre()">
           @if (landing.portada.imagen) {
-            <img class="foto-preview" [src]="landing.portada.imagen" alt="Portada">
+            <img class="foto-encuadre" [src]="landing.portada.imagen" alt="Portada"
+                 [style.objectPosition]="posicionPortada"
+                 [style.transform]="'translateY(' + desplazamientoPortada + 'px)'"
+                 draggable="false">
+            <!-- El velo y el texto, como en la página: encuadrar sin verlos
+                 lleva a tapar la cara con el título. -->
+            <div class="encuadre-velo"></div>
+            <!-- La barra de la página es fija y se monta sobre la portada:
+                 sin representarla acá, se encuadra contra una franja de arriba
+                 que en la página queda tapada por el menú. -->
+            <div class="encuadre-barra">
+              <span>menú del sitio</span>
+            </div>
+            <div class="encuadre-texto">
+              <p class="encuadre-titulo">{{ landing.portada.titulo || gym!.nombre }}</p>
+              <p class="encuadre-frase">
+                {{ landing.portada.subtitulo || gym!.slogan || 'Entrená con nosotros' }}
+              </p>
+            </div>
           } @else {
             <span class="foto-vacia">Sin foto</span>
           }
         </div>
-        <app-selector-foto etiqueta="Cambiar portada" (elegida)="usarFoto('portada', $event)" />
+        <div class="encuadre-acciones">
+          <app-selector-foto etiqueta="Cambiar portada" (elegida)="usarFoto('portada', $event)" />
+          @if (landing.portada.imagen) {
+            <button type="button" class="btn btn--ghost" (click)="centrarPortada()">Centrar</button>
+          }
+        </div>
         @if (subiendo === 'portada') { <span class="subiendo">Subiendo…</span> }
       </div>
 
@@ -257,7 +289,7 @@
       }
     </div>
 
-    <button class="btn btn--bloque" (click)="guardar()" [disabled]="guardando">
+    <button class="btn btn--bloque" (click)="guardar()" [disabled]="guardando || !hayCambios">
       @if (guardando) { Guardando… } @else { Guardar página }
     </button>
 

@@ -225,10 +225,8 @@
 /* ===== PORTADA ===== */
 .portada {
   position: relative;
-  /* Separada de los bordes: se lee como un bloque y deja ver el fondo de la
-     pagina a los lados, en vez de ir pegada de punta a punta. */
-  margin: 0 clamp(0.75rem, 3vw, 2rem);
-  border-radius: 1.5rem;
+  /* De punta a punta y sin esquinas: la portada es el fondo de la pagina, no
+     una tarjeta apoyada encima. */
   overflow: hidden;
   /* Las dos líneas hacen falta: `svh` es de Chrome 108+ y el WebView de un
      celular sin actualizar no lo entiende. Si solo estuviera `svh`, la
@@ -237,8 +235,8 @@
      funcione, gana por ir después. */
   /* Antes ocupaba la pantalla entera y el visitante no veia que habia
      mas abajo; con 70 se intuye la seccion siguiente. */
-  min-height: 92vh;
-  min-height: 92svh;
+  min-height: 94vh;
+  min-height: 94svh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,13 +246,11 @@
 }
 
 
+
 .portada__fondo {
   position: absolute;
   inset: 0;
   width: 100%; height: 100%;
-  /* La portada manda: la imagen se acomoda a su tamaño, no al reves. `cover`
-     la hace llenar el bloque entero sin franjas vacias; el precio es que
-     recorta lo que no entra en esa proporcion. */
   object-fit: cover;
 }
 
@@ -263,7 +259,6 @@
 .portada__velo {
   position: absolute;
   inset: 0;
-  border-radius: inherit;
   background: var(--portada-lp, #10161e);
   opacity: 1;
   transition: opacity 0.25s;

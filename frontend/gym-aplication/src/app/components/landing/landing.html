@@ -59,7 +59,9 @@
   <!-- ===== PORTADA ===== -->
   <section class="portada" id="portada" [style.--acento]="acento" [style.--acento-tinta]="textoAcento">
     @if (l.portada.imagen) {
-      <img class="portada__fondo" [src]="l.portada.imagen" alt="" aria-hidden="true">
+      <img class="portada__fondo" [src]="l.portada.imagen" alt="" aria-hidden="true"
+           [style.objectPosition]="l.portada.posicion || '50% 50%'"
+           [style.transform]="'translateY(' + (l.portada.desplazamiento || 0) + 'px)'">
     }
     <!-- La intensidad del velo la pone el CSS según el modo claro u oscuro. -->
     <div class="portada__velo" [class.portada__velo--foto]="l.portada.imagen"

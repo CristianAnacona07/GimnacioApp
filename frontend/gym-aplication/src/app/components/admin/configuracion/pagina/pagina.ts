@@ -1,4 +1,4 @@
-import { ApplicationRef, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ApplicationRef, ChangeDetectorRef, Component, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -19,6 +19,13 @@ const ANCHO_MAX = 1600;
  * que 6 MB de GIF son ~8 MB de JSON: por encima de eso la petición ni sale.
  */
 const GIF_MAX_BYTES = 6 * 1024 * 1024;
+
+/**
+ * Alto de la barra fija del sitio (56 px de logo mas su relleno). La foto puede
+ * bajar hasta esa linea: el hueco que deja arriba queda debajo del menu, asi
+ * que nadie lo ve.
+ */
+const ALTO_BARRA = 83;
 
 /**
  * Editor de la página pública del gimnasio.
@@ -46,6 +53,21 @@ export class ConfiguracionPagina implements OnInit {
 
   gym: Gym | null = null;
   landing: Landing = landingVacia();
+
+  /**
+   * Copia de lo ultimo guardado, para saber si de verdad cambio algo. Se
+   * compara serializada porque la pagina es un objeto anidado que se edita por
+   * todos lados: encuadre, secciones, tarjetas, horarios.
+   */
+  private guardadoEnServidor = '';
+
+  get hayCambios(): boolean {
+    return JSON.stringify(this.landing) !== this.guardadoEnServidor;
+  }
+
+  private marcarGuardado(): void {
+    this.guardadoEnServidor = JSON.stringify(this.landing);
+  }
   guardando = false;
   /** Qué imagen se está subiendo, para mostrar el "Subiendo…" en su sitio. */
   subiendo: string | null = null;
@@ -68,6 +90,9 @@ export class ConfiguracionPagina implements OnInit {
     // Un gimnasio creado antes de esta función no trae el campo landing, y uno
     // guardado a medias lo trae incompleto: normalizar evita ambos casos.
     this.landing = normalizarLanding(this.gym?.landing);
+    this.recalcularProporcion();
+    this.leerFoco();
+    this.marcarGuardado();
   }
 
   /** Dirección pública, la que el gimnasio comparte con la gente. */
@@ -156,6 +181,111 @@ export class ConfiguracionPagina implements OnInit {
 
 
 
+  // ── Encuadre de la portada ────────────────────────────────────────────────
+
+  /**
+   * La portada tiene alto fijo y la foto se recorta para llenarla. En vez de
+   * conformarse con el centro, el gimnasio arrastra la vista previa y elige qué
+   * parte queda a la vista: se guarda como `object-position`.
+   */
+  /**
+   * La vista previa imita la portada real: mismo alto (94svh) y mismo ancho de
+   * pantalla, asi lo que se encuadra aca es lo que se publica. Se recalcula al
+   * cambiar el tamaño de la ventana, porque esa proporcion depende de cada
+   * pantalla.
+   */
+  proporcionPortada = 16 / 9;
+
+  @HostListener('window:resize')
+  recalcularProporcion(): void {
+    const alto = window.innerHeight * 0.94;
+    this.proporcionPortada = alto > 0 ? window.innerWidth / alto : 16 / 9;
+    this.cdr.detectChanges();
+  }
+
+  private arrastrando = false;
+  private ultimo = { x: 0, y: 0 };
+  /**
+   * El encuadre se lleva con decimales aunque se guarde redondeado. Antes se
+   * recalculaba a partir del valor ya redondeado y, como cada pixel de arrastre
+   * mueve ~0,12 %, el redondeo se comia el movimiento: arrastrando despacio la
+   * foto no se movia nunca.
+   */
+  private foco = { x: 50, y: 50 };
+  /** Pixeles extra hacia abajo, entre 0 y el alto de la barra. */
+  private desplazamiento = 0;
+
+  get desplazamientoPortada(): number {
+    return this.desplazamiento;
+  }
+
+  get posicionPortada(): string {
+    return `${this.foco.x.toFixed(1)}% ${this.foco.y.toFixed(1)}%`;
+  }
+
+  /** Lee lo guardado al abrir la pantalla. */
+  private leerFoco(): void {
+    const [x, y] = (this.landing.portada.posicion || '50% 50%')
+      .split(' ')
+      .map((v) => parseFloat(v));
+    this.foco = { x: isNaN(x) ? 50 : x, y: isNaN(y) ? 50 : y };
+    this.desplazamiento = this.landing.portada.desplazamiento || 0;
+  }
+
+  empezarArrastre(evento: PointerEvent): void {
+    if (!this.landing.portada.imagen) return;
+    this.arrastrando = true;
+    this.ultimo = { x: evento.clientX, y: evento.clientY };
+    (evento.target as HTMLElement).setPointerCapture?.(evento.pointerId);
+    evento.preventDefault();
+  }
+
+  moverEncuadre(evento: PointerEvent): void {
+    if (!this.arrastrando) return;
+    const caja = (evento.currentTarget as HTMLElement).getBoundingClientRect();
+    // Arrastrar hacia abajo muestra lo de arriba, como correr una hoja bajo una
+    // ventana: de ahi que se reste.
+    const dx = evento.clientX - this.ultimo.x;
+    const dy = evento.clientY - this.ultimo.y;
+    this.ultimo = { x: evento.clientX, y: evento.clientY };
+
+    this.foco.x = Math.min(100, Math.max(0, this.foco.x - (dx / caja.width) * 100));
+
+    // Vertical en dos tramos: primero se recorre la foto y, cuando llega a su
+    // borde de arriba, empieza a bajar hacia la linea del menu.
+    let y = this.foco.y - (dy / caja.height) * 100;
+    if (y < 0) {
+      // Lo que sobra del recorrido se convierte en pixeles hacia abajo.
+      const sobra = (-y / 100) * caja.height;
+      this.desplazamiento = Math.min(ALTO_BARRA, this.desplazamiento + sobra);
+      y = 0;
+    } else if (this.desplazamiento > 0 && dy < 0) {
+      // Volviendo hacia arriba se deshace primero ese empujon.
+      const sobra = Math.min(this.desplazamiento, -dy);
+      this.desplazamiento -= sobra;
+      y = this.foco.y;
+    }
+    this.foco.y = Math.min(100, Math.max(0, y));
+
+    this.landing.portada.posicion = this.posicionPortada;
+    this.landing.portada.desplazamiento = Math.round(this.desplazamiento);
+    // Durante el arrastre alcanza con repintar esta vista: un ciclo completo en
+    // cada movimiento del mouse hace que se sienta trabada.
+    this.cdr.detectChanges();
+  }
+
+  terminarArrastre(): void {
+    this.arrastrando = false;
+  }
+
+  centrarPortada(): void {
+    this.foco = { x: 50, y: 50 };
+    this.desplazamiento = 0;
+    this.landing.portada.posicion = this.posicionPortada;
+    this.landing.portada.desplazamiento = 0;
+    this.refrescar();
+  }
+
   // ── Secciones ─────────────────────────────────────────────────────────────
 
   /**
@@ -229,6 +359,7 @@ export class ConfiguracionPagina implements OnInit {
         // El gym en memoria queda al día para que el enlace y los colores no
         // se queden con lo anterior si el admin sigue navegando.
         this.gymService.guardarGym(actualizado);
+        this.marcarGuardado();
         this.toast.success(this.landing.activa ? 'Página guardada y publicada' : 'Página guardada');
         this.cdr.detectChanges();
       },

@@ -37,7 +37,23 @@ export interface SeccionLanding {
  */
 export interface Landing {
   activa: boolean;
-  portada: { imagen: string; titulo: string; subtitulo: string; textoBoton: string };
+  portada: {
+    imagen: string;
+    titulo: string;
+    subtitulo: string;
+    textoBoton: string;
+    /**
+     * Qué parte de la foto queda a la vista, como `object-position`. La portada
+     * tiene alto fijo y la foto se recorta para llenarla: esto elige qué se
+     * conserva. '50% 50%' es el centro.
+     */
+    posicion: string;
+    /**
+     * Pixeles que la foto baja mas alla de su tope, hasta la linea del menu.
+     * El hueco que deja arriba no se ve: ahi esta la barra fija tapando.
+     */
+    desplazamiento: number;
+  };
   /** Las que crea el gimnasio. Vacío = la página solo tiene lo fijo. */
   secciones: SeccionLanding[];
   /** Bloque fijo, como horarios y contacto: siempre está. */
@@ -55,7 +71,7 @@ export interface Landing {
 export function landingVacia(): Landing {
   return {
     activa: false,
-    portada: { imagen: '', titulo: '', subtitulo: '', textoBoton: '' },
+    portada: { imagen: '', titulo: '', subtitulo: '', textoBoton: '', posicion: '50% 50%', desplazamiento: 0 },
     secciones: [],
     sobreNosotros: { titulo: '', texto: '', imagen: '' },
     horarios: { activo: true, titulo: '', filas: [] },
