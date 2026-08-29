@@ -24,6 +24,9 @@ export interface NoticiaPublica {
   descripcion: string;
   imageUrl: string;
   createdAt: string;
+  dia: string | null;
+  horaInicio: string | null;
+  horaFin: string | null;
 }
 
 /** Todo lo que la página pública necesita, en una sola respuesta. */

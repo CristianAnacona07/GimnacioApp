@@ -20,11 +20,19 @@
      se mantiene en los dos modos (es su marca), pero en oscuro se apaga más
      para que el cambio se note también arriba y no solo en el cuerpo. */
   /* Superficies fijas por modo (mismo criterio que la barra de la app): el
-     color del gimnasio no las pinta, para que su texto siempre se lea. */
-  --barra-lp: #ffffff;
-  --barra-lp-tinta: #1e293b;
-  --barra-lp-borde: #e2e8f0;
-  --barra-lp-relleno: rgba(15,23,42,0.06);
+     color del gimnasio no las pinta, para que su texto siempre se lea.
+
+     La barra va oscura también en el tema claro, igual que la de la app
+     (--barra-fondo en styles.css): en blanco se confundía con el resto de la
+     página y encima quedaba sobre la foto de portada sin separarse de ella. */
+  --barra-lp: #334155;
+  --barra-lp-tinta: #ffffff;
+  --barra-lp-borde: rgba(255,255,255,0.12);
+  --barra-lp-relleno: rgba(255,255,255,0.08);
+  /* Propio y no --lp-relleno-hover: ese es oscuro en el tema claro (sirve
+     para la franja de contacto, que sí es clara) y sobre esta barra oscura
+     apagaría el enlace en vez de resaltarlo. */
+  --barra-lp-hover: rgba(255,255,255,0.22);
   --marca-borde: #000;
   --oscura-lp: #eef2f8;        /* franja de contacto y pie */
   --oscura-tinta: #1e293b;
@@ -48,10 +56,13 @@
   --tinta-tenue: #93a1b5;
   --borde: #28323f;
   --sombra: rgba(0,0,0,0.5);
-  --barra-lp: #1e293b;
+  /* Mismo tono que en claro y que la barra de la app: la barra de la página
+     pública es la misma pieza en los dos modos. */
+  --barra-lp: #334155;
   --barra-lp-tinta: #ffffff;
   --barra-lp-borde: rgba(255,255,255,0.12);
   --barra-lp-relleno: rgba(255,255,255,0.08);
+  --barra-lp-hover: rgba(255,255,255,0.22);
   --oscura-lp: #161d27;
   --oscura-tinta: #eef2f8;
   --oscura-borde: rgba(255,255,255,0.12);
@@ -169,7 +180,7 @@
   transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
 }
 .nav__link:hover {
-  background: var(--lp-relleno-hover, rgba(255,255,255,0.22));
+  background: var(--barra-lp-hover, rgba(255,255,255,0.22));
   transform: translateY(-1px);
 }
 
@@ -233,10 +244,12 @@
      declaración se descarta entera y la portada se encoge a la altura de su
      texto en vez de llenar la pantalla. `vh` queda de reserva; donde `svh`
      funcione, gana por ir después. */
-  /* Antes ocupaba la pantalla entera y el visitante no veia que habia
-     mas abajo; con 70 se intuye la seccion siguiente. */
-  min-height: 94vh;
-  min-height: 94svh;
+  /* Pantalla completa: con 94vh quedaba a la vista una tira de la seccion
+     siguiente, y en tema oscuro esa tira es casi negra (#161d27) — al lado
+     de la foto se veia como un margen roto, no como un adelanto de contenido.
+     La flechita de abajo (.portada__flecha) ya avisa que hay mas. */
+  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -299,29 +312,64 @@
   margin: 0 0 2rem;
 }
 
+/* Antes casi no se veía: fondo al 8% de opacidad y el color salía de
+   --portada-tinta, que ni siquiera se ajusta cuando hay foto detrás (esa
+   variante blanca solo la reciben .portada__titulo/.portada__sub, que están
+   dentro de .portada__contenido — la flecha es hermana de ese div, no hija,
+   así que nunca la alcanzaba). Ahora tiene su propio contraste garantizado
+   en los dos casos, vidrio esmerilado y un resplandor que respira además del
+   rebote, para que se note que invita a hacer algo. */
 .portada__flecha {
   position: absolute;
-  bottom: 1.5rem;
+  bottom: 1.75rem;
   left: 50%;
   transform: translateX(-50%);
   background: var(--barra-lp-relleno, rgba(255,255,255,0.16));
-  border: 1px solid var(--barra-lp-borde, transparent);
+  border: 1.5px solid var(--barra-lp-borde, transparent);
   color: var(--portada-tinta, #fff);
-  width: 44px; height: 44px;
+  width: 50px; height: 50px;
   border-radius: 50%;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   /* El glifo se apoyaba en la base de la caja; hay que centrarlo de verdad. */
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.7rem;
+  font-weight: 700;
   line-height: 0.8;
   padding: 0 0 0.25rem;
   cursor: pointer;
-  animation: flotar 1.8s ease-in-out infinite;
+  transition: transform 0.2s, background 0.2s, border-color 0.2s;
+  animation: flotar 1.8s ease-in-out infinite, resplandor 2.6s ease-in-out infinite;
 }
+.portada__flecha:hover {
+  /* Sin pausar la animación, el rebote pisa este transform en cada cuadro y
+     el agrandado nunca se ve. */
+  animation-play-state: paused;
+  transform: translate(-50%, -3px) scale(1.08);
+}
+
+/* Con foto detrás, siempre blanco y con sombra propia — la misma lógica que
+   .portada__contenido--foto usa para el título, adaptada a un fondo de vidrio
+   en vez de texto plano. */
+.portada__flecha--foto {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.4);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+.portada__flecha--foto:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
 @keyframes flotar {
   0%, 100% { transform: translate(-50%, 0); }
   50%      { transform: translate(-50%, 7px); }
+}
+@keyframes resplandor {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35); }
+  50%      { box-shadow: 0 0 0 9px rgba(255, 255, 255, 0); }
 }
 
 /* ===== SECCIONES ===== */
@@ -348,15 +396,34 @@
 }
 .seccion__inner--angosto { max-width: 640px; }
 
+/* Mismo violeta degradado que el nombre de cada plan (.plan__nombre): el
+   color base es el respaldo por si el navegador no sabe recortar el fondo
+   contra el texto —sin él, con el relleno en transparente, el título
+   quedaría invisible en vez de solo perder el degradado. */
 .titulo {
   font-size: clamp(1.35rem, 3.6vw, 2rem);
   font-weight: 900;
   letter-spacing: -0.02em;
   margin: 0 0 1.5rem;
-  color: var(--tinta);
+  color: #667eea;
+}
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .titulo {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, var(--tinte-morado, #f093fb) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 .titulo--centro { text-align: center; }
-.titulo--claro { color: var(--oscura-tinta, #fff); }
+/* Sobre la franja de contacto (fondo oscuro), el degradado se pierde: ahí el
+   título vuelve a ser un color plano y claro, como antes. */
+.titulo--claro {
+  color: var(--oscura-tinta, #fff);
+  background: none;
+  -webkit-text-fill-color: var(--oscura-tinta, #fff);
+}
 
 .parrafo {
   font-size: 1rem;
@@ -389,6 +456,10 @@
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.15rem;
 }
+/* La tarjeta sigue el tema (claro u oscuro) y el degradado violeta aparece al
+   pasar el mouse — el mismo comportamiento y los mismos colores que las
+   tarjetas del panel de Planes (planes.css). Fijo se veía estático y no
+   acompañaba el cambio de tema. */
 .plan {
   background: var(--papel);
   border: 1.5px solid var(--borde);
@@ -397,15 +468,51 @@
   text-align: center;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s, background 0.3s;
 }
 .plan:hover {
   transform: translateY(-5px);
-  border-color: var(--acento, #f97316);
-  box-shadow: 0 14px 34px rgba(0,0,0,0.11);
+  background: linear-gradient(135deg, #4a59bd 0%, #5a367d 100%);
+  border-color: transparent;
+  box-shadow: 0 14px 34px rgba(74, 89, 189, 0.35);
 }
-.plan__nombre { font-size: 1.05rem; font-weight: 800; margin: 0 0 0.5rem; color: var(--tinta); }
-.plan__precio { font-size: 1.9rem; font-weight: 900; margin: 0; color: var(--acento, #f97316); letter-spacing: -0.02em; }
+/* Sobre el degradado, todo el texto pasa a blanco. */
+.plan:hover .plan__precio,
+.plan:hover .plan__dias,
+.plan:hover .plan__desc,
+.plan:hover .plan__lista li {
+  color: #ffffff;
+}
+/* El nombre va aparte: como está recortado contra su propio degradado,
+   cambiarle `color` no hace nada — hay que tocar el relleno del texto. */
+.plan:hover .plan__nombre {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+/* Nombre del plan con el mismo degradado violeta que en el panel (planes.css):
+   el color plano lo dejaba negro. El color base va aparte por si el navegador
+   no sabe recortar el fondo contra el texto — con text-fill transparente,
+   sin ese respaldo quedaría invisible. */
+.plan__nombre {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem;
+  color: #667eea;
+}
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .plan__nombre {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, var(--tinte-morado, #f093fb) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    transition: all 0.3s;
+  }
+}
+/* El precio va con la tinta del tema y no con el color del gimnasio: el de
+   este gym es azul casi negro y en tema oscuro desaparecía. Es lo mismo que
+   hace .monto en planes.css, que usa --txt-1. */
+.plan__precio { font-size: 1.9rem; font-weight: 900; margin: 0; color: var(--tinta); letter-spacing: -0.02em; }
 .plan__dias { font-size: 0.78rem; font-weight: 700; color: var(--tinta-tenue); margin: 0.15rem 0 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .plan__desc { font-size: 0.85rem; color: var(--tinta-tenue); margin: 0 0 1rem; line-height: 1.55; }
 .plan__lista {
@@ -421,22 +528,36 @@
   padding: 0.3rem 0 0.3rem 1.4rem;
   position: relative;
 }
+/* Violeta fijo y no el color del gimnasio: con una marca oscura los ✓ se
+   perdían contra la tarjeta en tema oscuro. */
 .plan__lista li::before {
   content: '✓';
   position: absolute;
   left: 0;
-  color: var(--acento, #f97316);
+  color: #7c85f0;
   font-weight: 900;
 }
+/* El botón lleva el mismo violeta del nombre del plan. Al ser fijo, se ve
+   igual en los dos temas — antes usaba el color del gimnasio y, con una
+   marca azul oscuro como la de este gym, en tema oscuro quedaba negro sobre
+   negro. */
 .plan__btn {
-  background: var(--acento, #f97316);
-  color: var(--acento-tinta, #fff);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
   border-radius: 999px;
   padding: 0.7rem 1.25rem;
   font-size: 0.88rem;
   font-weight: 800;
   text-decoration: none;
   display: block;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+/* Con la tarjeta ya en violeta, el botón se invierte a claro para no
+   desaparecer dentro de ella. Mismo criterio que .btn-elegir en planes.css. */
+.plan:hover .plan__btn {
+  background: #ffffff;
+  color: #5a367d;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 /* Horarios */
@@ -458,7 +579,14 @@
 .horarios__dias { font-weight: 700; color: var(--tinta-suave); font-size: 0.92rem; }
 .horarios__horas { font-weight: 800; color: var(--tinta-tenue); font-size: 0.92rem; white-space: nowrap; }
 
-/* Novedades */
+/* Novedades — mismo diseño de tarjeta que el panel de administración
+   (.noticia-card en noticias.css): imagen contenida sobre fondo blanco en
+   vez de recortada, franja en degradado azul, insignias de día/hora y el
+   título en el azul de marca, no en la tinta gris del resto de la página.
+   Los tonos azules salen de --tinte-azul/--txt-azul, definidos en el
+   styles.css global: esas variables llegan igual a este componente porque
+   son custom properties en :root y esas heredan por el árbol del DOM real,
+   sin que la encapsulación de Angular las bloquee. */
 .noticias {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -466,21 +594,108 @@
 }
 .noticia {
   background: var(--papel);
-  border: 1.5px solid var(--borde);
+  border: 2px solid #bfdbfe;
   border-radius: 1.15rem;
   overflow: hidden;
+  box-shadow: 0 6px 24px rgba(30,58,138,0.13), 0 1px 4px rgba(30,58,138,0.08);
   display: flex;
   flex-direction: column;
+  transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+}
+.noticia:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 38px rgba(30,58,138,0.2), 0 2px 8px rgba(30,58,138,0.1);
+  border-color: #93c5fd;
+}
+
+.noticia__imagen {
+  position: relative;
+  height: 200px;
+  flex-shrink: 0;
+  /* Blanco fijo y no --papel: las fotos vienen recortadas sobre blanco, y con
+     el fondo oscuro del tema quedaría un marco alrededor de la imagen. */
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 .noticia__foto {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
+  height: 100%;
+  /* contain y no cover: se ve la foto completa, igual que en el panel. */
+  object-fit: contain;
+  padding: 0.4rem 0.4rem 0;
   display: block;
+  transition: transform 0.4s;
 }
-.noticia__cuerpo { padding: 1.1rem 1.2rem; }
-.noticia__titulo { font-size: 1rem; font-weight: 800; margin: 0 0 0.4rem; color: var(--tinta); }
-.noticia__texto { font-size: 0.87rem; line-height: 1.6; color: var(--tinta-tenue); margin: 0; }
+.noticia:hover .noticia__foto { transform: scale(1.04); }
+
+.noticia__imagen--placeholder {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #3b82f6 100%);
+}
+:host-context([data-tema='oscuro']) .noticia__imagen--placeholder {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(125, 185, 255, 0.30) 0%, rgba(125, 185, 255, 0) 62%),
+    linear-gradient(135deg, #16223c 0%, #1d2e4f 55%, #263c66 100%);
+}
+.noticia__placeholder-icono {
+  font-size: 3.6rem;
+  filter: drop-shadow(0 5px 14px rgba(0, 0, 0, 0.32));
+}
+:host-context([data-tema='oscuro']) .noticia__placeholder-icono {
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6));
+}
+
+.noticia__divider {
+  height: 4px;
+  background: linear-gradient(90deg, #1d4ed8, #3b82f6, var(--tinte-azul, #93c5fd));
+}
+
+.noticia__cuerpo {
+  padding: 1rem 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.noticia__badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.noticia__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.noticia__badge--dia  { background: var(--tinte-azul, #dbeafe); color: var(--txt-azul, #1d4ed8); }
+.noticia__badge--hora { background: var(--tinte-azul, #ede9fe); color: var(--txt-azul, #6d28d9); }
+
+.noticia__titulo {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--txt-azul, #0f172a);
+  margin: 0;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.noticia__desc-box {
+  background: var(--papel);
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.8rem;
+}
+.noticia__texto {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  /* --tinta y no --tinta-tenue: el gris medio se leía apagado, igual que en
+     el panel (que usa --txt-1 por el mismo motivo). */
+  color: var(--tinta);
+  margin: 0;
+}
 
 /* Contacto */
 .contacto {
@@ -612,17 +827,29 @@
   box-shadow: 0 10px 26px var(--sombra);
 }
 
+/* contain y no cover: estas tarjetas también se usan para logos e íconos
+   (no solo fotos de ambiente), y cover los recortaba — un logo cuadrado
+   estirado a esta caja rectangular perdía la mitad de arriba o de abajo. El
+   fondo blanco fijo es el mismo criterio que .card-img en noticias.css: la
+   mayoría de estas imágenes vienen recortadas sobre blanco o transparente. */
 .tarjeta__foto {
   width: 100%;
   height: 190px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #fff;
+  padding: 0.5rem;
   display: block;
 }
 
-/* Sin texto, la foto es la tarjeta: no tiene sentido dejarle un pie vacío. */
+/* Sin texto, la foto es la tarjeta: no tiene sentido dejarle un pie vacío.
+   Acá sí se recorta a propósito — sin título ni descripción, la tarjeta
+   entera es la foto y se espera que la llene de borde a borde, como una
+   galería. */
 .tarjeta--solo-foto .tarjeta__foto {
   height: 100%;
   min-height: 190px;
+  object-fit: cover;
+  padding: 0;
 }
 
 .tarjeta__cuerpo {

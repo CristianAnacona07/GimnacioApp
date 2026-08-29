@@ -71,8 +71,8 @@
       <p class="portada__sub">{{ texto(l.portada.subtitulo, gym!.slogan || 'Entrená con nosotros') }}</p>
     </div>
     @if (haySecciones) {
-      <button class="portada__flecha" (click)="irA('nosotros')"
-              aria-label="Ver más">⌄</button>
+      <button class="portada__flecha" [class.portada__flecha--foto]="l.portada.imagen"
+              (click)="irA('nosotros')" aria-label="Ver más">⌄</button>
     }
   </section>
 
@@ -179,12 +179,29 @@
         <div class="noticias">
           @for (n of datos!.noticias; track n._id) {
             <article class="noticia">
-              @if (n.imageUrl) {
-                <img class="noticia__foto" [src]="n.imageUrl" [alt]="n.titulo" loading="lazy">
-              }
+              <div class="noticia__imagen" [class.noticia__imagen--placeholder]="!n.imageUrl">
+                @if (n.imageUrl) {
+                  <img class="noticia__foto" [src]="n.imageUrl" [alt]="n.titulo" loading="lazy">
+                } @else {
+                  <span class="noticia__placeholder-icono" aria-hidden="true">🏋️</span>
+                }
+              </div>
+              <div class="noticia__divider"></div>
               <div class="noticia__cuerpo">
+                @if (n.dia || n.horaInicio) {
+                  <div class="noticia__badges">
+                    @if (n.dia) {
+                      <span class="noticia__badge noticia__badge--dia">📅 {{ n.dia }}</span>
+                    }
+                    @if (n.horaInicio && n.horaFin) {
+                      <span class="noticia__badge noticia__badge--hora">🕐 {{ n.horaInicio }} – {{ n.horaFin }}</span>
+                    }
+                  </div>
+                }
                 <h3 class="noticia__titulo">{{ n.titulo }}</h3>
-                <p class="noticia__texto">{{ n.descripcion }}</p>
+                <div class="noticia__desc-box">
+                  <p class="noticia__texto">{{ n.descripcion }}</p>
+                </div>
               </div>
             </article>
           }
