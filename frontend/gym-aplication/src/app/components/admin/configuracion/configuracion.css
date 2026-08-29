@@ -187,6 +187,13 @@ textarea.input {
   color: var(--txt-rojo, #b91c1c);
 }
 
+/* En oscuro el rojo del texto sobre el fondo rojo oscuro quedaba con muy poco
+   contraste: en blanco se lee bien y el fondo rojo ya avisa que es la acción
+   de salir. */
+:host-context([data-tema='oscuro']) .btn--peligro {
+  color: #fff;
+}
+
 .btn--bloque {
   width: 100%;
 }

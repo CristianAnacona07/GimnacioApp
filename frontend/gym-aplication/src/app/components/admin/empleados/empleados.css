@@ -73,10 +73,12 @@
   flex-shrink: 0;
 }
 
+/* Círculo oscuro suave: --sup-1 es blanco en el tema claro, así que sobre la
+   tarjeta blanca el botón desaparecía. */
 .btn-borrar {
   border: none;
-  background: var(--sup-1, #f8fafc);
-  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 50%;
   width: 32px;
   height: 32px;
   font-size: 0.9rem;
@@ -88,6 +90,9 @@
   transition: background 0.15s;
 }
 .btn-borrar:hover { background: var(--tinte-rojo, #fee2e2); }
+
+:host-context([data-tema='oscuro']) .btn-borrar { background: transparent; }
+:host-context([data-tema='oscuro']) .btn-borrar:hover { background: rgba(255, 255, 255, 0.12); }
 
 /* Vacío */
 .empty-state { text-align: center; padding: 3rem 1rem; }

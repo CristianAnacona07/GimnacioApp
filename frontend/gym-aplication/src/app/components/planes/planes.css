@@ -246,19 +246,38 @@
   gap: 5px;
 }
 
+/* En claro, un círculo oscuro suave: la tarjeta es blanca, así que un fondo
+   claro se fundía con ella y los botones no se distinguían. */
 .btn-mini-edit, .btn-mini-delete {
-  background: rgba(240, 240, 240, 0.8);
+  background: rgba(15, 23, 42, 0.08);
   border: none;
-  padding: 6px 10px;
-  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.15s;
 }
 
-.plan-card:hover .btn-mini-edit, 
-.plan-card:hover .btn-mini-delete {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+.btn-mini-edit:hover, .btn-mini-delete:hover {
+  background: rgba(15, 23, 42, 0.16);
+  transform: scale(1.12);
+}
+
+/* En oscuro, sin fondo: el círculo claro quedaba como un bloque brillante
+   sobre la tarjeta. */
+:host-context([data-tema='oscuro']) .btn-mini-edit,
+:host-context([data-tema='oscuro']) .btn-mini-delete {
+  background: transparent;
+  box-shadow: none;
+}
+
+:host-context([data-tema='oscuro']) .btn-mini-edit:hover,
+:host-context([data-tema='oscuro']) .btn-mini-delete:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* Responsive */

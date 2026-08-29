@@ -77,10 +77,13 @@
 /* IMAGEN */
 .card-imagen {
   position: relative;
-  height: 200px;
+  height: 220px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(--color-fondo);
+  /* Blanco fijo y no --color-fondo: las fotos de producto vienen recortadas
+     sobre blanco, así que con el fondo del tema quedaba un marco oscuro
+     alrededor. En blanco la foto se funde con la tarjeta y se ve entera. */
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -89,9 +92,13 @@
 .card-img {
   width: 100%;
   height: 100%;
+  /* contain, no cover: la foto se ve completa. El relleno es chico pero no
+     cero: estas fotos traen su contenido pegado al borde de arriba, y sin
+     nada de aire chocaban contra la esquina redondeada de la tarjeta y se
+     leían como una franja gris. */
   object-fit: contain;
   display: block;
-  padding: 0.75rem;
+  padding: 0.4rem 0.4rem 0;
   transition: transform 0.4s;
 }
 .noticia-card:hover .card-img {
@@ -102,6 +109,35 @@
 .card-imagen--placeholder {
   background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #3b82f6 100%);
 }
+/* En oscuro ese azul brillante era lo más luminoso de la pantalla y se comía
+   al muñeco. Bajado a un azul apagado, la tarjeta deja de competir con las
+   que sí tienen foto. El halo del centro es lo que hace visible al muñeco:
+   sin él, sus partes oscuras (el pantalón, la barra) se fundían con el fondo
+   — el problema no se arreglaba apagando más el azul, porque no era exceso
+   de brillo sino falta de contraste detrás de la figura. */
+/* :host-context y no `[data-tema='oscuro'] .clase`: data-tema vive en el
+   <html>, fuera del componente, y la encapsulación de Angular le pega su
+   atributo al ancestro — el selector queda exigiendo que el <html> pertenezca
+   al componente y no matchea nunca. Es el mismo patrón que usa landing.css. */
+:host-context([data-tema='oscuro']) .card-imagen--placeholder {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(125, 185, 255, 0.30) 0%, rgba(125, 185, 255, 0) 62%),
+    linear-gradient(135deg, #16223c 0%, #1d2e4f 55%, #263c66 100%);
+  /* styles.css apaga en oscuro todo lo que tenga "placeholder" en la clase
+     con brightness(0.6) saturate(0.85). Acá sobra y hace daño: el degradado
+     ya viene apagado a mano, y como el filtro de un elemento afecta a lo que
+     tiene dentro, el muñeco quedaba al 36% de brillo y desaturado — se veía
+     marrón. Anularlo es lo que le devuelve el color. */
+  filter: none;
+}
+/* El div del medio también cae en la regla global de styles.css que apaga
+   todo lo que tenga "placeholder" en la clase, y el filtro de un ancestro no
+   se puede deshacer desde adentro: por eso no alcanzaba con anularlo en el
+   contenedor de afuera y en el emoji. Los tres eslabones tienen que quedar
+   sin filtro. */
+:host-context([data-tema='oscuro']) .card-placeholder {
+  filter: none;
+}
 .card-placeholder {
   width: 100%;
   height: 100%;
@@ -109,10 +145,17 @@
   align-items: center;
   justify-content: center;
 }
+/* Sin opacidad: iba al 60% y sus colores se mezclaban con el azul del fondo,
+   así que el muñeco parecía tapado en los dos temas. A opacidad plena
+   recupera su color y la sombra lo despega del fondo. */
 .placeholder-icon {
   font-size: 4.5rem;
-  opacity: 0.6;
-  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
+  filter: drop-shadow(0 5px 14px rgba(0, 0, 0, 0.32));
+}
+/* En oscuro el fondo es más apagado, así que la sombra tiene que ser más
+   marcada para que siga despegándose. */
+:host-context([data-tema='oscuro']) .placeholder-icon {
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6));
 }
 
 /* Botones editar/eliminar sobre la imagen */
@@ -221,7 +264,9 @@
 
 .card-desc {
   font-size: 0.82rem;
-  color: var(--txt-2, #475569);
+  /* --txt-1 y no --txt-2: el gris medio se leía apagado en las dos vistas.
+     Así queda casi negro en claro y casi blanco en oscuro, siguiendo el tema. */
+  color: var(--txt-1, #1e293b);
   line-height: 1.65;
   margin: 0;
   display: -webkit-box;

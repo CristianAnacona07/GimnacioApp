@@ -27,7 +27,7 @@
       <button type="button" (click)="alternarTema()"
         [attr.aria-label]="esOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
         [title]="esOscuro ? 'Modo claro' : 'Modo oscuro'"
-        class="icono-barra text-lg cursor-pointer p-1.5 rounded-lg transition-colors">
+        class="icono-barra boton-tema text-lg cursor-pointer transition-colors">
         <span aria-hidden="true">{{ esOscuro ? '☀️' : '🌙' }}</span>
       </button>
 
@@ -52,12 +52,16 @@
     </div>
   </div>
 
+  <!-- Debajo del nombre va el eslogan del gimnasio, no el saludo: el
+       "Bienvenido, <nombre>" ya es el título de la página, y aparecía dos
+       veces en pantalla. Si el gimnasio no cargó eslogan, no se muestra nada
+       en vez de dejar un hueco. -->
   <div class="hidden md:block absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
     <div class="flex flex-col items-center">
-      <span class="font-black text-xs uppercase tracking-widest opacity-60">{{ gymNombre }}</span>
-      <span class="font-semibold text-sm whitespace-nowrap">
-        Bienvenido, <span>{{ username }}</span>
-      </span>
+      <span class="gym-nombre font-black text-xs uppercase tracking-widest">{{ gymNombre }}</span>
+      @if (gymSlogan) {
+        <span class="font-semibold text-sm whitespace-nowrap">{{ gymSlogan }}</span>
+      }
     </div>
   </div>
 
@@ -71,7 +75,7 @@
     <li>
       <a (click)="handleMenuClick(link)" [attr.aria-label]="link.name"
         class="menu-link flex items-center gap-3 p-4 cursor-pointer transition-all uppercase text-xs font-black tracking-widest border-b">
-        <span class="text-lg" aria-hidden="true">{{ link.icon }}</span>
+        <span class="menu-icono" aria-hidden="true">{{ link.icon }}</span>
         <span>{{ link.name }}</span>
       </a>
     </li>

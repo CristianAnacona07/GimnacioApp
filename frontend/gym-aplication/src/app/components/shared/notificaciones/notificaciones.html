@@ -5,10 +5,9 @@
   <button type="button" (click)="alternar()" class="icono-navbar" [class.agitando]="agitando"
     [attr.aria-label]="noLeidos > 0 ? noLeidos + ' avisos sin leer' : 'Avisos'"
     [attr.aria-expanded]="abierto" title="Avisos">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-      <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M13.7 21a2 2 0 01-3.4 0" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
+    <!-- Emoji en vez del trazo monocromo: sobre la barra clara el contorno
+         gris se veía apagado, y así acompaña a los iconos del menú. -->
+    <span class="icono-emoji" aria-hidden="true">🔔</span>
 
     @if (noLeidos > 0) {
       <span class="campana-globo" aria-hidden="true">{{ noLeidos > 9 ? '9+' : noLeidos }}</span>

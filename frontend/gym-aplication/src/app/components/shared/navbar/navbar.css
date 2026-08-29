@@ -1,17 +1,16 @@
 /* navbar.css */
 
 /* ── Barra y menú ──────────────────────────────────────────────────────────
-   El fondo ya no lo pinta el gimnasio: es fijo y solo depende del modo
-   (oscuro #1e293b / claro blanco), definido en styles.css. Así el blanco de
-   los textos e iconos deja de ser una apuesta y pasa a acompañar al fondo.  */
+   El fondo no lo pinta el gimnasio, es fijo (ver styles.css), pero la barra y
+   el menú NO van juntos: la barra es oscura en los dos temas —así se despega
+   de la página, que es clara— mientras que el menú sí sigue el tema, claro en
+   claro y oscuro en oscuro. Por eso cada uno tiene su juego de variables.  */
 .barra,
-.barra-movil,
-.menu-container {
+.barra-movil {
   background: var(--barra-fondo, #1e293b);
   color: var(--barra-texto, #fff);
 }
 
-/* En claro, blanco sobre un fondo casi blanco se pierde: hace falta el borde. */
 .barra {
   border-bottom: 1px solid var(--barra-borde, transparent);
 }
@@ -21,32 +20,131 @@
 }
 
 .menu-container {
-  border-color: var(--barra-borde, transparent);
+  background: var(--menu-fondo, #1e293b);
+  color: var(--menu-texto, #fff);
+  border-color: var(--menu-borde, transparent);
+}
+
+/* Abierto, el menú se desplaza en vez de recortarse. El contenedor combina
+   max-h-screen (100vh) con overflow-hidden para la animación de despliegue,
+   pero el menú del admin son 10 opciones y con las pastillas de los iconos
+   cada fila creció: en pantallas bajas —o con el navegador al 150%— el alto
+   total pasaba de 100vh y la última opción (Cerrar sesión) quedaba cortada
+   sin forma de llegar a ella. Se descuenta la barra para no tapar nada. */
+.menu-container.max-h-screen {
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
 }
 
 .menu-link {
-  color: var(--barra-texto, #fff);
-  border-color: var(--barra-borde, transparent);
+  color: var(--menu-texto, #fff);
+  border-color: var(--menu-borde, transparent);
+  /* Menos aire arriba y abajo que el p-4 de la plantilla (1rem). El icono y
+     el texto quedan igual: solo se acorta la fila, así el menú del admin
+     —que son 10 opciones— no se estira tanto hacia abajo. */
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .menu-link:hover {
-  background: var(--barra-hover, rgba(255, 255, 255, 0.12));
+  background: var(--menu-hover, rgba(255, 255, 255, 0.12));
 }
 
-/* ☰ y el sol/luna: heredan el color de la barra en vez de ser blancos fijos. */
+/* El emoji va dentro de una pastilla redonda y un poco más grande. Suelto
+   sobre la barra blanca del modo claro se perdía: sin fondo que lo recorte
+   parecía apagado y la lista entera se veía plana. La pastilla le da cuerpo
+   con cualquiera de los dos modos (el tono sale de --menu-icono-fondo). */
+.menu-icono {
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+  background: var(--menu-icono-fondo, rgba(255, 255, 255, 0.07));
+  transition: transform 0.15s, background 0.15s;
+}
+
+.menu-link:hover .menu-icono {
+  transform: scale(1.1);
+}
+
+/* Nombre del gimnasio, en dorado con un destello que lo recorre. El color
+   base va aparte del degradado: si el navegador no sabe recortar el fondo
+   contra el texto, se queda con el dorado plano en vez de dejarlo invisible
+   (con background-clip el texto va en transparente). */
+.gym-nombre {
+  color: #f2cf74;
+}
+
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .gym-nombre {
+    background: linear-gradient(100deg,
+      #b8860b 0%, #e8c15c 28%, #fff6d0 44%, #e8c15c 60%, #b8860b 100%);
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: destello-dorado 5s linear infinite;
+  }
+}
+
+@keyframes destello-dorado {
+  from { background-position: 200% 0; }
+  to   { background-position: -50% 0; }
+}
+
+/* El brillo es decoración: si el sistema pide menos movimiento, queda el
+   dorado quieto. */
+@media (prefers-reduced-motion: reduce) {
+  .gym-nombre { animation: none; }
+}
+
+/* ☰ y el sol/luna: heredan el color de la barra y llevan la misma pastilla
+   redonda que la lupa y la campana. La pastilla es la de la BARRA (siempre
+   translúcida sobre el fondo oscuro), no la del menú, que sigue el tema. */
 .icono-barra {
   color: var(--barra-texto, #fff);
-  transition: background 0.2s, color 0.2s;
+  background: var(--barra-icono-fondo, rgba(255, 255, 255, 0.07));
+  border-radius: 9999px;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
 }
 
 .icono-barra:hover {
   background: var(--barra-hover, rgba(255, 255, 255, 0.12));
   color: var(--txt-azul, #22d3ee);
+  transform: scale(1.08);
 }
 
-/* El rol (ADMIN) era una etiqueta oscura sobre barra oscura. */
+/* El sol/luna necesita caja cuadrada: con solo padding, el alto y el ancho no
+   coincidían y la pastilla redonda salía ovalada. Mismas medidas que la lupa
+   y la campana para que los tres queden parejos. */
+.boton-tema {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* El ☰ va sin pastilla: es el único que abre algo a pantalla completa y con
+   fondo competía con los otros tres. Conserva el realce al pasar el mouse. */
+.menu-button.icono-barra {
+  background: transparent;
+}
+.menu-button.icono-barra:hover {
+  background: var(--barra-hover, rgba(255, 255, 255, 0.12));
+}
+
+/* El rol (ADMIN) era una etiqueta oscura sobre barra oscura. Usa el color de
+   texto de la barra y no el tenue: en claro queda casi negro y en oscuro
+   blanco, que es cuando de verdad se lee — con el gris se perdía. */
 .rol-chip {
-  color: var(--barra-tenue, #94a3b8);
+  color: var(--barra-texto, #fff);
   background: var(--barra-chip, rgba(255, 255, 255, 0.08));
   border-color: var(--barra-borde, transparent);
 }

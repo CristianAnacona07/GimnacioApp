@@ -1,8 +1,16 @@
 <div class="min-h-screen bg-slate-100">
-  <app-navbar></app-navbar>
+  <app-navbar (menuAbiertoCambio)="menuAbierto = $event"></app-navbar>
 
-  <main class="max-w-4xl mx-auto">
-    <div class="mt-2"> <router-outlet></router-outlet>
-    </div>
-  </main>
+  <!-- El menú se dibuja superpuesto, así que el contenido tiene que correrse
+       para que no lo tape. El relleno va en este envoltorio y NO dentro de
+       <main>: metiéndolo adentro se le restaba ancho a los 4xl del contenido
+       y la grilla de noticias caía de dos columnas a una sola tarjeta enorme.
+       Acá <main> conserva su ancho y solo se recentra en el espacio que queda
+       a la derecha del menú, como en el panel del admin. -->
+  <div class="transition-[padding] duration-300" [class.lg:pl-64]="menuAbierto">
+    <main class="max-w-4xl mx-auto">
+      <div class="mt-2"> <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
 </div>

@@ -58,9 +58,14 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
    son su identidad, y ya los ajusta ThemeService.
    ============================================ */
 :root {
-  --sup-1: #f8fbff;   /* tarjetas y paneles */
-  --sup-2: #f0f5ff;   /* fondos alternos, cabeceras de tabla */
-  --sup-3: #e8f0ff;   /* realces y estados activos */
+  /* Los tres niveles se separan a propósito: antes iban #f8fbff / #f0f5ff /
+     #e8f0ff, tan parecidos entre sí que todo se veía plano — la tarjeta no se
+     despegaba del fondo. Ahora la tarjeta es blanco puro y el fondo baja un
+     escalón real, así el contenido flota sobre la página sin dejar de ser
+     un tema claro. */
+  --sup-1: #ffffff;   /* tarjetas y paneles */
+  --sup-2: #eff4fd;   /* fondos alternos, cabeceras de tabla */
+  --sup-3: #dfe9fa;   /* realces y estados activos */
 
   --txt-1: #1e293b;   /* títulos */
   --txt-2: #475569;   /* texto corrido */
@@ -68,16 +73,38 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
   /* Barra superior y menu lateral. Son fijos a proposito: no dependen del
      color del gimnasio, solo del modo, para que el texto y los iconos que van
-     encima tengan siempre contraste garantizado. */
-  --barra-fondo:  #ffffff;
-  --barra-texto:  #1e293b;
-  --barra-tenue:  #64748b;   /* nombre del gym, etiquetas */
-  --barra-borde:  #e2e8f0;
-  --barra-hover:  rgba(15, 23, 42, 0.06);
-  --barra-chip:   #f1f5f9;   /* fondo del rol (ADMIN) */
+     encima tengan siempre contraste garantizado.
 
-  --bde: #c8dcff;     /* bordes y separadores */
-  --sombra: rgba(29, 78, 216, 0.07);
+     Oscura tambien en el tema claro: en blanco quedaba del mismo color que las
+     tarjetas y no se despegaba de la pagina. Al ser oscura, lo que va encima
+     (texto, iconos, chip del rol) es claro en los dos temas.
+
+     El tono es un escalon mas claro que el de las tarjetas oscuras (#1e293b),
+     no transparencia: la barra no es fija, no pasa contenido por detras, asi
+     que la opacidad solo la mezclaria con el fondo plano de la pagina y el
+     resultado seria este mismo color pero sin poder predecirlo. */
+  --barra-fondo:  #334155;
+  --barra-texto:  #ffffff;
+  --barra-tenue:  #94a3b8;   /* nombre del gym, etiquetas */
+  --barra-borde:  rgba(255, 255, 255, 0.10);
+  --barra-hover:  rgba(255, 255, 255, 0.12);
+  --barra-chip:   rgba(255, 255, 255, 0.08);   /* fondo del rol (ADMIN) */
+  --barra-icono-fondo: rgba(255, 255, 255, 0.07);  /* pastilla de lupa/campana/luna */
+
+  /* El menú lateral SÍ sigue el tema: claro en claro, oscuro en oscuro. Va
+     aparte de la barra justamente porque la barra es oscura siempre. */
+  --menu-fondo: #ffffff;
+  --menu-texto: #1e293b;
+  --menu-borde: #e2e8f0;
+  --menu-hover: rgba(15, 23, 42, 0.06);
+
+  --bde: #cfdff8;     /* bordes y separadores */
+  /* Al 7% la sombra no se veía y las tarjetas quedaban pegadas al fondo. */
+  --sombra: rgba(30, 58, 138, 0.13);
+  /* Pastilla detrás de los iconos del menú: un emoji suelto se veía apagado.
+     Acompaña al fondo del menú, así que en claro es un celeste suave.
+     Ver .menu-icono en navbar.css. */
+  --menu-icono-fondo: #e7effd;
 
   /* Colores con significado: el fondo pastel de una etiqueta y su texto.
      No son decoración — rojo es error, verde es correcto — así que en modo
@@ -100,15 +127,23 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   --txt-2: #b6c2d3;
   --txt-3: #8b98ad;
 
-  --barra-fondo:  #1e293b;
+  --barra-fondo:  #334155;
   --barra-texto:  #ffffff;
   --barra-tenue:  #94a3b8;
   --barra-borde:  rgba(255, 255, 255, 0.10);
   --barra-hover:  rgba(255, 255, 255, 0.12);
   --barra-chip:   rgba(255, 255, 255, 0.08);
+  --barra-icono-fondo: rgba(255, 255, 255, 0.07);
+
+  /* Acá el menú sí acompaña a la barra: los dos oscuros. */
+  --menu-fondo: #1e293b;
+  --menu-texto: #ffffff;
+  --menu-borde: rgba(255, 255, 255, 0.10);
+  --menu-hover: rgba(255, 255, 255, 0.12);
 
   --bde: #2a3543;
   --sombra: rgba(0, 0, 0, 0.5);
+  --menu-icono-fondo: rgba(255, 255, 255, 0.07);
 
   /* Mismo significado, apagado: fondo apenas teñido y texto luminoso, que es
      lo que se lee bien sobre oscuro (el rojo #dc2626 sobre negro no se ve). */
@@ -201,7 +236,10 @@ select:focus {
    fondo apagado: no cambian de color, solo bajan de intensidad para que el
    contenido no compita con la decoración.
    ============================================ */
-[data-tema='oscuro'] img:not([src*='avatar']):not(.logo-blend) {
+/* .card-img queda fuera: esas fotos van sobre un recuadro blanco fijo, así
+   que bajarles el brillo dejaba el blanco de la foto en gris contra el blanco
+   del recuadro — se veía un rectángulo gris recortado dentro de la tarjeta. */
+[data-tema='oscuro'] img:not([src*='avatar']):not(.logo-blend):not(.card-img) {
   filter: brightness(0.88);
 }
 [data-tema='oscuro'] [class*='--placeholder'],

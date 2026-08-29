@@ -244,15 +244,36 @@
 
 .h-acciones { display: flex; gap: .3rem; flex-shrink: 0; }
 
+/* Mismo botón que las acciones de Planes y Socios: círculo oscuro suave en
+   claro (sin fondo, y encima al 50% de opacidad, casi no se veían) y sin
+   fondo en oscuro. */
 .btn-edit, .btn-del {
-  background: none;
+  background: rgba(15, 23, 42, 0.08);
   border: none;
-  font-size: .9rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8rem;
   cursor: pointer;
-  opacity: .5;
   padding: 0;
+  transition: background .15s, transform .15s;
 }
-.btn-edit:hover, .btn-del:hover { opacity: 1; }
+.btn-edit:hover, .btn-del:hover {
+  background: rgba(15, 23, 42, 0.16);
+  transform: scale(1.12);
+}
+
+:host-context([data-tema='oscuro']) .btn-edit,
+:host-context([data-tema='oscuro']) .btn-del {
+  background: transparent;
+}
+:host-context([data-tema='oscuro']) .btn-edit:hover,
+:host-context([data-tema='oscuro']) .btn-del:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
 
 /* Edición inline */
 .fila-editando { background: var(--sup-1, #f0f5ff); flex-direction: column; align-items: stretch; }

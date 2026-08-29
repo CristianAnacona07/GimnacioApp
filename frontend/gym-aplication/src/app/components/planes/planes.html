@@ -65,7 +65,8 @@
                   <button (click)="prepararEdicion(plan)" class="btn-mini-edit">✏️</button>
                 }
                 @if (puedeBorrar) {
-                  <button (click)="eliminarPlan(plan._id)" class="btn-mini-delete">🗑️</button>
+                  <button (click)="eliminarPlan(plan._id)" class="btn-mini-delete"
+                          aria-label="Eliminar plan" title="Eliminar plan">🗑️</button>
                 }
               </div>
             }

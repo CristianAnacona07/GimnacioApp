@@ -4,7 +4,10 @@
   position: relative;
 }
 
-/* Mismas medidas que la lupa para que el par quede alineado. */
+/* Mismas medidas que la lupa para que el par quede alineado. La pastilla de
+   fondo es la misma de los iconos del menú (--menu-icono-fondo): sin ella,
+   sobre la barra blanca del modo claro los iconos quedaban flotando sin
+   cuerpo y la franja entera se veía plana. */
 .icono-navbar {
   position: relative;
   width: 2.25rem;
@@ -13,22 +16,29 @@
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
+  background: var(--barra-icono-fondo, rgba(255, 255, 255, 0.07));
   color: var(--barra-texto, #fff);
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
 }
 .icono-navbar:hover {
   background: var(--barra-hover, rgba(255, 255, 255, 0.12));
   color: var(--txt-azul, #22d3ee);
+  transform: scale(1.08);
 }
 .icono-navbar svg {
   width: 1.35rem;
   height: 1.35rem;
 }
+.icono-emoji {
+  font-size: 1.15rem;
+  line-height: 1;
+}
 
 /* Sacudida al llegar un aviso nuevo: acompaña al sonido para que también se
    note con el móvil en silencio. */
-.icono-navbar.agitando svg {
+.icono-navbar.agitando .icono-emoji {
+  display: inline-block;
   animation: campana-agita 0.9s ease-in-out;
   transform-origin: top center;
 }

@@ -1,9 +1,8 @@
 <!-- Botón de la lupa en el navbar -->
 <button type="button" (click)="abrir()" class="icono-navbar" aria-label="Buscar" title="Buscar (Ctrl+K)">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-    <circle cx="11" cy="11" r="7" />
-    <path d="M20 20l-3.5-3.5" stroke-linecap="round" />
-  </svg>
+  <!-- Emoji en vez del trazo monocromo, igual que la campana y los iconos
+       del menú: el contorno gris se perdía sobre la barra clara. -->
+  <span class="icono-emoji" aria-hidden="true">🔍</span>
 </button>
 
 @if (abierto) {

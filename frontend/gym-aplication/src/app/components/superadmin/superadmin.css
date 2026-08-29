@@ -19,10 +19,31 @@
   cursor: pointer;
   transition: all 0.15s;
 }
+/* El botón inactivo también reacciona: antes no tenía hover y no se notaba
+   que era pulsable hasta hacer clic. */
+.sa-tab:hover:not(.sa-tab-activo) {
+  background: #273548;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+/* Degradado en vez de un azul plano, con un resplandor abajo que lo despega
+   del fondo oscuro y un realce arriba que simula el brillo del borde. La
+   pestaña activa es el único elemento con color fuerte de esta franja, así
+   que aguanta el degradado sin competir con nada. */
 .sa-tab.sa-tab-activo {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 55%, #1e40af 100%);
+  border-color: #60a5fa;
   color: #fff;
+  box-shadow:
+    0 4px 14px rgba(37, 99, 235, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+}
+.sa-tab.sa-tab-activo:hover {
+  box-shadow:
+    0 6px 18px rgba(37, 99, 235, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 /* ===== DASHBOARD ===== */

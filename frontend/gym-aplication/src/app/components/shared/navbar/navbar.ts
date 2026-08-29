@@ -64,6 +64,8 @@ export class Navbar implements OnInit, OnDestroy {
 
   get gymNombre(): string { return this.gym?.nombre || 'GymApp'; }
   get gymLogo(): string | null { return this.gym?.logo || null; }
+  /** Va debajo del nombre en la barra. Vacío si el gimnasio no cargó uno. */
+  get gymSlogan(): string { return this.gym?.slogan?.trim() || ''; }
 
   constructor(
     private router: Router,

@@ -13,6 +13,9 @@ import { AuthService } from '../../../services/auth';
 })
 export class Dashboard implements OnInit {
   username = '';
+  /** El menú lateral se dibuja superpuesto: mientras está abierto el
+   *  contenido se corre a la derecha para que no le tape las tarjetas. */
+  menuAbierto = false;
   rutina: any = null; 
 
   constructor(public router: Router, private authService: AuthService) {}
