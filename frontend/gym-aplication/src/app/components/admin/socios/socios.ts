@@ -40,6 +40,23 @@ export class Socios implements OnInit, OnDestroy {
 
   /** Socios propiamente dichos (clientes del gimnasio). */
   get socios() { return this.filtrar(this.usuarios.filter(u => u.role === 'socio')); }
+  /**
+   * Cuenta contra `usuarios` sin filtrar por el buscador, no contra `socios`:
+   * si el admin está buscando un nombre, el número de arriba no tiene que
+   * bailar con cada tecla — sigue siendo el total real del gimnasio.
+   *
+   * "Activo" es lo mismo que ya usan las filas para pintar el pill verde
+   * (fechaVencimiento presente y no vencida) y, no por casualidad, es
+   * también el criterio exacto con el que el backend cuenta socios activos
+   * para la facturación por suscriptor (ver sociosActivos en
+   * planPlataformaVigencia.js) — así el número que ve el admin acá es el
+   * mismo que le va a llegar al superadmin en la ficha de este gimnasio.
+   */
+  get sociosActivos(): number {
+    return this.usuarios.filter(
+      u => u.role === 'socio' && u.fechaVencimiento && !this.esVencido(u.fechaVencimiento)
+    ).length;
+  }
   /** Entrenadores: comparten tabla y acciones con los socios, pero no son clientes. */
   get trabajadores() { return this.filtrar(this.usuarios.filter(u => u.role === 'entrenador')); }
   get admins() { return this.filtrar(this.usuarios.filter(u => u.role === 'admin')); }

@@ -18,8 +18,8 @@
     <div class="section-header">
       <div class="section-title">
         <span class="section-icon" aria-hidden="true">👥</span>
-        <h2>Socios</h2>
-        <span class="badge badge-blue">{{ socios.length }}</span>
+        <h2>Socios activos</h2>
+        <span class="badge badge-blue">{{ sociosActivos }}</span>
       </div>
     </div>
 
@@ -265,10 +265,7 @@
             <button type="button" (click)="limpiarMembresia(u._id, u.nombre)"
                     [disabled]="loadingId === u._id"
                     class="btn-delete" title="Limpiar membresía" aria-label="Limpiar membresía">
-              <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <span aria-hidden="true">🗑️</span>
             </button>
           }
         } @else {
