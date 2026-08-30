@@ -265,6 +265,10 @@
   text-shadow: 0 2px 18px rgba(0,0,0,0.85);
 }
 
+/* Misma regla que en la página pública: con un color elegido a mano, opacidad
+   plena, o el tono de la vista previa no sería el que se va a publicar. */
+.encuadre-frase--color { opacity: 1 !important; }
+
 .encuadre-frase {
   margin: 0;
   color: #fff;
@@ -291,3 +295,67 @@
   letter-spacing: 0.08em;
   pointer-events: none;
 }
+
+/* ── Paleta de color del texto de la portada ──────────────────────────────
+   Muestras fijas para lo habitual y un selector libre al lado. El botón
+   "Automático" no es adorno: sin él, una vez elegido un color no habría forma
+   de volver al blanco por defecto — el input de color nunca devuelve vacío. */
+.paleta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.paleta__color {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  /* Borde propio y no ninguno: el blanco sobre la tarjeta blanca del editor
+     desaparecería sin él. */
+  border: 1.5px solid var(--bde, #cbd5e1);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.paleta__color:hover { transform: scale(1.12); }
+.paleta__color--activo {
+  box-shadow: 0 0 0 2px var(--sup-1, #fff), 0 0 0 4px var(--color-secundario, #1d4ed8);
+}
+
+.paleta__libre {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--bde, #cbd5e1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  cursor: pointer;
+  overflow: hidden;
+}
+/* El input nativo se esconde detrás del emoji: su aspecto por defecto es un
+   recuadro gris que rompe la fila de círculos. */
+.paleta__libre input[type='color'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.paleta__quitar {
+  background: transparent;
+  border: 1px solid var(--bde, #cbd5e1);
+  border-radius: 999px;
+  color: var(--txt-2, #475569);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  margin-left: 0.15rem;
+}
+.paleta__quitar:hover { background: var(--sup-2, #f1f5f9); }

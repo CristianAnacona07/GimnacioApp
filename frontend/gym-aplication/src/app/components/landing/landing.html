@@ -67,8 +67,16 @@
     <div class="portada__velo" [class.portada__velo--foto]="l.portada.imagen"
          ></div>
     <div class="portada__contenido" [class.portada__contenido--foto]="l.portada.imagen">
-      <h1 class="portada__titulo">{{ texto(l.portada.titulo, gym!.nombre) }}</h1>
-      <p class="portada__sub">{{ texto(l.portada.subtitulo, gym!.slogan || 'Entrená con nosotros') }}</p>
+      <!-- El color lo elige el gimnasio en el editor. En linea y no por CSS
+           porque tiene que ganarle a la regla del tema y a la variante con
+           foto; sin color elegido va null y manda el CSS de siempre. -->
+      <h1 class="portada__titulo" [style.color]="l.portada.colorTitulo || null">
+        {{ texto(l.portada.titulo, gym!.nombre) }}
+      </h1>
+      <p class="portada__sub" [class.portada__sub--color]="l.portada.colorSubtitulo"
+         [style.color]="l.portada.colorSubtitulo || null">
+        {{ texto(l.portada.subtitulo, gym!.slogan || 'Entrená con nosotros') }}
+      </p>
     </div>
     @if (haySecciones) {
       <button class="portada__flecha" [class.portada__flecha--foto]="l.portada.imagen"

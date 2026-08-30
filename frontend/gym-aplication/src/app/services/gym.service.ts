@@ -53,6 +53,13 @@ export interface Landing {
      * El hueco que deja arriba no se ve: ahi esta la barra fija tapando.
      */
     desplazamiento: number;
+    /**
+     * Color del titulo y de la frase sobre la portada. El texto va encima de
+     * la foto que elige el gimnasio, asi que el blanco fijo de antes se perdia
+     * sobre cualquier imagen clara. Vacio = lo decide el CSS (blanco con foto).
+     */
+    colorTitulo: string;
+    colorSubtitulo: string;
   };
   /** Las que crea el gimnasio. Vacío = la página solo tiene lo fijo. */
   secciones: SeccionLanding[];
@@ -71,7 +78,13 @@ export interface Landing {
 export function landingVacia(): Landing {
   return {
     activa: false,
-    portada: { imagen: '', titulo: '', subtitulo: '', textoBoton: '', posicion: '50% 50%', desplazamiento: 0 },
+    portada: {
+      imagen: '', titulo: '', subtitulo: '', textoBoton: '',
+      posicion: '50% 50%', desplazamiento: 0,
+      // Vacíos a propósito: sin elegir, el CSS sigue poniendo el blanco de
+      // siempre, así que las páginas ya publicadas no cambian de aspecto.
+      colorTitulo: '', colorSubtitulo: ''
+    },
     secciones: [],
     sobreNosotros: { titulo: '', texto: '', imagen: '' },
     horarios: { activo: true, titulo: '', filas: [] },

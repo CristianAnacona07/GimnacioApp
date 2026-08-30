@@ -55,6 +55,22 @@ export class ConfiguracionPagina implements OnInit {
   landing: Landing = landingVacia();
 
   /**
+   * Colores sugeridos para el texto de la portada. Van sobre la foto del
+   * gimnasio, asi que la lista son tonos que se recortan contra un fondo
+   * cualquiera: los claros para fotos oscuras y el negro para fotos claras,
+   * que es el caso que dejaba el titulo ilegible. Igual queda el selector
+   * libre al lado para cualquier otro color.
+   */
+  readonly COLORES_TEXTO = [
+    { nombre: 'Blanco',   valor: '#ffffff' },
+    { nombre: 'Negro',    valor: '#111827' },
+    { nombre: 'Dorado',   valor: '#f2cf74' },
+    { nombre: 'Amarillo', valor: '#facc15' },
+    { nombre: 'Celeste',  valor: '#7dd3fc' },
+    { nombre: 'Naranja',  valor: '#fb923c' }
+  ];
+
+  /**
    * Copia de lo ultimo guardado, para saber si de verdad cambio algo. Se
    * compara serializada porque la pagina es un objeto anidado que se edita por
    * todos lados: encuadre, secciones, tarjetas, horarios.

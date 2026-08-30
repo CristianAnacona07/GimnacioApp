@@ -303,6 +303,11 @@
   margin: 0 0 0.9rem;
 }
 
+/* Con un color elegido a mano va a opacidad plena: si no, el 82% lo aclara y
+   el tono que se ve no es el que el gimnasio eligió en el editor — y encima
+   no coincidiría con la vista previa, que usa otra opacidad. */
+.portada__sub--color { opacity: 1 !important; }
+
 .portada__sub {
   color: var(--portada-tinta, rgba(255,255,255,0.92));
   opacity: 0.82;

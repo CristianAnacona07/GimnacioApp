@@ -60,8 +60,11 @@
               <span>menú del sitio</span>
             </div>
             <div class="encuadre-texto">
-              <p class="encuadre-titulo">{{ landing.portada.titulo || gym!.nombre }}</p>
-              <p class="encuadre-frase">
+              <p class="encuadre-titulo" [style.color]="landing.portada.colorTitulo || null">
+                {{ landing.portada.titulo || gym!.nombre }}
+              </p>
+              <p class="encuadre-frase" [class.encuadre-frase--color]="landing.portada.colorSubtitulo"
+                 [style.color]="landing.portada.colorSubtitulo || null">
                 {{ landing.portada.subtitulo || gym!.slogan || 'Entrená con nosotros' }}
               </p>
             </div>
@@ -84,11 +87,56 @@
                name="pTitulo" [placeholder]="gym.nombre">
       </label>
 
+      <!-- El color va aparte del texto porque depende de la foto, no de lo que
+           diga el título: sobre una portada clara el blanco de siempre no se
+           lee. La vista previa de arriba lo aplica en vivo. -->
+      <div class="campo">
+        <span class="campo__label">Color del título</span>
+        <div class="paleta">
+          @for (c of COLORES_TEXTO; track c.valor) {
+            <button type="button" class="paleta__color"
+                    [class.paleta__color--activo]="landing.portada.colorTitulo === c.valor"
+                    [style.background]="c.valor"
+                    [title]="c.nombre" [attr.aria-label]="'Título en ' + c.nombre"
+                    (click)="landing.portada.colorTitulo = c.valor"></button>
+          }
+          <label class="paleta__libre" title="Elegir otro color">
+            <input type="color" [(ngModel)]="landing.portada.colorTitulo" name="pColorTitulo">
+            <span aria-hidden="true">🎨</span>
+          </label>
+          @if (landing.portada.colorTitulo) {
+            <button type="button" class="paleta__quitar" (click)="landing.portada.colorTitulo = ''"
+                    title="Volver al color automático">Automático</button>
+          }
+        </div>
+      </div>
+
       <label class="campo">
         <span class="campo__label">Frase</span>
         <input class="input" type="text" maxlength="120" [(ngModel)]="landing.portada.subtitulo"
                name="pSub" [placeholder]="gym.slogan || 'Entrená con nosotros'">
       </label>
+
+      <div class="campo">
+        <span class="campo__label">Color de la frase</span>
+        <div class="paleta">
+          @for (c of COLORES_TEXTO; track c.valor) {
+            <button type="button" class="paleta__color"
+                    [class.paleta__color--activo]="landing.portada.colorSubtitulo === c.valor"
+                    [style.background]="c.valor"
+                    [title]="c.nombre" [attr.aria-label]="'Frase en ' + c.nombre"
+                    (click)="landing.portada.colorSubtitulo = c.valor"></button>
+          }
+          <label class="paleta__libre" title="Elegir otro color">
+            <input type="color" [(ngModel)]="landing.portada.colorSubtitulo" name="pColorSub">
+            <span aria-hidden="true">🎨</span>
+          </label>
+          @if (landing.portada.colorSubtitulo) {
+            <button type="button" class="paleta__quitar" (click)="landing.portada.colorSubtitulo = ''"
+                    title="Volver al color automático">Automático</button>
+          }
+        </div>
+      </div>
 
       <label class="campo">
         <span class="campo__label">Texto del botón</span>
