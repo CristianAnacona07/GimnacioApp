@@ -294,6 +294,22 @@ router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
     const ingresosPorSuscriptor = armarSerieIngresos(pagosPorSuscriptor);
     const ingresosMensual = armarSerieIngresos(pagosMensual);
 
+    // Ingreso asegurado: lo que entra por mes si nadie se va. Sale del plan de
+    // cada gimnasio vigente y NO de lo cobrado, asi que no depende de que dia
+    // paga cada uno. Es el numero que hace comparables los meses: como cada
+    // gimnasio corta en su propia fecha, el total cobrado en un mes se mueve
+    // con los atrasos y con el mes en que entro cada gimnasio nuevo.
+    const gymsConPlan = await prisma.gym.findMany({
+      where: { ...gymVigente, planPlataformaId: { not: null } },
+      select: { planPlataformaCampo: true, planPlataforma: { select: { precioMensual: true } } }
+    });
+    const ingresoAsegurado = gymsConPlan.reduce((suma, g) => {
+      // Solo los de cobro mensual tienen un valor fijo por adelantado; los de
+      // cobro por socio dependen de cuantos socios activos tengan ese mes.
+      if (g.planPlataformaCampo !== 'mensual' || !g.planPlataforma) return suma;
+      return suma + Number(g.planPlataforma.precioMensual);
+    }, 0);
+
     // Bucketing en JS: no hay precedente de date_trunc/$queryRaw en el
     // backend y el volumen de filas es chico, así que alcanza con esto en
     // vez de meter SQL crudo por primera vez.
@@ -311,7 +327,7 @@ router.get('/dashboard', verificarToken, soloSuperAdmin, async (req, res) => {
 
     res.json({
       sociosActivos, adminTotal, gimnasiosActivos,
-      ingresosPorSuscriptor, ingresosMensual,
+      ingresosPorSuscriptor, ingresosMensual, ingresoAsegurado,
       nuevosSociosPorMes: meses
     });
   } catch (error) {

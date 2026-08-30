@@ -50,8 +50,16 @@ export class SuperAdmin implements OnInit, OnDestroy {
     gimnasiosActivos: number;
     ingresosPorSuscriptor: { ultimoMes: { mes: string; total: number }; porMes: { mes: string; total: number }[] };
     ingresosMensual: { ultimoMes: { mes: string; total: number }; porMes: { mes: string; total: number }[] };
+    /** Suma del plan de los gimnasios vigentes: lo que entra por mes si nadie se va. */
+    ingresoAsegurado: number;
     nuevosSociosPorMes: { mes: string; cantidad: number }[];
   } | null = null;
+
+  // Las dos tarjetas de plata del dashboard arrancan plegadas: se ve el
+  // titulo y hay que tocarlas para ver el monto. El estado es solo de la
+  // pantalla, no se guarda.
+  verAsegurado = false;
+  verCobrado = false;
 
   // --- Planes de plataforma (lo que le cobramos a cada gimnasio; no
   // confundir con los planes de membresía que cada gimnasio le vende a sus
@@ -65,10 +73,18 @@ export class SuperAdmin implements OnInit, OnDestroy {
   // el único input "Valor" del formulario inline, ver abrirEditarPlan().
   editandoPlanCampo: 'mensual' | 'porSuscriptor' | null = null;
   editandoValor: number | null = null;
-  // Un plan siempre guarda los dos precios de una — el gimnasio elige cuál
-  // de los dos le aplica al asignarlo — así que al crearlo se piden juntos,
-  // sin dejar ninguno en $0 por defecto.
-  nuevoPlan = { nombre: '', precioMensual: null as number | null, precioPorSuscriptor: null as number | null };
+  // Los planes se cobran por mes, asi que el formulario no pide el valor por
+  // suscriptor: queda en 0. La columna y el cobro por socio siguen existiendo
+  // en el backend — si algun dia hace falta, se carga a mano y la opcion
+  // reaparece sola en los selectores.
+  nuevoPlan = {
+    nombre: '',
+    precioMensual: null as number | null,
+    precioPorSuscriptor: 0,
+    // Hasta cuántos socios activos cubre el plan. Opcional: vacío es el
+    // escalón más alto, el que no tiene tope.
+    maxSocios: null as number | null
+  };
 
   /** true cuando el superadmin eligió "Otro" en el selector de Plan, para escribir un nombre nuevo. */
   nuevoPlanNombrePersonalizado = false;
@@ -187,9 +203,12 @@ export class SuperAdmin implements OnInit, OnDestroy {
   // para los totales en pesos — recibe el arreglo en vez de leerlo de un
   // único `dashboard.ingresosPorMes` porque ahora hay dos series (por
   // socio y mensual), cada una con su propio gráfico.
-  dashMaxIngreso(porMes: { total: number }[] | undefined): number {
+  // `referencia` entra en el maximo para que la linea de lo asegurado quede
+  // dentro del grafico: si ningun mes llego a ese monto, sin esto la linea se
+  // dibujaria por encima del area visible y no se veria.
+  dashMaxIngreso(porMes: { total: number }[] | undefined, referencia = 0): number {
     const valores = (porMes || []).map(m => m.total);
-    return Math.max(1, ...valores);
+    return Math.max(1, referencia, ...valores);
   }
 
   dashAlturaBarraIngreso(total: number, max: number): number {
@@ -212,6 +231,37 @@ export class SuperAdmin implements OnInit, OnDestroy {
   // string (Prisma serializa Decimal así) — acepta las dos formas.
   formatMoneda(n: number | string): string {
     return '$' + Math.round(Number(n)).toLocaleString('es');
+  }
+
+  /**
+   * Escalón al que pertenece un plan, por su nombre. Solo decide el color de
+   * la tarjeta: los precios y el tope de socios son los que estén cargados,
+   * así que un plan con otro nombre sigue funcionando igual — solo sale en
+   * gris en vez de con su metal.
+   */
+  metalDelPlan(nombre: string): string {
+    const n = (nombre || '').toLowerCase();
+    if (n.includes('bronce')) return 'bronce';
+    if (n.includes('plata')) return 'plata';
+    if (n.includes('oro')) return 'oro';
+    if (n.includes('élite') || n.includes('elite')) return 'elite';
+    if (n.includes('inicial') || n.includes('socio')) return 'inicial';
+    return 'neutro';
+  }
+
+  /** "Hasta 150 socios activos", o sin tope para el escalón más alto. */
+  rangoDelPlan(plan: { maxSocios?: number | null }): string {
+    return plan.maxSocios ? `Hasta ${plan.maxSocios} socios activos` : 'Sin tope de socios';
+  }
+
+  /**
+   * Cuánto termina costando cada socio si el gimnasio llega al tope del plan.
+   * Es el número que hace comparables dos escalones: el precio mensual solo
+   * no dice si el escalón grande sale más barato por socio.
+   */
+  porSocioEnElTope(plan: { precioMensual: number | string; maxSocios?: number | null }): string | null {
+    if (!plan.maxSocios) return null;
+    return this.formatMoneda(Number(plan.precioMensual) / plan.maxSocios);
   }
 
   /**
@@ -455,13 +505,13 @@ export class SuperAdmin implements OnInit, OnDestroy {
   }
 
   crearPlanPlataforma() {
-    if (!this.nuevoPlan.nombre || this.nuevoPlan.precioMensual == null || this.nuevoPlan.precioPorSuscriptor == null || this.guardandoPlan) return;
+    if (!this.nuevoPlan.nombre || this.nuevoPlan.precioMensual == null || this.guardandoPlan) return;
     this.guardandoPlan = true;
     this.http.post(`${environment.apiUrl}/api/planes-plataforma`, this.nuevoPlan, { headers: this.headers })
       .pipe(takeUntil(this.destroy$)).subscribe({
         next: () => {
           this.toast.success('Plan creado');
-          this.nuevoPlan = { nombre: '', precioMensual: null, precioPorSuscriptor: null };
+          this.nuevoPlan = { nombre: '', precioMensual: null, precioPorSuscriptor: 0, maxSocios: null };
           this.nuevoPlanNombrePersonalizado = false;
           this.mostrarFormPlan = false;
           this.guardandoPlan = false;

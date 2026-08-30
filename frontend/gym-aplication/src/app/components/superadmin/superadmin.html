@@ -92,16 +92,48 @@
             <p class="dash-tarjeta__valor">{{ dashboard.gimnasiosActivos }}</p>
             <p class="dash-tarjeta__hint">Con suscripción vigente</p>
           </div>
+          <!-- Solo si de verdad hay ingresos por socio: con todos los gimnasios
+               en planes mensuales esta tarjeta quedaba siempre en $0. -->
+          @if (dashboard.ingresosPorSuscriptor.ultimoMes.total > 0) {
           <div class="dash-tarjeta">
             <p class="dash-tarjeta__label">💰 Por socio — {{ nombreMes(dashboard.ingresosPorSuscriptor.ultimoMes.mes) }}</p>
             <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosPorSuscriptor.ultimoMes.total) }}</p>
             <p class="dash-tarjeta__hint">Gimnasios con plan "por socio", según Facturación</p>
           </div>
-          <div class="dash-tarjeta">
-            <p class="dash-tarjeta__label">💵 Mensual — {{ nombreMes(dashboard.ingresosMensual.ultimoMes.mes) }}</p>
-            <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosMensual.ultimoMes.total) }}</p>
-            <p class="dash-tarjeta__hint">Gimnasios con plan "mensual", según Facturación</p>
-          </div>
+          }
+          <!-- El numero grande es el asegurado, no lo cobrado: cada gimnasio
+               corta en su propia fecha, asi que lo cobrado en el mes se mueve
+               con los atrasos y con quien entro a mitad de mes. Debajo va lo
+               que de verdad entro, para ver la diferencia de un vistazo. -->
+          <!-- Plegadas: la plata del negocio no tiene por que estar a la vista
+               de cualquiera que pase por al lado de la pantalla. Se abren de a
+               una. Son <button> de verdad, asi que responden al teclado. -->
+          <button type="button" class="dash-tarjeta dash-tarjeta--plegable"
+                  [class.abierta]="verAsegurado" [attr.aria-expanded]="verAsegurado"
+                  (click)="verAsegurado = !verAsegurado">
+            <p class="dash-tarjeta__label">💵 Ingreso asegurado</p>
+            @if (verAsegurado) {
+              <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresoAsegurado) }}</p>
+              <p class="dash-tarjeta__hint">Al mes, sumando el plan de cada gimnasio vigente</p>
+            } @else {
+              <span class="dash-tarjeta__ver">Ver monto</span>
+            }
+          </button>
+          <button type="button" class="dash-tarjeta dash-tarjeta--plegable"
+                  [class.abierta]="verCobrado" [attr.aria-expanded]="verCobrado"
+                  (click)="verCobrado = !verCobrado">
+            <p class="dash-tarjeta__label">🧾 Cobrado en {{ nombreMes(dashboard.ingresosMensual.ultimoMes.mes) }}</p>
+            @if (verCobrado) {
+              <p class="dash-tarjeta__valor">{{ formatMoneda(dashboard.ingresosMensual.ultimoMes.total) }}</p>
+              <p class="dash-tarjeta__hint" [class.dash-tarjeta__hint--falta]="dashboard.ingresosMensual.ultimoMes.total < dashboard.ingresoAsegurado">
+                {{ dashboard.ingresosMensual.ultimoMes.total >= dashboard.ingresoAsegurado
+                   ? "Al día con lo esperado del mes"
+                   : "Faltan " + formatMoneda(dashboard.ingresoAsegurado - dashboard.ingresosMensual.ultimoMes.total) + " por cobrar" }}
+              </p>
+            } @else {
+              <span class="dash-tarjeta__ver">Ver monto</span>
+            }
+          </button>
         </div>
 
         <div class="dash-chart-card">
@@ -140,54 +172,22 @@
         </div>
 
         <div class="dash-chart-card">
-          <p class="dash-chart-titulo">Ingresos por socio</p>
-          <p class="dash-chart-sub">Últimos 6 meses, según Facturación (sin anuladas)</p>
-          <div class="dash-chart-wrap">
-            @let maxSuscriptor = dashMaxIngreso(dashboard.ingresosPorSuscriptor.porMes);
-            <svg class="dash-yaxis" [attr.height]="DASH_H" [attr.width]="DASH_PAD.left + 20">
-              @for (label of dashYLabelsIngreso(maxSuscriptor); track label.val) {
-                <line [attr.x1]="DASH_PAD.left - 4" [attr.x2]="DASH_PAD.left"
-                      [attr.y1]="label.y" [attr.y2]="label.y"
-                      stroke="#334155" stroke-width="1"/>
-                <text [attr.x]="DASH_PAD.left - 6" [attr.y]="label.y + 4"
-                      text-anchor="end" font-size="8" fill="#94a3b8">{{ label.val }}</text>
-              }
-            </svg>
-            <div class="dash-chart-scroll">
-              <svg [attr.width]="dashDataW" [attr.height]="DASH_H">
-                @for (label of dashYLabelsIngreso(maxSuscriptor); track label.val) {
-                  <line x1="0" [attr.x2]="dashDataW"
-                        [attr.y1]="label.y" [attr.y2]="label.y"
-                        stroke="#1e293b" stroke-width="1"/>
-                }
-                @for (m of dashboard.ingresosPorSuscriptor.porMes; track m.mes) {
-                  @let x = dashXBarra($index);
-                  <rect [attr.x]="x - 16" [attr.y]="dashYBarraIngreso(m.total, maxSuscriptor)"
-                        width="32" [attr.height]="dashAlturaBarraIngreso(m.total, maxSuscriptor)"
-                        rx="4" fill="#22c55e"/>
-                  <text [attr.x]="x" [attr.y]="DASH_PAD.top + dashInnerH + 16"
-                        text-anchor="middle" font-size="10" fill="#94a3b8">{{ dashMesCorto(m.mes) }}</text>
-                  <text [attr.x]="x" [attr.y]="dashYBarraIngreso(m.total, maxSuscriptor) - 6"
-                        text-anchor="middle" font-size="9" font-weight="700" fill="#e2e8f0">{{ formatMoneda(m.total) }}</text>
-                }
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div class="dash-chart-card">
           <p class="dash-chart-titulo">Ingresos mensuales</p>
-          <p class="dash-chart-sub">Últimos 6 meses, según Facturación (sin anuladas)</p>
+          <p class="dash-chart-sub">Ultimos 6 meses cobrados, contra la linea de lo asegurado</p>
           <div class="dash-chart-wrap">
-            @let maxMensual = dashMaxIngreso(dashboard.ingresosMensual.porMes);
-            <svg class="dash-yaxis" [attr.height]="DASH_H" [attr.width]="DASH_PAD.left + 20">
-              @for (label of dashYLabelsIngreso(maxMensual); track label.val) {
-                <line [attr.x1]="DASH_PAD.left - 4" [attr.x2]="DASH_PAD.left"
-                      [attr.y1]="label.y" [attr.y2]="label.y"
-                      stroke="#334155" stroke-width="1"/>
-                <text [attr.x]="DASH_PAD.left - 6" [attr.y]="label.y + 4"
-                      text-anchor="end" font-size="8" fill="#94a3b8">{{ label.val }}</text>
-              }
+            @let maxMensual = dashMaxIngreso(dashboard.ingresosMensual.porMes, dashboard.ingresoAsegurado);
+            <!-- Eje mas ancho y corrido a la derecha: con montos de siete
+                 cifras la etiqueta no entraba y salia cortada por la izquierda. -->
+            <svg class="dash-yaxis" [attr.height]="DASH_H" [attr.width]="DASH_PAD.left + 60">
+              <g transform="translate(40, 0)">
+                @for (label of dashYLabelsIngreso(maxMensual); track label.val) {
+                  <line [attr.x1]="DASH_PAD.left - 4" [attr.x2]="DASH_PAD.left"
+                        [attr.y1]="label.y" [attr.y2]="label.y"
+                        stroke="#334155" stroke-width="1"/>
+                  <text [attr.x]="DASH_PAD.left - 6" [attr.y]="label.y + 4"
+                        text-anchor="end" font-size="9" fill="#94a3b8">{{ label.val }}</text>
+                }
+              </g>
             </svg>
             <div class="dash-chart-scroll">
               <svg [attr.width]="dashDataW" [attr.height]="DASH_H">
@@ -195,6 +195,15 @@
                   <line x1="0" [attr.x2]="dashDataW"
                         [attr.y1]="label.y" [attr.y2]="label.y"
                         stroke="#1e293b" stroke-width="1"/>
+                }
+                <!-- Lo asegurado por mes: la barra que no llega es un mes con
+                     cobros pendientes; la que se pasa, uno donde entro tambien
+                     un atraso del mes anterior. -->
+                @if (dashboard.ingresoAsegurado > 0) {
+                  <line x1="0" [attr.x2]="dashDataW"
+                        [attr.y1]="dashYBarraIngreso(dashboard.ingresoAsegurado, maxMensual)"
+                        [attr.y2]="dashYBarraIngreso(dashboard.ingresoAsegurado, maxMensual)"
+                        stroke="#56c78d" stroke-width="1.5" stroke-dasharray="5 4"/>
                 }
                 @for (m of dashboard.ingresosMensual.porMes; track m.mes) {
                   @let x = dashXBarra($index);
@@ -216,7 +225,7 @@
 
   <!-- Tab Planes de plataforma -->
   @if (tabActiva === 'planes') {
-    <div class="planes-gestion">
+    <div class="planes-gestion planes-gestion--ancho">
 
       <!-- Formulario nuevo plan -->
       @if (mostrarFormPlan) {
@@ -241,11 +250,12 @@
             <input [(ngModel)]="nuevoPlan.precioMensual" type="number" min="0" placeholder="200000" class="finput">
           </div>
           <div class="field">
-            <label class="flabel">Valor por suscriptor</label>
-            <input [(ngModel)]="nuevoPlan.precioPorSuscriptor" type="number" min="0" placeholder="5000" class="finput">
+            <label class="flabel">Hasta cuántos socios</label>
+            <input [(ngModel)]="nuevoPlan.maxSocios" type="number" min="1" placeholder="150" class="finput">
+            <span class="dash-tarjeta__hint">Dejalo vacío para el escalón más alto, el que no tiene tope.</span>
           </div>
           <button class="btn-crear" (click)="crearPlanPlataforma()"
-                  [disabled]="!nuevoPlan.nombre || nuevoPlan.precioMensual === null || nuevoPlan.precioPorSuscriptor === null || guardandoPlan">
+                  [disabled]="!nuevoPlan.nombre || nuevoPlan.precioMensual === null || guardandoPlan">
             {{ guardandoPlan ? 'Creando...' : '🚀 Crear plan' }}
           </button>
         </div>
@@ -257,16 +267,31 @@
       } @else if (!planesPlataforma.length) {
         <p class="fb-empty">Todavía no hay planes de plataforma creados.</p>
       } @else {
+        <div class="plan-grid">
         @for (plan of planesPlataforma; track plan._id) {
-          <div class="plan-nombre-fila">
-            <p class="plan-nombre-titulo">Plan: <span class="plan-nombre-titulo__valor">{{ plan.nombre }}</span></p>
-            <!-- Un solo botón para el plan entero: sus dos recuadros
-                 (Mensual y Por suscriptor) son el mismo plan, no dos. -->
-            <button type="button" class="btn-eliminar-plan" (click)="eliminarPlanPlataforma(plan)"
-                    [attr.aria-label]="'Eliminar plan ' + plan.nombre" title="Eliminar plan">
-              🗑️ Eliminar plan
-            </button>
-          </div>
+          <!-- El escalón (bronce/plata/oro/élite) pinta el borde y el nombre.
+               Sale del nombre del plan, así que uno con otro nombre se ve
+               igual pero en gris — no se rompe. -->
+          <div class="plan-card" [attr.data-metal]="metalDelPlan(plan.nombre)"
+               [class.plan-card--doble]="plan.precioPorSuscriptor > 0">
+            <div class="plan-card__cabecera">
+              <div>
+                <p class="plan-card__nombre">{{ plan.nombre }}</p>
+                <p class="plan-rango">{{ rangoDelPlan(plan) }}</p>
+              </div>
+              <!-- Editar y eliminar juntos, apilados. El lápiz abre el valor
+                   mensual, que es el que todo plan tiene; el segundo valor,
+                   cuando existe, trae el suyo propio abajo. -->
+              <div class="plan-card__acciones">
+                <button type="button" class="plan-accion" (click)="abrirEditarPlan(plan, 'mensual')"
+                        [attr.aria-label]="'Editar valor mensual de ' + plan.nombre"
+                        title="Editar valor mensual">✏️</button>
+                <button type="button" class="plan-accion plan-accion--borrar"
+                        (click)="eliminarPlanPlataforma(plan)"
+                        [attr.aria-label]="'Eliminar plan ' + plan.nombre"
+                        title="Eliminar plan">🗑️</button>
+              </div>
+            </div>
 
           @if (editandoPlan?._id === plan._id) {
             <!-- Reemplaza los dos recuadros en su propio lugar — nada de
@@ -292,22 +317,41 @@
               </div>
             </div>
           } @else {
-            <div class="dash-tarjetas">
-              <button type="button" class="dash-tarjeta plan-valor-tarjeta"
-                      (click)="abrirEditarPlan(plan, 'mensual')">
-                <span class="plan-valor-tarjeta__editar" aria-hidden="true">✏️</span>
-                <span class="dash-tarjeta__label">Mensual</span>
-                <span class="dash-tarjeta__valor">{{ formatMoneda(plan.precioMensual) }}</span>
-              </button>
-              <button type="button" class="dash-tarjeta plan-valor-tarjeta"
-                      (click)="abrirEditarPlan(plan, 'porSuscriptor')">
-                <span class="plan-valor-tarjeta__editar" aria-hidden="true">✏️</span>
+            <div class="plan-precios">
+            <div class="plan-precio">
+              <span class="dash-tarjeta__label">Mensual</span>
+              <span class="dash-tarjeta__valor">{{ formatMoneda(plan.precioMensual) }}</span>
+              <span class="dash-tarjeta__hint">al mes</span>
+              <!-- Lo que de verdad hace comparables dos escalones: el precio
+                   mensual solo no dice si el grande sale más barato por socio. -->
+              @if (porSocioEnElTope(plan); as porSocio) {
+                <span class="plan-equivale">Equivale a {{ porSocio }} por socio en el tope del plan</span>
+              }
+            </div>
+            <!-- Los escalones (Bronce, Plata, Oro, Élite) se cobran solo por
+                 mes: llevan este valor en 0 y no muestran este bloque. El
+                 único plan que cobra por socio es el de entrada. -->
+            @if (plan.precioPorSuscriptor > 0) {
+              <div class="plan-precio plan-precio--segundo">
+                <button type="button" class="plan-accion plan-accion--suelto"
+                        (click)="abrirEditarPlan(plan, 'porSuscriptor')"
+                        [attr.aria-label]="'Editar valor por suscriptor de ' + plan.nombre"
+                        title="Editar valor por suscriptor">✏️</button>
                 <span class="dash-tarjeta__label">Por suscriptor</span>
                 <span class="dash-tarjeta__valor">{{ formatMoneda(plan.precioPorSuscriptor) }}</span>
-              </button>
+                <span class="dash-tarjeta__hint">por socio activo, al mes</span>
+                @if (plan.maxSocios) {
+                  <span class="plan-equivale">
+                    Hasta {{ formatMoneda(plan.precioPorSuscriptor * plan.maxSocios) }} al mes con {{ plan.maxSocios }} socios
+                  </span>
+                }
+              </div>
+            }
             </div>
           }
+          </div>
         }
+        </div>
       }
       }
     </div>
@@ -691,8 +735,12 @@
           <select class="finput" [ngModel]="claveOpcionPlan(nuevo)" (ngModelChange)="elegirOpcionPlan(nuevo, $event)">
             <option [ngValue]="null">Sin plan</option>
             @for (plan of planesPlataforma; track plan._id) {
-              <option [ngValue]="plan._id + ':mensual'">Mensual {{ plan.nombre }} — {{ formatMoneda(plan.precioMensual) }}</option>
-              <option [ngValue]="plan._id + ':porSuscriptor'">Por suscriptor {{ plan.nombre }} — {{ formatMoneda(plan.precioPorSuscriptor) }}</option>
+              <option [ngValue]="plan._id + ':mensual'">{{ plan.nombre }} · {{ formatMoneda(plan.precioMensual) }}/mes · {{ rangoDelPlan(plan) }}</option>
+              <!-- Solo si el plan cobra por socio. Un escalon mensual tiene este
+                   valor en 0: ofrecerlo dejaria al gimnasio facturando $0. -->
+              @if (plan.precioPorSuscriptor > 0) {
+                <option [ngValue]="plan._id + ':porSuscriptor'">{{ plan.nombre }} · {{ formatMoneda(plan.precioPorSuscriptor) }} por socio · {{ rangoDelPlan(plan) }}</option>
+              }
             }
           </select>
         </div>
@@ -838,8 +886,12 @@
           <select class="finput" [ngModel]="claveOpcionPlan(editando)" (ngModelChange)="elegirOpcionPlan(editando, $event)">
             <option [ngValue]="null">Sin plan</option>
             @for (plan of planesPlataforma; track plan._id) {
-              <option [ngValue]="plan._id + ':mensual'">Mensual {{ plan.nombre }} — {{ formatMoneda(plan.precioMensual) }}</option>
-              <option [ngValue]="plan._id + ':porSuscriptor'">Por suscriptor {{ plan.nombre }} — {{ formatMoneda(plan.precioPorSuscriptor) }}</option>
+              <option [ngValue]="plan._id + ':mensual'">{{ plan.nombre }} · {{ formatMoneda(plan.precioMensual) }}/mes · {{ rangoDelPlan(plan) }}</option>
+              <!-- Solo si el plan cobra por socio. Un escalon mensual tiene este
+                   valor en 0: ofrecerlo dejaria al gimnasio facturando $0. -->
+              @if (plan.precioPorSuscriptor > 0) {
+                <option [ngValue]="plan._id + ':porSuscriptor'">{{ plan.nombre }} · {{ formatMoneda(plan.precioPorSuscriptor) }} por socio · {{ rangoDelPlan(plan) }}</option>
+              }
             }
           </select>
         </div>
@@ -882,51 +934,49 @@
           </span>
         </div>
 
-        <div class="gym-stats">
-          <span>👥 {{ g.totalUsuarios }} usuarios</span>
-          <span>📅 {{ g.createdAt | date:'dd/MM/yy' }}</span>
-        </div>
-
-        <div class="gym-plan-linea">
-          @if (g.planPlataforma) {
-            @if (g.planVenceEn) {
-              <span class="gym-vigencia"
-                    [class.gym-vigencia--vencido]="esVencido(g.planVenceEn) && !enGracia(g.planVenceEn)"
-                    [class.gym-vigencia--gracia]="enGracia(g.planVenceEn)">
-                <!-- 'UTC' explícito: mismo motivo que en la tabla de
-                     Facturación — sin esto, un planVenceEn a medianoche UTC
-                     (ahora siempre el último día del mes) se corre un día
-                     atrás en cualquier huso detrás de UTC. -->
-                @if (enGracia(g.planVenceEn)) {
-                  ⏳ Venció {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }} — {{ DIAS_GRACIA }} días de gracia para pagar
-                } @else if (esVencido(g.planVenceEn)) {
-                  ⚠️ Vencido y desactivado desde {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }}
-                } @else if (g.planActivadoEn) {
-                  ✅ Activo desde {{ g.planActivadoEn | date:'dd/MM/yy':'UTC' }} hasta {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }}
-                } @else {
-                  ✅ Activo hasta {{ g.planVenceEn | date:'dd/MM/yy':'UTC' }}
-                }
-              </span>
-            } @else {
-              <span class="gym-vigencia gym-vigencia--sin">Sin vigencia registrada — reasigná el plan para activarla</span>
-            }
-            <span class="gym-plan-badge">
-              💳 {{ g.planPlataforma.nombre }}
-              {{ g.planPlataformaCampo === 'mensual'
-                ? '· ' + formatMoneda(g.planPlataforma.precioMensual) + '/mes'
-                : '· ' + formatMoneda(g.planPlataforma.precioPorSuscriptor) + '/socio' }}
-            </span>
-          } @else {
-            <span class="gym-plan-badge gym-plan-badge--sin">💳 Sin plan asignado</span>
-          }
-        </div>
-
         <button class="btn-info-toggle" (click)="toggleInfo(g)">
           {{ g.infoAbierta ? '▲ Ocultar información' : 'ℹ️ Información' }}
         </button>
 
         @if (g.infoAbierta) {
           <div class="gym-info-panel">
+            <div class="gym-info-fila">
+              <span>Plan</span>
+              @if (g.planPlataforma) {
+                <b class="gym-plan-badge__nombre" [attr.data-metal]="metalDelPlan(g.planPlataforma.nombre)">
+                  {{ g.planPlataforma.nombre }}
+                  {{ g.planPlataformaCampo === "mensual"
+                    ? "· " + formatMoneda(g.planPlataforma.precioMensual) + "/mes"
+                    : "· " + formatMoneda(g.planPlataforma.precioPorSuscriptor) + "/socio" }}
+                </b>
+              } @else {
+                <b>Sin plan asignado</b>
+              }
+            </div>
+            <div class="gym-info-fila">
+              <span>Vigencia</span>
+              @if (g.planVenceEn) {
+                <!-- UTC explicito: mismo motivo que en la tabla de Facturacion
+                     — sin esto, un planVenceEn a medianoche UTC se corre un dia
+                     atras en cualquier huso detras de UTC. -->
+                <b class="gym-vigencia"
+                   [class.gym-vigencia--vencido]="esVencido(g.planVenceEn) && !enGracia(g.planVenceEn)"
+                   [class.gym-vigencia--gracia]="enGracia(g.planVenceEn)">
+                  @if (enGracia(g.planVenceEn)) {
+                    ⏳ Venció {{ g.planVenceEn | date:"dd/MM/yy":"UTC" }} — {{ DIAS_GRACIA }} días de gracia
+                  } @else if (esVencido(g.planVenceEn)) {
+                    ⚠️ Vencido desde {{ g.planVenceEn | date:"dd/MM/yy":"UTC" }}
+                  } @else if (g.planActivadoEn) {
+                    {{ g.planActivadoEn | date:"dd/MM/yy":"UTC" }} → {{ g.planVenceEn | date:"dd/MM/yy":"UTC" }}
+                  } @else {
+                    Hasta {{ g.planVenceEn | date:"dd/MM/yy":"UTC" }}
+                  }
+                </b>
+              } @else {
+                <b class="gym-vigencia gym-vigencia--sin">Sin vigencia — reasigná el plan</b>
+              }
+            </div>
+            <div class="gym-info-fila"><span>Dado de alta</span><b>{{ g.createdAt | date:"dd/MM/yy" }}</b></div>
             <div class="gym-info-fila"><span>Socios activos</span><b>{{ g.sociosActivos }}</b></div>
             <div class="gym-info-fila"><span>Personal</span><b>{{ g.staffTotal }}</b></div>
             <div class="gym-info-fila">

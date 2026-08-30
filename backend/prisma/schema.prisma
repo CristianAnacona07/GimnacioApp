@@ -459,6 +459,10 @@ model PlanPlataforma {
   nombre              String
   precioMensual       Decimal   @db.Decimal(10, 2) @map("precio_mensual")
   precioPorSuscriptor Decimal   @db.Decimal(10, 2) @map("precio_por_suscriptor")
+  /// Hasta cuántos socios activos cubre el plan. Es informativo: sirve para
+  /// mostrar el escalón en la ficha del plan y para saber cuándo un gimnasio
+  /// se quedó chico. Nulo = sin tope (el escalón más alto).
+  maxSocios           Int?      @map("max_socios")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
