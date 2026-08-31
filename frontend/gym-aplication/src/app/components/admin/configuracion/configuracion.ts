@@ -62,6 +62,12 @@ export class Configuracion implements OnInit {
       nombre: 'Auditoría',
       desc: 'Quién hizo qué y cuándo',
       ruta: '/admin/configuracion/auditoria'
+    },
+    {
+      icono: '💬',
+      nombre: 'Sugerencias de los socios',
+      desc: 'Lo que tus socios escribieron sobre el gimnasio',
+      ruta: '/admin/configuracion/sugerencias'
     }
   ];
 

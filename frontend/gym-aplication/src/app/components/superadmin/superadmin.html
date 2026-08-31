@@ -68,6 +68,11 @@
     <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'facturacion'" (click)="tabActiva = 'facturacion'">
       🧾 Facturación
     </button>
+    <button class="sa-tab" [class.sa-tab-activo]="tabActiva === 'feedback'"
+            (click)="tabActiva = 'feedback'; cargarFeedback()">
+      💬 Sugerencias
+      @if (feedbackSinLeer) { <span class="sa-tab-globo">{{ feedbackSinLeer }}</span> }
+    </button>
   </div>
 
   <!-- Tab Dashboard -->
@@ -1018,5 +1023,39 @@
   }
 
   } <!-- fin @if tabActiva gyms -->
+
+  <!-- Tab Sugerencias — solo lo que los socios escribieron SOBRE LA APP. Lo
+       que escribieron sobre su gimnasio lo lee el admin de ese gym; el backend
+       decide cual va a quien segun el rol, no esta pantalla. -->
+  @if (tabActiva === 'feedback') {
+    <div class="planes-gestion">
+      @if (cargandoFeedback) {
+        <p class="dash-cargando">Cargando mensajes…</p>
+      } @else if (!feedbacks.length) {
+        <p class="fb-empty">Todavía nadie escribió sobre la aplicación.</p>
+      } @else {
+        @for (f of feedbacks; track f._id) {
+          <div class="msg-card" [class.leido]="f.leido">
+            <div class="msg-cabecera">
+              <div>
+                <p class="msg-autor">{{ f.nombreUsuario }}</p>
+                <p class="msg-meta">
+                  {{ f.gymNombre || 'Sin gimnasio' }} · {{ f.createdAt | date:'dd/MM/yy HH:mm' }}
+                </p>
+              </div>
+              @if (!f.leido) {
+                <button type="button" class="btn-crear msg-marcar" (click)="marcarFeedbackLeido(f)">
+                  Marcar leído
+                </button>
+              } @else {
+                <span class="msg-leido">✓ Leído</span>
+              }
+            </div>
+            <p class="msg-texto">{{ f.mensaje }}</p>
+          </div>
+        }
+      }
+    </div>
+  }
 
 </div>

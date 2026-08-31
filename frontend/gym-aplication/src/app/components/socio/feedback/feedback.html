@@ -8,24 +8,57 @@
 
     <div class="fb-card">
       <div class="fb-icon">💬</div>
-      <h1 class="fb-titulo">¿Qué podemos mejorar?</h1>
-      <p class="fb-sub">Tu opinión nos ayuda a hacer una mejor app para todos. Escribí libremente, lo leemos con atención.</p>
+      <h1 class="fb-titulo">{{ titulo }}</h1>
+      <p class="fb-sub">{{ subtitulo }}</p>
 
-      <textarea
-        class="fb-textarea"
-        [(ngModel)]="mensaje"
-        [maxlength]="MAX"
-        placeholder="Contanos qué mejorarías, qué te gusta o qué te falta..."
-        rows="7">
-      </textarea>
-
-      <div class="fb-footer-row">
-        <span class="fb-contador" [class.rojo]="restantes < 50">{{ restantes }} caracteres restantes</span>
-        <button class="fb-btn" (click)="enviar()"
-                [disabled]="!mensaje.trim() || enviando">
-          @if (enviando) { Enviando... } @else { Enviar sugerencia }
+      <!-- Primero a quien va: el gimnasio y la app las manejan personas
+           distintas, y un mensaje en la bandeja equivocada no lo lee nadie. -->
+      <div class="fb-destinos">
+        <button type="button" class="fb-destino" [class.elegido]="destino === 'gimnasio'"
+                (click)="destino = 'gimnasio'">
+          <span class="fb-destino-icono" aria-hidden="true">🏋️</span>
+          <span class="fb-destino-nombre">Sobre el gimnasio</span>
+          <span class="fb-destino-quien">Lo lee tu gimnasio</span>
+        </button>
+        <button type="button" class="fb-destino" [class.elegido]="destino === 'plataforma'"
+                (click)="destino = 'plataforma'">
+          <span class="fb-destino-icono" aria-hidden="true">📱</span>
+          <span class="fb-destino-nombre">Sobre la app</span>
+          <span class="fb-destino-quien">Lo leemos nosotros</span>
         </button>
       </div>
+
+      <!-- El resto aparece recien con el destino elegido: sin eso el socio
+           escribe primero y despues descubre que tenia que elegir algo. -->
+      @if (destino) {
+        <textarea
+          class="fb-textarea"
+          [(ngModel)]="mensaje"
+          [maxlength]="MAX"
+          [placeholder]="marcador"
+          rows="7">
+        </textarea>
+
+        <!-- Solo para el gimnasio: quien lo lee es alguien que el socio ve
+             todos los dias. Para la app el nombre da lo mismo. -->
+        @if (destino === 'gimnasio') {
+          <label class="fb-anonimo">
+            <input type="checkbox" [(ngModel)]="anonimo">
+            <span>
+              Enviar sin mi nombre
+              <small>Tu gimnasio verá el mensaje como "Un socio".</small>
+            </span>
+          </label>
+        }
+
+        <div class="fb-footer-row">
+          <span class="fb-contador" [class.rojo]="restantes < 50">{{ restantes }} caracteres restantes</span>
+          <button class="fb-btn" (click)="enviar()"
+                  [disabled]="!mensaje.trim() || enviando">
+            @if (enviando) { Enviando... } @else { Enviar sugerencia }
+          </button>
+        </div>
+      }
     </div>
 
   } @else {
@@ -33,7 +66,11 @@
     <div class="fb-gracias">
       <div class="fb-gracias-icon">🙏</div>
       <h2 class="fb-gracias-titulo">¡Gracias por tu feedback!</h2>
-      <p class="fb-gracias-sub">Tu mensaje llegó y lo vamos a revisar. Juntos hacemos la app mejor.</p>
+      <p class="fb-gracias-sub">
+        {{ destino === 'gimnasio'
+           ? 'Tu mensaje le llegó al administrador de tu gimnasio.'
+           : 'Tu mensaje nos llegó y lo vamos a revisar. Juntos hacemos la app mejor.' }}
+      </p>
       <button class="fb-btn" (click)="volver()">Volver al inicio</button>
     </div>
 

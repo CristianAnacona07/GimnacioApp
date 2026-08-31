@@ -11,6 +11,7 @@ import { ToastService } from '../../services/toast.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { GymService } from '../../services/gym.service';
 import { StorageService } from '../../services/storage.service';
+import { FeedbackService } from '../../services/feedback.service';
 
 @Component({
   selector: 'app-superadmin',
@@ -25,7 +26,7 @@ export class SuperAdmin implements OnInit, OnDestroy {
   cargando = false;
   // Dashboard es la puerta de entrada del panel; Gimnasios queda como
   // pestaña de siempre para administrar cada gym individualmente.
-  tabActiva: 'dashboard' | 'gyms' | 'planes' | 'superadmins' | 'facturacion' = 'dashboard';
+  tabActiva: 'dashboard' | 'gyms' | 'planes' | 'superadmins' | 'facturacion' | 'feedback' = 'dashboard';
   mostrarForm = false;
   guardando = false;
   editando: any = null; // gym que se está editando
@@ -54,6 +55,40 @@ export class SuperAdmin implements OnInit, OnDestroy {
     ingresoAsegurado: number;
     nuevosSociosPorMes: { mes: string; cantidad: number }[];
   } | null = null;
+
+  // --- Feedback: lo que los socios escriben SOBRE LA APP. Lo que escriben
+  // sobre su gimnasio no llega aca: lo lee el admin de ese gym. El filtro lo
+  // hace el backend segun el rol del token, no esta pantalla. ---
+  feedbacks: any[] = [];
+  cargandoFeedback = false;
+
+  cargarFeedback() {
+    this.cargandoFeedback = true;
+    this.feedbackService.getAll().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (data: any) => {
+        this.feedbacks = data || [];
+        this.cargandoFeedback = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.cargandoFeedback = false;
+        this.toast.error('Error al cargar los mensajes');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  marcarFeedbackLeido(f: any) {
+    if (f.leido) return;
+    this.feedbackService.marcarLeido(f._id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => { f.leido = true; this.cdr.detectChanges(); },
+      error: () => this.toast.error('No se pudo marcar como leído')
+    });
+  }
+
+  get feedbackSinLeer(): number {
+    return this.feedbacks.filter(f => !f.leido).length;
+  }
 
   // Las dos tarjetas de plata del dashboard arrancan plegadas: se ve el
   // titulo y hay que tocarlas para ver el monto. El estado es solo de la
@@ -375,7 +410,8 @@ export class SuperAdmin implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private router: Router,
     private gymService: GymService,
-    private storage: StorageService
+    private storage: StorageService,
+    private feedbackService: FeedbackService
   ) {}
 
   ngOnInit() {

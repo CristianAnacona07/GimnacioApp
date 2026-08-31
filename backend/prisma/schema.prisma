@@ -342,13 +342,20 @@ model Feedback {
   gym           Gym      @relation(fields: [gymId], references: [id], onDelete: Restrict)
   gymNombre     String?  @map("gym_nombre")
   mensaje       String
+  /// A quien va dirigido: "gimnasio" lo lee el admin de ESE gym, "plataforma"
+  /// solo el superadmin. Por defecto plataforma, que es lo unico que existia
+  /// antes de separarlos: asi los mensajes viejos no cambian de dueno.
+  destino       String   @default("plataforma")
+  /// El socio pidio no mostrar su nombre. Se sigue guardando usuarioId (hace
+  /// falta para cortar un abuso), pero la pantalla del admin muestra "Un socio".
+  anonimo       Boolean  @default(false)
   leido         Boolean  @default(false)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([usuarioId])
-  @@index([gymId, createdAt(sort: Desc)])
+  @@index([gymId, destino, createdAt(sort: Desc)])
   @@map("feedbacks")
 }
 

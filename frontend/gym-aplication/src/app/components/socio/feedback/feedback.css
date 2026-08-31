@@ -123,3 +123,64 @@
   line-height: 1.5;
   margin: 0;
 }
+
+/* ── Elegir a quien va el mensaje ────────────────────────────────────────── */
+.fb-destinos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.fb-destino {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.9rem 0.6rem;
+  background: var(--sup-1, #fff);
+  border: 2px solid var(--bde, #e2e8f0);
+  border-radius: 0.9rem;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.fb-destino:hover { transform: translateY(-2px); }
+.fb-destino.elegido {
+  border-color: var(--color-secundario, #1d4ed8);
+  background: var(--tinte-azul, #eff6ff);
+}
+
+.fb-destino-icono  { font-size: 1.6rem; line-height: 1; }
+.fb-destino-nombre { font-size: 0.9rem; font-weight: 800; color: var(--txt-1, #1e293b); }
+.fb-destino-quien  { font-size: 0.72rem; color: var(--txt-3, #94a3b8); }
+
+/* ── Enviar sin nombre ───────────────────────────────────────────────────── */
+.fb-anonimo {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--txt-2, #475569);
+}
+.fb-anonimo input {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+  accent-color: var(--color-secundario, #1d4ed8);
+  cursor: pointer;
+}
+.fb-anonimo small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--txt-3, #94a3b8);
+  line-height: 1.4;
+}
+
+@media (max-width: 420px) {
+  .fb-destinos { grid-template-columns: 1fr; }
+}

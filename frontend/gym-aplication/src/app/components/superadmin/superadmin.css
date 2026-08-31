@@ -882,3 +882,46 @@
   font-size: 0.72rem;
   color: #64748b;
 }
+
+/* ── Sugerencias ─────────────────────────────────────────────────────────── */
+.sa-tab-globo {
+  min-width: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  line-height: 1.15rem;
+}
+
+.msg-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-left: 3px solid #56c78d;
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem 1rem;
+}
+/* Leído se apaga en vez de desaparecer: sirve de historial, pero el sin leer
+   tiene que ganar la vista de un vistazo. */
+.msg-card.leido { border-left-color: #334155; opacity: 0.62; }
+
+.msg-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.msg-autor { margin: 0; font-size: 0.9rem; font-weight: 800; color: #e2e8f0; }
+.msg-meta  { margin: 0.1rem 0 0; font-size: 0.72rem; color: #94a3b8; }
+.msg-marcar { width: auto; padding: 0.3rem 0.7rem; font-size: 0.72rem; flex-shrink: 0; }
+.msg-leido  { font-size: 0.72rem; font-weight: 700; color: #56c78d; flex-shrink: 0; }
+
+.msg-texto {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+}

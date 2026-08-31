@@ -166,6 +166,10 @@ export const routes: Routes = [
         loadComponent: () => import('./components/admin/configuracion/auditoria/auditoria').then(m => m.ConfiguracionAuditoria)
       },
       {
+        path: 'configuracion/sugerencias',
+        loadComponent: () => import('./components/admin/configuracion/sugerencias/sugerencias').then(m => m.ConfiguracionSugerencias)
+      },
+      {
         path: 'configuracion/cuenta',
         loadComponent: () => import('./components/admin/configuracion/cuenta/cuenta').then(m => m.ConfiguracionCuenta)
       },

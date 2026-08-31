@@ -1,0 +1,42 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">💬 Sugerencias de los socios</h2>
+  <p class="page-sub">
+    Lo que tus socios escribieron sobre el gimnasio.
+    @if (sinLeer) { {{ sinLeer }} sin leer. }
+  </p>
+
+  <div class="card">
+    @if (cargando) {
+      <p class="vacio">Cargando…</p>
+    } @else if (!mensajes.length) {
+      <p class="vacio">
+        Todavía nadie escribió. Tus socios pueden hacerlo desde
+        “Ayúdanos a mejorar”, en su menú.
+      </p>
+    } @else {
+      @for (m of mensajes; track m._id) {
+        <!-- Leído se apaga en vez de desaparecer: sigue sirviendo de historial,
+             pero lo que falta leer tiene que ganar la vista. -->
+        <article class="sug" [class.sug--leido]="m.leido">
+          <div class="sug__cabecera">
+            <div>
+              <p class="sug__autor">{{ m.nombreUsuario }}</p>
+              <p class="sug__fecha">{{ m.createdAt | date:'dd/MM/yy HH:mm' }}</p>
+            </div>
+            @if (m.leido) {
+              <span class="sug__marca">✓ Leído</span>
+            } @else {
+              <button type="button" class="btn btn--ghost btn--mini" (click)="marcarLeido(m)">
+                Marcar leído
+              </button>
+            }
+          </div>
+          <p class="sug__texto">{{ m.mensaje }}</p>
+        </article>
+      }
+    }
+  </div>
+
+</div>

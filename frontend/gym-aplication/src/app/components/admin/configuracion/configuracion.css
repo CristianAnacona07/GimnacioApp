@@ -518,3 +518,34 @@ textarea.input {
   text-transform: uppercase;
   color: var(--txt-3, #94a3b8);
 }
+
+/* ── Sugerencias de los socios ───────────────────────────────────────────── */
+.sug {
+  border-bottom: 1px solid var(--bde, #e2e8f0);
+  padding: 0.9rem 0;
+}
+.sug:last-child { border-bottom: none; }
+/* Leído se apaga, no desaparece: queda de historial sin robarle la vista a lo
+   que falta leer. */
+.sug--leido { opacity: 0.55; }
+
+.sug__cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
+}
+.sug__autor { margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--txt-1, #1e293b); }
+.sug__fecha { margin: 0.1rem 0 0; font-size: 0.72rem; color: var(--txt-3, #94a3b8); }
+.sug__marca { font-size: 0.72rem; font-weight: 700; color: var(--txt-verde, #15803d); flex-shrink: 0; }
+
+.sug__texto {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--txt-2, #475569);
+  white-space: pre-wrap;
+}
+
+.btn--mini { padding: 0.3rem 0.7rem; font-size: 0.72rem; flex-shrink: 0; }
