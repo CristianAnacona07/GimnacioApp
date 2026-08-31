@@ -6,15 +6,20 @@ name: Build iOS (nube)
 # Por defecto hace un build SIN FIRMA (verifica que compila; no necesita cuenta
 # de Apple). Para generar un .ipa instalable / subir a TestFlight, hace falta una
 # cuenta de Apple Developer y añadir los secretos de firma — ver ios/README-iOS.md.
+# Solo a pedido. Antes corria en cada push a main que tocara src/, o sea en
+# casi todos los despliegues, y viene fallando desde hace tiempo: mandaba un
+# correo de "Run failed" por cada deploy sin que nadie estuviera trabajando
+# en iOS.
+#
+# Falla resolviendo dependencias de Swift, no en el codigo del proyecto:
+# capacitor-social-login pide alamofire 5.11.2..<6.0.0, y esas versiones
+# exigen tools 6.3.0, mas nuevo que el Xcode del runner que estaba fijado.
+#
+# Para sacar iOS: Actions -> Build iOS (nube) -> Run workflow. Si vuelve a
+# fallar por lo mismo, hay que esperar a que el runner traiga un Xcode mas
+# nuevo o bajar la version de capacitor-social-login.
 on:
   workflow_dispatch: {}
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/gym-aplication/ios/**'
-      - 'frontend/gym-aplication/src/**'
-      - 'frontend/gym-aplication/package.json'
-      - 'frontend/gym-aplication/capacitor.config.ts'
 
 defaults:
   run:
@@ -22,7 +27,7 @@ defaults:
 
 jobs:
   build-unsigned:
-    runs-on: macos-14 # incluye Xcode 15/16 y las herramientas de compilación
+    runs-on: macos-latest # el Xcode mas nuevo disponible: las dependencias de Swift lo piden
     steps:
       - name: Checkout
         uses: actions/checkout@v4
