@@ -9,6 +9,13 @@
        a la derecha del menú, como en el panel del admin. -->
   <div class="transition-[padding] duration-300" [class.lg:pl-64]="menuAbierto">
     <main class="max-w-4xl mx-auto">
+      <!-- El saludo faltaba en esta pantalla: el panel del admin lo tiene y el
+           socio solo lo veia en el celular, porque ahi lo pone la barra movil
+           del navbar. De ahi el hidden md:block — sin eso, en el celular
+           saldria dos veces. -->
+      <h2 class="hidden md:block px-4 pt-4 text-2xl font-bold text-slate-800">
+        Bienvenido, {{ username }}
+      </h2>
       <div class="mt-2"> <router-outlet></router-outlet>
       </div>
     </main>
