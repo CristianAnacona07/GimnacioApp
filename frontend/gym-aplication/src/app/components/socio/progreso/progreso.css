@@ -458,8 +458,11 @@
   min-width: 60px;
   text-align: right;
 }
-.variacion.var-baja { color: var(--txt-verde, #15803d); }
-.variacion.var-sube { color: var(--txt-rojo, #dc2626); }
+/* Subir es verde y bajar rojo, no al reves: aca el socio mide progreso, y en
+   un gimnasio ganar peso suele ser el objetivo. Antes estaba al reves, con la
+   idea de una balanza donde adelgazar es lo bueno. */
+.variacion.var-baja { color: var(--txt-rojo, #dc2626); }
+.variacion.var-sube { color: var(--txt-verde, #15803d); }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-6px); }

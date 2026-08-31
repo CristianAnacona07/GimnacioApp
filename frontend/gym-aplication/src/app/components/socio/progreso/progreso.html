@@ -41,7 +41,7 @@
             <p class="peso-card-sub">
               {{ pesosHistorial.length }} registro{{ pesosHistorial.length !== 1 ? 's' : '' }}
               @if (mejoraPeso) {
-                · <span [style.color]="(pesoUltimo ?? 0) <= (pesoPrimero ?? 0) ? '#15803d' : '#dc2626'">
+                · <span [style.color]="(pesoUltimo ?? 0) >= (pesoPrimero ?? 0) ? '#15803d' : '#dc2626'">
                     {{ mejoraPeso }}
                   </span>
               }

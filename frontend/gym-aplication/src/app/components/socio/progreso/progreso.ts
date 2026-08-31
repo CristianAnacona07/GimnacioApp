@@ -52,7 +52,10 @@ export class Progreso implements OnInit {
   // SVG config
   readonly PUNTO_ANCHO = 52;
   readonly H = 180;
-  readonly PAD = { top: 16, right: 24, bottom: 36, left: 44 };
+  // top: 28 y no 16 — el punto mas alto llega al techo del grafico y su
+  // numero se dibuja 13px por encima, asi que con 16 quedaba cortado contra
+  // el borde de arriba: se veia solo la mitad de la cifra.
+  readonly PAD = { top: 28, right: 24, bottom: 36, left: 44 };
 
   get colorPrimario():   string { return this.gymService.getGym()?.colores?.primario   || '#f97316'; }
   get colorSecundario(): string { return this.gymService.getGym()?.colores?.secundario || '#1d4ed8'; }
