@@ -63,6 +63,8 @@ export class Rutinas implements OnInit, OnDestroy {
   usuarioId = '';
   nombreRutina = '';
   dia = '';
+  /** Ultimo dia confirmado: permite revertir el selector si cancela el aviso. */
+  diaAnterior = '';
   enfoque = '';
 
   /**
@@ -103,6 +105,11 @@ export class Rutinas implements OnInit, OnDestroy {
   }
 
   rutinaParaSocio: any[] = [];
+  /**
+   * Puesto de la lista que espera un reemplazo, o null. Mientras tiene valor,
+   * el siguiente ejercicio del catalogo entra ahi en vez de al final.
+   */
+  reemplazandoIndice: number | null = null;
   listaSocios: any[] = [];
 
   editandoModo = false;
@@ -296,6 +303,51 @@ export class Rutinas implements OnInit, OnDestroy {
     if (this.usuarioId) this.cargarRutinasDelSocio(this.usuarioId);
   }
 
+  /**
+   * Al elegir un dia se abre la rutina que el socio ya tiene ESE dia, lista
+   * para editar; si no tiene ninguna, el formulario queda limpio para crearla.
+   *
+   * No pide nada al servidor: `rutinasExistentesDelSocio` ya trae todas las
+   * del socio desde que se lo eligio.
+   */
+  async onDiaChange() {
+    if (!this.usuarioId || !this.dia) {
+      this.diaAnterior = this.dia;
+      return;
+    }
+
+    // Cambiar de dia reemplaza lo que haya en "Mi Selección". Si eso es un
+    // borrador que el admin venia armando (y no una rutina traida del
+    // servidor), se pierde sin aviso — de ahi la pregunta.
+    if (!this.editandoModo && this.rutinaParaSocio.length > 0) {
+      const ok = await this.confirm.confirm(
+        'Tenés ejercicios sin guardar. ¿Descartarlos y abrir la rutina de ese día?'
+      );
+      if (!ok) {
+        this.dia = this.diaAnterior;   // vuelve el selector a donde estaba
+        this.cdr.detectChanges();
+        return;
+      }
+    }
+
+    this.diaAnterior = this.dia;
+    const delDia = this.rutinasExistentesDelSocio.find(r => r.dia === this.dia);
+
+    if (delDia) {
+      this.editandoModo = true;
+      this.idRutinaParaEditar = delDia._id;
+      this.nombreRutina = delDia.nombre;
+      this.enfoque = delDia.enfoque;
+      this.rutinaParaSocio = [...delDia.ejercicios];
+    } else {
+      // Sin rutina ese dia: se limpia para crear una nueva, pero el socio y el
+      // dia elegidos se conservan.
+      this.limpiarFormulario();
+      this.enfoque = '';
+    }
+    this.cdr.detectChanges();
+  }
+
   cargarRutinasDelSocio(idSocio: string, idRutinaABuscar: string | null = null) {
     if (!idSocio?.trim()) {
       this.rutinasExistentesDelSocio = [];
@@ -315,6 +367,7 @@ export class Rutinas implements OnInit, OnDestroy {
               this.idRutinaParaEditar = encontrada._id;
               this.nombreRutina = encontrada.nombre;
               this.dia = encontrada.dia;
+              this.diaAnterior = encontrada.dia;
               this.enfoque = encontrada.enfoque;
               this.rutinaParaSocio = [...encontrada.ejercicios];
             }
@@ -368,13 +421,43 @@ export class Rutinas implements OnInit, OnDestroy {
     // editor; si no, la rutina del socio como siempre.
     if (this.borradorPlantilla) {
       this.asegurarDia(this.diaActivo).ejercicios.push(copia);
-    } else {
-      this.rutinaParaSocio.push({ ...copia, completado: false });
+      return;
     }
+
+    // Con un puesto marcado para cambiar, el ejercicio entra AHI en vez de al
+    // final: el orden de la rutina es el orden en que se entrena, asi que
+    // cambiar el primero no puede mandarlo al ultimo lugar.
+    if (this.reemplazandoIndice !== null) {
+      const anterior = this.rutinaParaSocio[this.reemplazandoIndice];
+      this.rutinaParaSocio[this.reemplazandoIndice] = {
+        ...copia,
+        // Se conservan las series y las repeticiones del puesto: lo que se
+        // cambia es el ejercicio, no la carga que el admin ya definio ahi.
+        series: anterior?.series ?? copia.series,
+        repeticiones: anterior?.repeticiones ?? copia.repeticiones,
+        completado: false
+      };
+      this.reemplazandoIndice = null;
+      return;
+    }
+
+    this.rutinaParaSocio.push({ ...copia, completado: false });
+  }
+
+  /** Marca (o desmarca) el puesto que se va a cambiar por otro ejercicio. */
+  cambiarEjercicio(index: number) {
+    this.reemplazandoIndice = this.reemplazandoIndice === index ? null : index;
+  }
+
+  cancelarReemplazo() {
+    this.reemplazandoIndice = null;
   }
 
   quitarDeRutina(index: number) {
     this.rutinaParaSocio.splice(index, 1);
+    // El puesto marcado ya no existe o se corrio: se cancela para no escribir
+    // sobre un ejercicio equivocado.
+    this.reemplazandoIndice = null;
   }
 
   async guardarRutina() {
