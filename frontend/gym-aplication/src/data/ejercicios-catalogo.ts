@@ -485,6 +485,14 @@ export const CATALOGO_EJERCICIOS: EjercicioBase[] = [
   tip: 'Mantén el pecho elevado y la espalda recta durante todo el movimiento. Evita que las rodillas se adelanten demasiado sobre los pies.'
 },
 {
+  nombre: 'Sentadilla con Cinturón en Máquina',
+  categoria: 'Pierna',
+  imagenUrl: 'ejercicios/piernaImagenes/sentadilla-maquina-cinturon.jpeg',
+  gifUrl: 'ejercicios/piernaGif/sentadilla-maquina-cinturon.gif',
+  descripcion: 'Ajusta el cinturón a la cadera y engánchalo al peso de la máquina. Párate sobre las plataformas con los pies a la anchura de los hombros y el peso colgando entre las piernas. Baja llevando la cadera hacia atrás y flexionando las rodillas hasta que los muslos queden paralelos al suelo, y sube empujando con los talones.',
+  tip: 'Al colgar el peso de la cadera no carga la columna, así que es la opción para quien tiene molestias de espalda. Mantén el torso erguido y sujétate del marco solo para equilibrarte, sin tirar con los brazos.'
+},
+{
   nombre: 'Prensa de Piernas',
   categoria: 'Pierna',
   imagenUrl: 'ejercicios/piernaImagenes/prensa-piernas.jpeg',
