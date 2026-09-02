@@ -137,6 +137,7 @@ model Gym {
   metodosPago   MetodoPago[]
   planes        Plan[]
   progresos     Progreso[]
+  piramides     Piramide[]
   rutinas       Rutina[]
   rutinaPlantillas RutinaPlantilla[]
   transacciones Transaccion[]
@@ -231,6 +232,7 @@ model User {
   feedbacks                Feedback[]
   medidas                  Medidas[]
   progresos                Progreso[]
+  piramides                Piramide[]
   rutinas                  Rutina[]
   transaccionesComo        Transaccion[] @relation("TransaccionUsuario")
   transaccionesRegistradas Transaccion[] @relation("TransaccionRegistradoPor")
@@ -694,4 +696,32 @@ model Invitacion {
   @@index([gymId])
   @@index([expiraEn])
   @@map("invitaciones")
+}
+
+// La pirámide que el socio anota para un ejercicio: lo que el entrenador le
+// dictó en el gimnasio. Es una ANOTACIÓN, no un registro de lo que levantó —
+// eso sigue yendo a Progreso, y por eso esto no aparece en el gráfico de Mi
+// Progreso. Las series se guardan enteras en una columna Json y se reemplazan
+// de una, igual que User.disponibilidad: el socio abre, edita y guarda todo
+// junto, así que no hace falta una tabla hija ni actualizar serie por serie.
+model Piramide {
+  id              String @id @db.Char(24)
+  gymId           String @db.Char(24) @map("gym_id")
+  gym             Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  usuarioId       String @db.Char(24) @map("usuario_id")
+  usuario         User   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  ejercicioNombre String @map("ejercicio_nombre")
+
+  // [{ peso: 40, reps: 12 }, ...] en el orden de las series.
+  series Json    @default("[]")
+  // Texto libre: la técnica, el descanso, lo que no cabe en un número.
+  nota   String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Una sola pirámide por socio y ejercicio: guardar reemplaza la anterior.
+  @@unique([usuarioId, ejercicioNombre])
+  @@index([gymId, usuarioId])
+  @@map("piramides")
 }

@@ -6,16 +6,16 @@
   </button>
 
   @if (ejercicio) {
-    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-      <div class="p-6 bg-gray-50 border-b border-gray-200">
-        <h1 class="text-3xl font-extrabold text-gray-800">{{ ejercicio.nombre }}</h1>
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+      <div class="p-6 bg-slate-50 border-b border-slate-200">
+        <h1 class="text-3xl font-extrabold text-slate-800">{{ ejercicio.nombre }}</h1>
         <span class="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-bold uppercase">
           {{ ejercicio.categoria }}
         </span>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
-        <div class="flex justify-center items-center bg-gray-100 rounded-xl p-4 border-2 border-dashed border-gray-300">
+      <div class="detalle-cuerpo">
+        <div class="detalle-media flex justify-center items-center bg-gray-100 rounded-xl p-4 border-2 border-dashed border-gray-300">
           @if (ejercicio.gifUrl) {
             <img [src]="ejercicio.gifUrl" [alt]="ejercicio.nombre"
                  (error)="$any($event.target).style.display='none'"
@@ -27,11 +27,11 @@
           }
         </div>
 
-        <div class="flex flex-col gap-4">
-          <h3 class="text-xl font-bold text-gray-700 flex items-center">
+        <div class="detalle-texto flex flex-col gap-4">
+          <h3 class="text-xl font-bold text-slate-700 flex items-center">
             <span class="mr-2">📝</span> Guía de Ejecución
           </h3>
-          <p class="text-gray-600 leading-relaxed text-lg italic">
+          <p class="text-slate-600 leading-relaxed text-lg italic">
             "{{ ejercicio.descripcion || 'Sin descripción disponible todavía.' }}"
           </p>
           
@@ -41,11 +41,117 @@
             </p>
           </div>
         </div>
+
+        <!-- Piramidal: lo que el entrenador le dictó al socio en el gimnasio.
+             Es una anotación suya, así que sólo la ve él (no el admin, que llega
+             a esta misma ficha desde el catálogo). -->
+        @if (esSocio) {
+          <div class="piramidal border-t border-slate-200">
+            <button type="button" class="piramidal__cabecera" (click)="alternarPiramidal()"
+                    [attr.aria-expanded]="abierto">
+              <span class="piramidal__titulo">Piramidal</span>
+              <span class="piramidal__estado">
+                @if (tieneGuardada && !abierto) {
+                  <!-- Los pesos son escalones de UNA serie piramidal, no series
+                       sueltas: por eso siempre dice 1 serie. -->
+                  <span class="piramidal__insignia">1 serie</span>
+                }
+                <span class="piramidal__flecha" [class.piramidal__flecha--abierta]="abierto">▾</span>
+              </span>
+            </button>
+
+            @if (abierto) {
+              <div class="piramidal__cuerpo">
+                @if (cargando) {
+                  <p class="text-slate-500 text-sm">Cargando…</p>
+                } @else if (!editando) {
+
+                <!-- Modo lectura: un peso por renglón y sin numerarlos como
+                     series, porque todos juntos son UNA serie piramidal. -->
+                  <div class="piramidal__guardada">
+                    <span class="piramidal__rotulo">1 serie piramidal</span>
+                    @for (s of seriesConDatos; track $index) {
+                      <div class="piramidal__paso">
+                        <b>{{ s.peso !== null ? s.peso + ' kg' : '—' }}</b>
+                        <span class="piramidal__por">×</span>
+                        <b>{{ s.reps !== null ? s.reps : '—' }}</b>
+                      </div>
+                    }
+                  </div>
+
+                  @if (nota) {
+                    <div class="piramidal__descripcion">
+                      <span>Descripción del piramidal</span>
+                      <p>{{ nota }}</p>
+                    </div>
+                  }
+
+                  <div class="piramidal__pie">
+                    <span class="text-slate-500 text-sm">
+                      Guardado el {{ guardadaEn | date:'dd/MM/yy HH:mm' }}
+                    </span>
+                    <button type="button" class="piramidal__editar" (click)="editar()">Editar</button>
+                  </div>
+
+                } @else {
+                  <p class="text-slate-500 text-sm">
+                    Anota los pesos de la serie piramidal, como te la indicó tu entrenador. Todos juntos son una sola serie.
+                  </p>
+
+                  <div class="piramidal__tabla">
+                    <div class="piramidal__encabezado">
+                      <span></span>
+                      <span>Peso (kg)</span>
+                      <span>Reps</span>
+                      <span></span>
+                    </div>
+
+                    @for (s of series; track $index) {
+                      <div class="piramidal__fila">
+                        <span class="piramidal__n">{{ $index + 1 }}º</span>
+                        <input type="number" inputmode="decimal" min="0" max="1000" step="0.5"
+                               placeholder="—" [(ngModel)]="s.peso"
+                               [attr.aria-label]="'Peso del paso ' + ($index + 1)">
+                        <input type="number" inputmode="numeric" min="0" max="1000" step="1"
+                               placeholder="—" [(ngModel)]="s.reps"
+                               [attr.aria-label]="'Repeticiones del paso ' + ($index + 1)">
+                        <button type="button" class="piramidal__quitar" (click)="quitarSerie($index)"
+                                [attr.aria-label]="'Quitar el paso ' + ($index + 1)">✕</button>
+                      </div>
+                    }
+                  </div>
+
+                  <label class="piramidal__nota">
+                    <span>Recomendaciones del entrenador</span>
+                    <textarea rows="3" maxlength="1000" [(ngModel)]="nota"
+                              placeholder="Descripción del piramidal"></textarea>
+                  </label>
+
+                  <div class="piramidal__acciones">
+                    <button type="button" class="piramidal__mas" (click)="agregarSerie()"
+                            [disabled]="!puedeAgregar">+ Agregar peso</button>
+                    <button type="button" class="piramidal__guardar" (click)="guardar()"
+                            [disabled]="guardando">{{ guardando ? 'Guardando…' : 'Guardar' }}</button>
+                  </div>
+
+                  @if (tieneGuardada) {
+                    <div class="piramidal__pie">
+                      <button type="button" class="piramidal__cancelar" (click)="cancelarEdicion()"
+                              [disabled]="guardando">Cancelar</button>
+                      <button type="button" class="piramidal__borrar" (click)="borrar()"
+                              [disabled]="guardando">Borrar</button>
+                    </div>
+                  }
+                }
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
   } @else {
     <div class="text-center py-20">
-      <h2 class="text-2xl font-bold text-gray-400">Ejercicio no encontrado</h2>
+      <h2 class="text-2xl font-bold text-slate-400">Ejercicio no encontrado</h2>
     </div>
   }
 </div>

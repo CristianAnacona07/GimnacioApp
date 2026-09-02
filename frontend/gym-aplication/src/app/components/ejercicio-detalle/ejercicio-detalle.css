@@ -16,3 +16,285 @@
 .gif-demo:hover {
   transform: scale(1.02);
 }
+/* ============================================
+   PIRAMIDAL
+
+   Los colores salen de las variables del tema (styles.css) y no de utilidades
+   de Tailwind: las `gray-*` que usa el resto de esta ficha no están
+   reescritas para el modo oscuro, así que quedarían ilegibles.
+   ============================================ */
+
+.piramidal {
+  padding: 1.25rem 2rem 1.75rem;
+}
+
+.piramidal__cabecera {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--sup-2);
+  border: 1px solid var(--bde);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  color: var(--color-navbar, #2563c9);
+}
+
+.piramidal__cabecera:hover { background: var(--sup-3); }
+
+.piramidal__titulo {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.piramidal__flecha { transition: transform 0.2s ease; font-size: 0.8rem; }
+.piramidal__flecha--abierta { transform: rotate(180deg); }
+
+.piramidal__cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-top: 1rem;
+}
+
+.piramidal__tabla { display: flex; flex-direction: column; gap: 0.45rem; }
+
+.piramidal__encabezado,
+.piramidal__fila {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr 1fr 2rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.piramidal__encabezado span {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--txt-3);
+}
+
+.piramidal__n { font-size: 0.85rem; color: var(--txt-2); }
+
+/* Los input ya toman fondo y color del tema en styles.css; acá sólo la forma. */
+.piramidal__fila input {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.45rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.piramidal__quitar {
+  border: 0;
+  background: transparent;
+  color: var(--txt-3);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.35rem;
+  border-radius: 0.35rem;
+}
+.piramidal__quitar:hover { color: #c0392b; background: var(--sup-3); }
+
+.piramidal__nota { display: flex; flex-direction: column; gap: 0.35rem; }
+.piramidal__nota > span {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--txt-3);
+}
+.piramidal__nota textarea {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.45rem;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.piramidal__acciones { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+.piramidal__mas,
+.piramidal__guardar {
+  flex: 1 1 9rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.45rem;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.piramidal__mas {
+  background: transparent;
+  border: 1px dashed var(--bde);
+  color: var(--txt-2);
+}
+.piramidal__mas:hover:not(:disabled) { background: var(--sup-2); }
+
+.piramidal__guardar {
+  border: 0;
+  background: var(--color-navbar, #2563c9);
+  color: #fff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.piramidal__mas:disabled,
+.piramidal__guardar:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.piramidal__pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.piramidal__borrar {
+  border: 0;
+  background: transparent;
+  color: #c0392b;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.35rem;
+}
+.piramidal__borrar:hover:not(:disabled) { background: var(--sup-3); }
+.piramidal__borrar:disabled { opacity: 0.55; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  .piramidal { padding: 1rem 1.25rem 1.5rem; }
+  .piramidal__encabezado,
+  .piramidal__fila { grid-template-columns: 3.9rem 1fr 1fr 1.8rem; }
+}
+
+/* --- Modo lectura: la pirámide ya guardada --- */
+
+.piramidal__estado { display: flex; align-items: center; gap: 0.6rem; }
+
+.piramidal__insignia {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--sup-3);
+  color: var(--txt-2);
+}
+
+.piramidal__guardada {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.piramidal__rotulo {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--txt-3);
+}
+
+.piramidal__paso {
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.45rem;
+  background: var(--sup-2);
+  font-size: 1rem;
+  color: var(--txt-1);
+  font-variant-numeric: tabular-nums;
+}
+.piramidal__paso b { font-weight: 700; }
+
+.piramidal__por { color: var(--txt-3); font-weight: 400; margin: 0 0.15rem; }
+
+.piramidal__descripcion { display: flex; flex-direction: column; gap: 0.25rem; }
+.piramidal__descripcion > span {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--txt-3);
+}
+.piramidal__descripcion p {
+  color: var(--txt-2);
+  line-height: 1.55;
+  padding: 0.55rem 0.7rem;
+  background: var(--sup-2);
+  border-radius: 0.45rem;
+}
+
+.piramidal__editar {
+  border: 1px solid var(--bde);
+  background: transparent;
+  color: var(--color-navbar, #2563c9);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.45rem;
+}
+.piramidal__editar:hover { background: var(--sup-2); }
+
+.piramidal__cancelar {
+  border: 0;
+  background: transparent;
+  color: var(--txt-2);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.35rem;
+}
+.piramidal__cancelar:hover:not(:disabled) { background: var(--sup-3); }
+.piramidal__cancelar:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ============================================
+   ORDEN DE LA FICHA
+
+   En el escritorio la imagen y la guía van lado a lado y el piramidal abajo,
+   cruzando las dos columnas. En el celular todo se apila, y ahí el piramidal
+   sube justo debajo de la imagen: es a lo que el socio entra en medio del
+   entrenamiento, y dejarlo al final obliga a pasar toda la guía y el tip.
+   ============================================ */
+
+.detalle-cuerpo {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+/* El piramidal llega a los bordes de la tarjeta, como cuando estaba suelto. */
+.detalle-cuerpo .piramidal {
+  margin: 0 -2rem -2rem;
+  padding: 1.25rem 2rem 1.75rem;
+}
+
+@media (min-width: 768px) {
+  .detalle-cuerpo { grid-template-columns: 1fr 1fr; }
+  .detalle-cuerpo .piramidal { grid-column: 1 / -1; }
+}
+
+@media (max-width: 767px) {
+  .detalle-media  { order: 1; }
+  .detalle-cuerpo .piramidal { order: 2; margin-bottom: 0; }
+  .detalle-texto  { order: 3; }
+  .detalle-cuerpo { padding: 1.25rem; gap: 1.5rem; }
+  .detalle-cuerpo .piramidal { margin-left: -1.25rem; margin-right: -1.25rem; padding: 1.25rem; }
+}
+
+/* En oscuro el azul de la marca sobre una superficie oscura da un contraste de
+   3,1:1, por debajo de lo legible para un texto de este tamaño. El título pasa
+   al texto claro del tema; el acento sigue estando en la flecha y en el botón
+   de guardar, sobre fondos que sí lo aguantan. */
+:host-context([data-tema='oscuro']) .piramidal__cabecera { color: var(--txt-1); }
