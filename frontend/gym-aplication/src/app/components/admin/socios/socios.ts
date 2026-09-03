@@ -8,6 +8,7 @@ import { takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth';
 import { UserStateService } from '../../../services/user-state.service';
 import { PermisosService } from '../../../services/permisos.service';
+import { SedeService, Sede } from '../../../services/sede.service';
 import { ToastService } from '../../../services/toast.service';
 import { ConfirmService } from '../../../services/confirm.service';
 
@@ -63,6 +64,14 @@ export class Socios implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private permisos = inject(PermisosService);
+  private sedeService = inject(SedeService);
+
+  sedes: Sede[] = [];
+  get hayVariasSedes(): boolean { return this.sedes.length > 1; }
+  /** Mirando otro local: se consulta, no se toca. */
+  get soloLectura(): boolean { return this.sedeService.soloLectura; }
+  get nombreSedeActiva(): string { return this.sedeService.nombreActiva; }
+
 
   /**
    * Renovar días y limpiar la membresía tocan la plata del socio, así que
@@ -88,8 +97,22 @@ export class Socios implements OnInit, OnDestroy {
   }
 
   /** Columnas de la tabla: varían con lo que esta cuenta puede ver y tocar. */
+  /** Mover a un socio de local. Optimista: si falla, se revierte y se avisa. */
+  cambiarSede(u: any, sedeId: string): void {
+    const anterior = u.sedeId || null;
+    u.sedeId = sedeId || null;
+    this.sedeService.asignar(u._id, sedeId || null).subscribe({
+      next: () => this.toast.success(u.nombre + ' quedó en ' + (this.sedes.find(s => s._id === sedeId)?.nombre || 'sin sede')),
+      error: () => {
+        u.sedeId = anterior;
+        this.toast.error('No se pudo cambiar la sede');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
   columnas(conEntrenador: boolean): number {
-    return 4 + (conEntrenador ? 1 : 0) + (this.puedeEditarMembresia ? 1 : 0);
+    return 4 + (conEntrenador ? 1 : 0) + (this.hayVariasSedes ? 1 : 0) + (this.puedeEditarMembresia ? 1 : 0);
   }
 
   cambiarEntrenador(socio: any, entrenadorId: string): void {
@@ -149,8 +172,19 @@ export class Socios implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
-    this.cargarUsuarios();
-    this.cargarEntrenadores();
+    // Al cambiar de sede en la barra, la tabla se rehace: el admin espera
+    // ver los socios de ESE local, no los de todos.
+    this.sedeService.sedes$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(s => { this.sedes = s; this.cdr.detectChanges(); });
+
+    this.sedeService.sedeActiva$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => { this.cargarUsuarios(); this.cargarEntrenadores(); });
+    // Sin llamada directa acá: la suscripción de arriba ya dispara la primera
+    // carga, y hacerlo dos veces mostraba los socios de todas las sedes hasta
+    // que llegaba la respuesta con la sede correcta.
+
   }
 
   /**

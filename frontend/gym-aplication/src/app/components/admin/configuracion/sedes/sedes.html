@@ -1,0 +1,129 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">🏬 Sedes</h2>
+  <p class="page-sub">
+    Los locales de tu gimnasio. Con dos o más aparece un selector en la barra de
+    arriba para ver cada uno por separado.
+  </p>
+
+  <div class="card">
+    @if (cargando) {
+      <p class="vacio">Cargando…</p>
+    } @else if (!sedes.length && !mostrarForm) {
+      <!-- Un gimnasio de un solo local no necesita crear nada: si no hay sedes,
+           la app se comporta exactamente como antes. Por eso el vacío explica
+           para qué sirve en vez de empujar a usarlo. -->
+      <p class="vacio">
+        Tu gimnasio funciona hoy en un solo local, y así está bien. Agregá una
+        sede recién cuando abras el segundo: el local actual se convierte solo en
+        una sede, con todos tus socios y empleados adentro.
+      </p>
+    } @else if (sedes.length) {
+      <ul class="lista">
+        @for (s of sedes; track s._id) {
+          <li class="lista__item">
+            <div class="lista__info">
+              <span class="lista__nombre">{{ s.nombre }}</span>
+              <span class="lista__meta">
+                {{ s.direccion || 'Sin dirección' }}@if (s.telefono) { · {{ s.telefono }} }
+              </span>
+              <span class="lista__meta">
+                @if (s.admin) { Administra: <b>{{ s.admin.nombre }}</b> }
+                @else { Sin administrador propio }
+              </span>
+            </div>
+            <div class="acciones">
+              <button type="button" class="btn btn--ghost btn--mini" (click)="abrirEdicion(s)">Editar</button>
+              <button type="button" class="btn btn--peligro btn--mini" (click)="desactivar(s)">Desactivar</button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (!mostrarForm) {
+      <button type="button" class="btn btn--bloque" (click)="abrirNueva()">
+        {{ esPrimera ? '+ Agregar una segunda sede' : '+ Agregar sede' }}
+      </button>
+    }
+  </div>
+
+  @if (mostrarForm) {
+    <div class="card">
+      <p class="card-title">{{ editandoId ? 'Editar sede' : 'Nueva sede' }}</p>
+
+      @if (editandoId) {
+        <p class="card-hint">
+          @if (adminDeLaSede) {
+            La administra <b>{{ adminDeLaSede.nombre }}</b> ({{ adminDeLaSede.email }}).
+          } @else {
+            Este local no tiene administrador propio: lo maneja quien lo creó.
+          }
+        </p>
+      }
+
+      @if (!editandoId && esPrimera) {
+        <!-- Avisar antes y no después: es un cambio que toca a todos los
+             usuarios del gimnasio de una sola vez. -->
+        <p class="card-hint">
+          Tu local actual se va a convertir en una sede automáticamente, con
+          todos tus socios y empleados adentro, y la que estás creando arranca
+          vacía. Después podés renombrar cualquiera de las dos.
+        </p>
+      }
+
+      <label class="campo">
+        <span class="campo__label">Nombre *</span>
+        <input class="input" type="text" maxlength="60" [(ngModel)]="nombre" name="nombre"
+               placeholder="Ej: Norte" />
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Dirección</span>
+        <input class="input" type="text" maxlength="120" [(ngModel)]="direccion" name="direccion"
+               placeholder="Ej: Calle 5 # 12-30" />
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">Teléfono</span>
+        <input class="input" type="text" maxlength="30" [(ngModel)]="telefono" name="telefono" />
+      </label>
+
+      @if (!editandoId) {
+        <!-- El administrador de la sede nueva. Va al crearla, no al editarla:
+             el correo con la contraseña temporal sale una sola vez, igual que
+             cuando se da de alta a un socio o a un empleado. Es opcional; sin
+             él, la sede la sigue manejando quien la creó. -->
+        <p class="card-title">Administrador de esta sede</p>
+        <p class="card-hint">
+          Quien va a manejar este local. Apenas guardes, le llega un correo con
+          su contraseña temporal, que va a tener que cambiar al entrar por
+          primera vez. Podés dejarlo en blanco y agregarlo después.
+        </p>
+
+        <label class="campo">
+          <span class="campo__label">Nombre</span>
+          <input class="input" type="text" maxlength="60" [(ngModel)]="adminNombre"
+                 name="adminNombre" placeholder="Ej: Laura Gómez" />
+        </label>
+
+        <label class="campo">
+          <span class="campo__label">Correo</span>
+          <input class="input" type="email" maxlength="120" [(ngModel)]="adminEmail"
+                 name="adminEmail" autocomplete="off" placeholder="laura@correo.com" />
+        </label>
+      }
+
+      <div class="acciones">
+        <button type="button" class="btn btn--ghost" (click)="cancelar()" [disabled]="guardando">
+          Cancelar
+        </button>
+        <button type="button" class="btn" (click)="guardar()" [disabled]="guardando">
+          {{ guardando ? 'Guardando…' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  }
+
+</div>

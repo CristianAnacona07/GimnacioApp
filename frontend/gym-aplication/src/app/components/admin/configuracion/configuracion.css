@@ -549,3 +549,11 @@ textarea.input {
 }
 
 .btn--mini { padding: 0.3rem 0.7rem; font-size: 0.72rem; flex-shrink: 0; }
+
+/* Fuera de la casa matriz la configuración se ve pero no se entra: apagada y
+   sin cursor de enlace, para que quede claro que no es un error de carga. */
+.menu-item--bloqueado {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: default;
+}

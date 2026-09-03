@@ -6,6 +6,7 @@ const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { registrarAuditoria } = require('../helpers/audit');
 const { registrarIngreso } = require('../lib/checkin');
+const { filtroSede, sedeParaRegistrar } = require('../lib/sedes');
 
 const prisma = getPrismaClient();
 
@@ -39,7 +40,15 @@ function conId(d) {
 // Listar los equipos del gimnasio, el más reciente primero.
 router.get('/', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const equipos = await prisma.dispositivo.findMany({ where: { gymId: req.gymId }, orderBy: { createdAt: 'desc' } });
+    // Cada local ve sus propios equipos: el torniquete de Norte no le sirve
+    // de nada al mostrador de Principal.
+    const porSede = await filtroSede(req);
+    if (porSede.error) return res.status(404).json({ error: porSede.error });
+
+    const equipos = await prisma.dispositivo.findMany({
+      where: { gymId: req.gymId, ...(porSede.where || {}) },
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(equipos.map(conId));
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -65,6 +74,9 @@ router.post('/', verificarToken, soloAdmin, async (req, res) => {
     const equipo = await prisma.dispositivo.create({
       data: {
         gymId: req.gymId,
+        // El equipo queda atado al local donde se instala: es lo que después
+        // estampa la sede en cada marcada de huella.
+        sedeId: await sedeParaRegistrar(req),
         nombre: nombre.trim(),
         serie: serie.trim().toUpperCase(),
         marca: marca || 'zkteco',
@@ -256,7 +268,9 @@ router.post('/verificar', async (req, res) => {
     }
 
     const socio = huella.usuario;
-    const resultado = await registrarIngreso({ gymId: dispositivo.gymId, socio, metodo: 'huella' });
+    // La sede sale del equipo, no de quien marca: el torniquete de Norte
+    // sólo puede registrar entradas por Norte.
+    const resultado = await registrarIngreso({ gymId: dispositivo.gymId, socio, metodo: 'huella', sedeId: dispositivo.sedeId || null });
 
     if (!resultado.permitido) {
       return res.json({ permitir: false, motivo: 'Membresía vencida', socio: socio.nombre });

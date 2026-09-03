@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { SedeService } from './sede.service';
 
 /** Socio devuelto por la búsqueda en recepción. */
 export interface SocioBuscado {
@@ -70,7 +71,7 @@ export interface MiCodigo {
 export class AsistenciaService {
   private url = `${environment.apiUrl}/api/asistencia`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private sedes: SedeService) {}
 
   /** Busca socios por nombre, email, cédula o código para el check-in manual. */
   buscar(q: string): Observable<SocioBuscado[]> {
@@ -80,12 +81,14 @@ export class AsistenciaService {
 
   /** Registra la asistencia de un socio (por código, usuarioId o manual). */
   checkin(payload: CheckinPayload): Observable<ResultadoCheckin> {
-    return this.http.post<ResultadoCheckin>(`${this.url}/checkin`, payload);
+    // La sede viaja en el cuerpo: para el admin es la que tiene elegida en
+    // la barra. Un empleado la tiene propia y el backend ignora esto.
+    return this.http.post<ResultadoCheckin>(`${this.url}/checkin`, { ...payload, sede: this.sedes.parametro || undefined });
   }
 
   /** Lista las asistencias registradas en el día actual. */
   hoy(): Observable<AsistenciaHoy[]> {
-    return this.http.get<AsistenciaHoy[]>(`${this.url}/hoy`);
+    return this.http.get<AsistenciaHoy[]>(`${this.url}/hoy`, { params: this.sedes.comoParams() });
   }
 
   /** Obtiene el código de acceso del socio logueado (para generar su QR). */

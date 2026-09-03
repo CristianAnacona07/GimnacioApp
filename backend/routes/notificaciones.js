@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getPrismaClient } = require('../prisma/client');
 const { verificarToken } = require('../middleware/auth');
+const { filtroSede } = require('../lib/sedes');
 const { estadoEfectivo } = require('../lib/planPlataformaVigencia');
 
 const prisma = getPrismaClient();
@@ -78,25 +79,30 @@ async function avisoFacturacion(gymId) {
 }
 
 // ── Avisos del admin ────────────────────────────────────────────────────────
-async function avisosAdmin(gymId) {
+/**
+ *  acota los avisos al local que el admin está mirando: sin esto, el
+ * administrador de una sede con dos socios veía "25 socios sin entrenador",
+ * que son los de todo el gimnasio. Va vacío en gimnasios de un solo local.
+ */
+async function avisosAdmin(gymId, deSede = {}) {
   const hoy = inicioDeHoy();
   const enUnaSemana = new Date(hoy.getTime() + 7 * DIA);
   const haceUnaSemana = new Date(hoy.getTime() - 7 * DIA);
 
   const [vencidas, porVencer, sinMembresia, nuevos, entrenadores, sinEntrenador, conEntrenador, facturacion] =
     await Promise.all([
-      prisma.user.count({ where: { gymId, role: 'socio', fechaVencimiento: { not: null, lt: hoy } } }),
-      prisma.user.count({ where: { gymId, role: 'socio', fechaVencimiento: { gte: hoy, lte: enUnaSemana } } }),
-      prisma.user.count({ where: { gymId, role: 'socio', fechaVencimiento: null } }),
-      prisma.user.count({ where: { gymId, role: 'socio', fechaRegistro: { gte: haceUnaSemana } } }),
-      prisma.user.findMany({ where: { gymId, role: 'entrenador' }, select: { id: true } }),
-      prisma.user.count({ where: { gymId, role: 'socio', entrenadorId: null } }),
+      prisma.user.count({ where: { gymId, ...deSede, role: 'socio', fechaVencimiento: { not: null, lt: hoy } } }),
+      prisma.user.count({ where: { gymId, ...deSede, role: 'socio', fechaVencimiento: { gte: hoy, lte: enUnaSemana } } }),
+      prisma.user.count({ where: { gymId, ...deSede, role: 'socio', fechaVencimiento: null } }),
+      prisma.user.count({ where: { gymId, ...deSede, role: 'socio', fechaRegistro: { gte: haceUnaSemana } } }),
+      prisma.user.findMany({ where: { gymId, ...deSede, role: 'entrenador' }, select: { id: true } }),
+      prisma.user.count({ where: { gymId, ...deSede, role: 'socio', entrenadorId: null } }),
       // El gap de `.distinct()` que tenía el plugin de soft-delete de Mongoose
       // (no hookeaba `distinct`, así que había que excluir el borrado suave a
       // mano) ya no existe: la extensión de Prisma filtra `distinct` igual que
       // cualquier `findMany`.
       prisma.user.findMany({
-        where: { gymId, role: 'socio', entrenadorId: { not: null } },
+        where: { gymId, ...deSede, role: 'socio', entrenadorId: { not: null } },
         distinct: ['entrenadorId'],
         select: { entrenadorId: true }
       }),
@@ -282,7 +288,9 @@ router.get('/', verificarToken, async (req, res) => {
   try {
     let avisos = [];
     if (req.userRole === 'admin' || req.userRole === 'superadmin') {
-      avisos = await avisosAdmin(req.gymId);
+      // Los avisos son del local que está mirando, no de toda la cadena.
+      const porSede = await filtroSede(req);
+      avisos = await avisosAdmin(req.gymId, porSede.where || {});
     } else if (req.userRole === 'entrenador') {
       avisos = await avisosEntrenador(req.gymId, req.userId);
     } else {

@@ -1,11 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, Subscription, of, timer } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, of, timer, combineLatest } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AlertaService } from './alerta.service';
 import { UserStateService } from './user-state.service';
 import { StorageService } from './storage.service';
+import { SedeService } from './sede.service';
 import { TiempoRealService } from './tiempo-real.service';
 
 /** Aviso de la campanita. */
@@ -54,6 +55,9 @@ export class NotificacionesService {
   readonly noLeidos$: Observable<number> = this.noLeidosSubject.asObservable();
 
   private tiempoReal = inject(TiempoRealService);
+  // Los avisos son del local que se está mirando: un admin de sede no tiene
+  // por qué ver los socios sin entrenador de toda la cadena.
+  private sedes = inject(SedeService);
   private escuchaTiempoReal?: Subscription;
 
   private leidas = new Set<string>();
@@ -83,7 +87,10 @@ export class NotificacionesService {
     this.detener();
     this.usuarioSondeo = usuario;
     this.leidas = this.cargarLeidas();
-    this.sondeo = timer(0, INTERVALO_MS)
+    // Se espera a saber la sede antes del primer pedido: si no, el primer
+    // sondeo sale sin filtro y el admin de un local ve los avisos de toda la
+    // cadena hasta el siguiente ciclo. Y cada cambio de sede vuelve a pedir.
+    this.sondeo = combineLatest([timer(0, INTERVALO_MS), this.sedes.sedeActiva$])
       .pipe(
         switchMap(() => {
           // El sondeo se para solo cuando ya no hay sesión. Sin esto seguiría
@@ -95,7 +102,7 @@ export class NotificacionesService {
             return of({ avisos: [] as Aviso[] });
           }
           return this.http
-            .get<{ avisos: Aviso[] }>(`${environment.apiUrl}/api/notificaciones`)
+            .get<{ avisos: Aviso[] }>(`${environment.apiUrl}/api/notificaciones`, { params: this.sedes.comoParams() })
             .pipe(catchError(() => of({ avisos: [] as Aviso[] })));
         })
       )
@@ -111,7 +118,7 @@ export class NotificacionesService {
   /** Pide los avisos ahora mismo, sin esperar al siguiente sondeo. */
   private refrescar(): void {
     if (!this.storage.getToken() || this.storage.isTokenExpired()) return;
-    this.http.get<{ avisos: Aviso[] }>(`${environment.apiUrl}/api/notificaciones`)
+    this.http.get<{ avisos: Aviso[] }>(`${environment.apiUrl}/api/notificaciones`, { params: this.sedes.comoParams() })
       .pipe(catchError(() => of({ avisos: [] as Aviso[] })))
       .subscribe(res => this.procesar(res.avisos || []));
   }

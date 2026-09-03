@@ -366,7 +366,7 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
     // intercepta find*/count/update — ver softDelete.js), así que
     // `deletedAt: null` se agrega a mano en las dos consultas.
     const ahora = new Date();
-    const [socios, staff, planes] = await Promise.all([
+    const [socios, staff, sedes, planes] = await Promise.all([
       prisma.user.groupBy({
         by: ['gymId'],
         where: { role: 'socio', deletedAt: null, fechaVencimiento: { gt: ahora } },
@@ -377,6 +377,13 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
         where: { role: { in: ['admin', 'entrenador', 'empleado'] }, deletedAt: null },
         _count: { _all: true }
       }),
+      // Los locales alternos de cada gimnasio: la principal no se cuenta,
+      // porque representa al gimnasio en sí. Un gimnasio sin sedes da 0.
+      prisma.sede.groupBy({
+        by: ['gymId'],
+        where: { activa: true, esPrincipal: false },
+        _count: { _all: true }
+      }),
       // Se manda el nombre y los precios, no solo el id: la ficha del
       // gimnasio y el selector de plan los necesitan sin otro viaje al
       // servidor.
@@ -384,6 +391,7 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
     ]);
     const sociosMap = Object.fromEntries(socios.map(c => [String(c.gymId), c._count._all]));
     const staffMap = Object.fromEntries(staff.map(c => [String(c.gymId), c._count._all]));
+    const sedesMap = Object.fromEntries(sedes.map(c => [String(c.gymId), c._count._all]));
     const countMap = {};
     for (const c of [...socios, ...staff]) {
       const id = String(c.gymId);
@@ -397,10 +405,11 @@ router.get('/', verificarToken, soloSuperAdmin, async (req, res) => {
       // combinado de arriba se deja igual para no tocar lo que ya se ve.
       sociosActivos: sociosMap[String(g.id)] || 0,
       staffTotal: staffMap[String(g.id)] || 0,
+      sedesAlternas: sedesMap[String(g.id)] || 0,
       planPlataforma: g.planPlataformaId ? planPorId.get(g.planPlataformaId) || null : null
     })));
   } catch (error) {
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 

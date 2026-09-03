@@ -1,4 +1,13 @@
 <div class="page-wrapper">
+  <!-- Cada sede se maneja aparte: desde otro local se puede mirar, no tocar. -->
+  @if (soloLectura) {
+    <p class="aviso-solo-lectura">
+      Estás viendo <b>{{ nombreSedeActiva }}</b>, que no es tu sede. Podés
+      consultar, pero no modificar ni eliminar: ese local lo maneja su propio
+      administrador.
+    </p>
+  }
+
 
   <!-- ── BUSCADOR ───────────────────────────────────────────────
        La lupa del navbar aterriza aquí con ?q=<nombre>; este campo muestra qué
@@ -31,6 +40,7 @@
             <th>Email</th>
             <th>Membresía</th>
             <th>Entrenador</th>
+            @if (hayVariasSedes) { <th>Sede</th> }
             @if (puedeEditarMembresia) { <th class="text-center">Renovar días</th> }
             <th class="text-center">Acciones</th>
           </tr>
@@ -221,7 +231,7 @@
           <select class="select-entrenador"
                   [ngModel]="u.entrenadorId || ''"
                   (ngModelChange)="cambiarEntrenador(u, $event)"
-                  [disabled]="loadingId === u._id"
+                  [disabled]="loadingId === u._id || soloLectura"
                   [attr.aria-label]="'Entrenador de ' + u.nombre">
             <option value="">Sin asignar</option>
             @for (e of entrenadores; track e._id) {
@@ -233,19 +243,35 @@
         }
       </td>
     }
+
+    <!-- Mover a un socio de local: hace falta cuando se abre una sede nueva y
+         cuando alguien se cambia de gimnasio dentro de la cadena. -->
+    @if (hayVariasSedes) {
+      <td>
+        <select class="select-entrenador"
+                [ngModel]="u.sedeId || ''"
+                (ngModelChange)="cambiarSede(u, $event)"
+                [disabled]="soloLectura"
+                [attr.aria-label]="'Sede de ' + u.nombre">
+          @for (s of sedes; track s._id) {
+            <option [value]="s._id">{{ s.nombre }}</option>
+          }
+        </select>
+      </td>
+    }
     @if (puedeEditarMembresia) {
       <td>
         <div class="renew-group">
           <button type="button" (click)="renovar(u._id, 7, u.nombre)"
-                  [disabled]="loadingId === u._id"
+                  [disabled]="loadingId === u._id || soloLectura"
                   aria-label="Renovar 7 días"
                   class="btn-days btn-7">+7</button>
           <button type="button" (click)="renovar(u._id, 15, u.nombre)"
-                  [disabled]="loadingId === u._id"
+                  [disabled]="loadingId === u._id || soloLectura"
                   aria-label="Renovar 15 días"
                   class="btn-days btn-15">+15</button>
           <button type="button" (click)="renovar(u._id, 30, u.nombre)"
-                  [disabled]="loadingId === u._id"
+                  [disabled]="loadingId === u._id || soloLectura"
                   aria-label="Renovar 30 días"
                   class="btn-days btn-30">+30</button>
         </div>
@@ -257,13 +283,17 @@
         <button type="button" (click)="verInfo(u._id)" class="btn-info" [attr.aria-label]="'Ver información de ' + u.nombre">
           <span aria-hidden="true">ℹ️</span> Info
         </button>
+        <!-- Rutina lleva a armarla, no sólo a verla: desde otro local queda
+             apagado, porque el socio y su rutina son de su sede. -->
         @if (u.fechaVencimiento) {
-          <button [routerLink]="[zona + '/detalle-rutina', u._id]" class="btn-rutina" [attr.aria-label]="'Ver rutina de ' + u.nombre">
+          <button [routerLink]="soloLectura ? null : [zona + '/detalle-rutina', u._id]"
+                  [disabled]="soloLectura" class="btn-rutina"
+                  [attr.aria-label]="'Ver rutina de ' + u.nombre">
             <span aria-hidden="true">🏋️</span> Rutina
           </button>
           @if (puedeEditarMembresia) {
             <button type="button" (click)="limpiarMembresia(u._id, u.nombre)"
-                    [disabled]="loadingId === u._id"
+                    [disabled]="loadingId === u._id || soloLectura"
                     class="btn-delete" title="Limpiar membresía" aria-label="Limpiar membresía">
               <span aria-hidden="true">🗑️</span>
             </button>

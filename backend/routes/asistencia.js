@@ -8,6 +8,7 @@ const { enviarRecibo, linkWhatsApp } = require('../helpers/whatsapp');
 const { ilikeContains } = require('../lib/searchFilters');
 const { paginar } = require('../lib/pagination');
 const { diasRestantes, registrarIngreso } = require('../lib/checkin');
+const { sedeParaRegistrar, filtroSede } = require('../lib/sedes');
 
 const prisma = getPrismaClient();
 
@@ -107,7 +108,11 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
     if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado' });
 
     const metodoValido = ['codigo', 'qr', 'huella', 'manual'].includes(metodo) ? metodo : 'codigo';
-    const resultado = await registrarIngreso({ gymId: req.gymId, socio, metodo: metodoValido, registradoPor: req.userId });
+    // La sede sale de quien registra: la recepcionista de Norte sólo puede
+    // anotar entradas por Norte. El admin, que maneja las dos, usa la que
+    // tenga elegida en la barra.
+    const sedeId = await sedeParaRegistrar(req);
+    const resultado = await registrarIngreso({ gymId: req.gymId, socio, metodo: metodoValido, registradoPor: req.userId, sedeId });
 
     // Membresía vencida → NO se permite el ingreso ni se registra asistencia.
     if (!resultado.permitido) {
@@ -153,8 +158,14 @@ router.post('/checkin', verificarToken, soloRecepcion, async (req, res) => {
 router.get('/hoy', verificarToken, soloRecepcion, async (req, res) => {
   try {
     const inicioDia = new Date(); inicioDia.setHours(0, 0, 0, 0);
+
+    // Recepción es la pantalla donde la sede más importa: cada mostrador tiene
+    // que ver quién entró por SU puerta, no por la del otro local.
+    const porSede = await filtroSede(req);
+    if (porSede.error) return res.status(404).json({ mensaje: porSede.error });
+
     const asistencias = await prisma.asistencia.findMany({
-      where: { gymId: req.gymId, fecha: { gte: inicioDia } },
+      where: { gymId: req.gymId, fecha: { gte: inicioDia }, ...(porSede.where || {}) },
       orderBy: { fecha: 'desc' },
       include: { usuario: { select: { id: true, nombre: true, fotoUrl: true } } }
     });

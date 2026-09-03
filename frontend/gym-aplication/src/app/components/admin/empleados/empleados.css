@@ -340,3 +340,13 @@
   .permiso__opcion { flex: 1; text-align: center; }
   .btn-permisos__texto { display: none; }
 }
+
+/* Selector de sede en cada fila: aparece solo cuando el gimnasio tiene más de
+   un local, y sirve sobre todo para repartir el personal al abrir el segundo. */
+.fila-sede {
+  border: 1px solid var(--bde);
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  max-width: 9rem;
+}

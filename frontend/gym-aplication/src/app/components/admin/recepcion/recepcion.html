@@ -1,4 +1,12 @@
 <div class="recepcion">
+  <!-- Con varias sedes y ninguna elegida no hay puerta que anotar, y la
+       entrada quedaría sin sede. Se avisa antes de que pase, no después. -->
+  @if (faltaElegirSede) {
+    <p class="recepcion__aviso-sede">
+      Estás viendo <b>todas las sedes</b>. Elegí una arriba antes de registrar
+      entradas, o van a quedar sin local asignado.
+    </p>
+  }
   <header class="recepcion__header">
     <div>
       <h1 class="recepcion__titulo">🎫 Recepción</h1>

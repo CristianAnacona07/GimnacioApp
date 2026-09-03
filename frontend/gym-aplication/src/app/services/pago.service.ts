@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { SedeService } from './sede.service';
 
 /** Socio recién creado por recepción. */
 export interface SocioCreado {
@@ -56,6 +57,7 @@ export interface MetodoLite {
 @Injectable({ providedIn: 'root' })
 export class PagoService {
   private http = inject(HttpClient);
+  private sedes = inject(SedeService);
   private url = environment.apiUrl;
 
   /** Crea un socio nuevo desde recepción (email/telefono/password opcionales). */
@@ -73,7 +75,9 @@ export class PagoService {
      *  en el momento en vez de enviarse. Omitirlo equivale a true. */
     enviarCorreo?: boolean;
   }): Observable<SocioCreado> {
-    return this.http.post<SocioCreado>(`${this.url}/api/auth/crear-socio`, datos);
+    // El socio queda en la sede donde se lo da de alta.
+    return this.http.post<SocioCreado>(`${this.url}/api/auth/crear-socio`,
+      { ...datos, sede: this.sedes.parametro || undefined });
   }
 
   /**

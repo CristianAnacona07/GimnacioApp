@@ -138,6 +138,7 @@ model Gym {
   planes        Plan[]
   progresos     Progreso[]
   piramides     Piramide[]
+  sedes         Sede[]
   rutinas       Rutina[]
   rutinaPlantillas RutinaPlantilla[]
   transacciones Transaccion[]
@@ -233,6 +234,8 @@ model User {
   medidas                  Medidas[]
   progresos                Progreso[]
   piramides                Piramide[]
+  sedeId                   String? @db.Char(24) @map("sede_id")
+  sede                     Sede?   @relation(fields: [sedeId], references: [id], onDelete: SetNull)
   rutinas                  Rutina[]
   transaccionesComo        Transaccion[] @relation("TransaccionUsuario")
   transaccionesRegistradas Transaccion[] @relation("TransaccionRegistradoPor")
@@ -263,12 +266,15 @@ model Asistencia {
   metodo        MetodoAsistencia @default(codigo)
   registradoPor String?          @db.Char(24) @map("registrado_por")
   registrador   User?            @relation("AsistenciaRegistradoPor", fields: [registradoPor], references: [id], onDelete: SetNull)
+  sedeId        String?          @db.Char(24) @map("sede_id")
+  sede          Sede?            @relation(fields: [sedeId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([gymId, fecha(sort: Desc)])
   @@index([gymId, usuarioId, fecha(sort: Desc)])
+  @@index([sedeId, fecha(sort: Desc)])
   @@map("asistencias")
 }
 
@@ -306,6 +312,10 @@ model Dispositivo {
   // oculta por defecto (ver prisma/client.js). El valor en claro solo se
   // muestra una vez, al crear el equipo o al regenerarla.
   apiKeyHash String @map("api_key_hash")
+
+  // El local donde esta instalado: es lo que estampa la sede en cada marcada.
+  sedeId String? @db.Char(24) @map("sede_id")
+  sede   Sede?   @relation(fields: [sedeId], references: [id], onDelete: SetNull)
 
   huellas Huella[]
 
@@ -685,6 +695,8 @@ model Invitacion {
   usadaPor   String?   @db.Char(24) @map("usada_por")
   usuario    User?     @relation("InvitacionUsadaPor", fields: [usadaPor], references: [id], onDelete: SetNull)
   expiraEn   DateTime  @map("expira_en")
+  sedeId     String?   @db.Char(24) @map("sede_id")
+  sede       Sede?     @relation(fields: [sedeId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -724,4 +736,41 @@ model Piramide {
   @@unique([usuarioId, ejercicioNombre])
   @@index([gymId, usuarioId])
   @@map("piramides")
+}
+
+// Un local del gimnasio. La sede NO es un inquilino: no tiene plan, ni factura,
+// ni base de socios propia — es un filtro adentro de un mismo gym. Por eso el
+// admin puede crearlas, mientras que crear gimnasios sigue siendo del
+// superadmin, y por eso la sede NO viaja en el JWT: la frontera de aislamiento
+// sigue siendo gymId. Si una consulta olvida la sede, el admin ve su propia
+// otra sede; molesto, no una filtración.
+model Sede {
+  id        String  @id @db.Char(24)
+  gymId     String  @db.Char(24) @map("gym_id")
+  gym       Gym     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  nombre    String
+  direccion String?
+  telefono  String?
+  // Un local que cierra se desactiva; borrarlo perdería su historial de entradas.
+  activa    Boolean @default(true)
+
+  // La casa matriz: desde ella se administran los permisos y la configuración
+  // del gimnasio. En los datos NO tiene privilegio — produce como un local más
+  // y sólo ve lo suyo, igual que las demás; el total de todas juntas es un dato
+  // del superadmin, no del admin. Es la que se crea sola al abrir el segundo
+  // local. Una sola por gimnasio: el índice parcial que lo garantiza va a mano
+  // en la migración, porque Prisma no expresa uniques parciales.
+  esPrincipal Boolean @default(false) @map("es_principal")
+
+  usuarios     User[]
+  asistencias  Asistencia[]
+  dispositivos Dispositivo[]
+  invitaciones Invitacion[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([gymId, nombre])
+  @@index([gymId, activa])
+  @@map("sedes")
 }

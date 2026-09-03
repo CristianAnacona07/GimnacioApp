@@ -19,6 +19,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { AsistenciaService } from '../../../services/asistencia.service';
 import { ToastService } from '../../../services/toast.service';
+import { SedeService } from '../../../services/sede.service';
 import { TiempoRealService } from '../../../services/tiempo-real.service';
 import { PagoService } from '../../../services/pago.service';
 import { GymService } from '../../../services/gym.service';
@@ -79,6 +80,12 @@ export class Recepcion implements OnInit, OnDestroy {
   private destroyRef = inject(DestroyRef);
   private tiempoReal = inject(TiempoRealService);
   private http = inject(HttpClient);
+  private sedeService = inject(SedeService);
+
+  /** Varias sedes y ninguna elegida: lo que se registre queda sin local. */
+  get faltaElegirSede(): boolean {
+    return this.sedeService.tieneVariasSedes && !this.sedeService.parametro;
+  }
   private pagoService = inject(PagoService);
   private gymService = inject(GymService);
 
@@ -142,7 +149,14 @@ export class Recepcion implements OnInit, OnDestroy {
         }
       });
 
-    this.cargarHoy();
+    // La primera carga la dispara la suscripción de abajo, cuando ya se sabe
+    // la sede: antes mostraba las entradas de todos los locales por un instante.
+
+    // Recepción es la pantalla donde la sede más importa: al cambiarla, la
+    // lista pasa a mostrar quién entró por esa puerta.
+    this.sedeService.sedeActiva$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.cargarHoy());
 
     // Cada ingreso aparece en el momento, venga de esta pantalla o de otra: la
     // tablet de la entrada y la oficina ven la misma lista sin recargar.
@@ -180,7 +194,11 @@ export class Recepcion implements OnInit, OnDestroy {
     if (this.invitandoSocio) return;
     this.invitandoSocio = true;
     this.cdr.markForCheck();
-    this.http.post<{ token: string }>(`${environment.apiUrl}/api/invitaciones`, {})
+    this.http.post<{ token: string }>(`${environment.apiUrl}/api/invitaciones`,
+      // La sede viaja acá: el socio que use este enlace queda en el local donde
+      // se lo invitó. Sin esto la invitación salía sin sede y el socio nuevo
+      // terminaba sin local asignado.
+      { sede: this.sedeService.parametro || undefined })
       .subscribe({
         next: async (res) => {
           this.invitacionUrl = `${this.baseInvitacion()}/invitacion/${res.token}`;

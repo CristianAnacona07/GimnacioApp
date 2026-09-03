@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloRecepcion } = require('../middleware/auth');
+const { sedeParaRegistrar } = require('../lib/sedes');
 const { registrarAuditoria } = require('../helpers/audit');
 const { toApiGym } = require('../lib/gymMapper');
 
@@ -15,9 +16,17 @@ const VIGENCIA_MS = 48 * 60 * 60 * 1000;
 // completo y el QR los arma el frontend con su propio origen.
 router.post('/', verificarToken, soloRecepcion, async (req, res) => {
   try {
+    // La sede queda grabada en la invitación y el socio la hereda al
+    // registrarse, igual que hereda el gimnasio. Sale de quien la crea: la
+    // recepcionista de Norte da de alta socios de Norte. Así el formulario
+    // público no necesita un campo de sede, y nadie puede elegirse una desde
+    // afuera.
+    const sedeId = await sedeParaRegistrar(req);
+
     const invitacion = await prisma.invitacion.create({
       data: {
         gymId: req.gymId,
+        sedeId,
         token: crypto.randomBytes(24).toString('hex'),
         creadaPor: req.userId,
         expiraEn: new Date(Date.now() + VIGENCIA_MS)

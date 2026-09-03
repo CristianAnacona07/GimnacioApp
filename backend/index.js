@@ -137,6 +137,7 @@ app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/progreso', require('./routes/progreso'));
 app.use('/api/medidas', require('./routes/medidas'));
 app.use('/api/piramides', require('./routes/piramides'));
+app.use('/api/sedes', require('./routes/sedes'));
 app.use('/api/gym', require('./routes/gym'));
 app.use('/api/feedback', require('./routes/feedback'));
 app.use('/api/transacciones', require('./routes/transacciones'));

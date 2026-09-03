@@ -31,6 +31,41 @@
         <span aria-hidden="true">{{ esOscuro ? '☀️' : '🌙' }}</span>
       </button>
 
+      <!-- Selector de sede: sólo para el administrador, que maneja los dos
+           locales, y sólo si el gimnasio tiene más de uno. Un gimnasio de una
+           sola sede no ve nada de esto. El empleado tampoco: entra y ya está en
+           la suya, así no se confunde de local en el mostrador. -->
+      @if (puedeElegirSede) {
+        <div class="relative">
+          <button type="button" class="selector-sede" (click)="sedeOpen = !sedeOpen"
+                  [attr.aria-expanded]="sedeOpen" aria-label="Cambiar de sede">
+            <span class="selector-sede__punto" aria-hidden="true"></span>
+            <span class="selector-sede__nombre">{{ nombreSede }}</span>
+            <span aria-hidden="true" class="text-[9px]">▼</span>
+          </button>
+
+          @if (sedeOpen) {
+            <ul class="lista-sedes" role="menu">
+              @for (s of sedes; track s._id) {
+                <li>
+                  <button type="button" role="menuitem"
+                          [class.lista-sedes__elegida]="sedeActiva === s._id"
+                          (click)="elegirSede(s._id)">
+                    {{ s.nombre }}
+                    @if (s.esPrincipal) {
+                      <!-- Desde la matriz se administran permisos y
+                           configuración; en socios y entradas cuenta lo suyo,
+                           igual que los demás locales. -->
+                      <span class="lista-sedes__matriz">administra</span>
+                    }
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+
       <span
         class="rol-chip hidden sm:block ml-1 text-[9px] font-black uppercase px-2 py-1 rounded border">
         {{ role }}

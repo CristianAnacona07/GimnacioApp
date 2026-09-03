@@ -5,6 +5,7 @@ import { tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { UserStateService } from './user-state.service';
 import { StorageService } from './storage.service';
+import { SedeService } from './sede.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -14,7 +15,8 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private userStateService: UserStateService,
-    private storageService: StorageService
+    private storageService: StorageService,
+    private sedeService: SedeService
   ) {}
 
   // --- AUTENTICACIÓN ---
@@ -73,7 +75,7 @@ export class AuthService {
   // --- USUARIOS (Admin) ---
 
   getUsuarios(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/usuarios`);
+    return this.http.get(`${this.apiUrl}/usuarios`, { params: this.sedeService.comoParams() });
   }
 
   renovarMembresia(id: string, dias: number): Observable<any> {
@@ -87,11 +89,12 @@ export class AuthService {
   // --- EMPLEADOS (Admin) ---
 
   getEmpleados(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/empleados`);
+    return this.http.get<any[]>(`${this.apiUrl}/empleados`, { params: this.sedeService.comoParams() });
   }
 
   crearEmpleado(datos: { nombre: string; email: string; identificacion: string; telefono?: string; cargo: string }): Observable<any> {
-    return this.http.post(`${this.apiUrl}/crear-empleado`, datos);
+    // El empleado queda en la sede donde se lo da de alta.
+    return this.http.post(`${this.apiUrl}/crear-empleado`, { ...datos, sede: this.sedeService.parametro || undefined });
   }
 
   /** `entrenadorId` en null desasigna: el socio queda sin entrenador. */

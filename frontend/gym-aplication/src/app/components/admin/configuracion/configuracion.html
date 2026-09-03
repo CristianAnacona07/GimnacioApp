@@ -25,9 +25,18 @@
     </div>
   }
 
+  <!-- La configuración es de todo el gimnasio, no de un local: se administra
+       desde la casa matriz para que dos sedes no se pisen los ajustes. -->
+  @if (!enLaMatriz) {
+    <p class="card--aviso">
+      Estás parado en <b>{{ sedeActual }}</b>. La configuración del gimnasio se
+      administra desde <b>{{ nombreMatriz }}</b>; cambiá de sede arriba para editarla.
+    </p>
+  }
   <nav class="menu">
     @for (seccion of secciones; track seccion.ruta) {
-      <a class="menu-item" [routerLink]="seccion.ruta">
+      <a class="menu-item" [class.menu-item--bloqueado]="!enLaMatriz"
+         [routerLink]="enLaMatriz ? seccion.ruta : null">
         <span class="menu-icon">{{ seccion.icono }}</span>
         <span class="menu-texto">
           <span class="menu-nombre">{{ seccion.nombre }}</span>

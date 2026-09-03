@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { getPrismaClient } = require('../prisma/client');
+const { filtroSede, sedeDelGym, sedeParaRegistrar, puedeModificarA } = require('../lib/sedes');
 const { permisosEfectivos, sanearPermisos } = require('../lib/permisos');
 const { toApiUser, fromApiDatosPersonales } = require('../lib/userMapper');
 const { toApiGym } = require('../lib/gymMapper');
@@ -319,6 +320,14 @@ router.get('/usuarios', verificarToken, requierePermiso('socios'), async (req, r
         // Paginación retro-compatible: sin ?page se devuelve el array completo
         // (como siempre); con ?page se devuelve { data, total, page, limit, pages }.
         const where = { gymId: req.gymId };
+
+        // El admin puede estar mirando una sede sola. Sin sede elegida (o en
+        // "Todas") no se filtra nada, que es lo que ve un gimnasio de un solo
+        // local: su consulta queda igual que antes de que existieran las sedes.
+        const porSede = await filtroSede(req);
+        if (porSede.error) return res.status(404).json({ mensaje: porSede.error });
+        if (porSede.where) Object.assign(where, porSede.where);
+
         if (req.query.buscar) {
             const termino = String(req.query.buscar).trim();
             where.OR = [
@@ -402,6 +411,8 @@ router.post('/crear-socio', verificarToken, soloAdmin, async (req, res) => {
         const socio = await prisma.user.create({
             data: {
                 gymId: req.gymId,
+                // Queda en la sede donde se lo da de alta.
+                sedeId: await sedeParaRegistrar(req),
                 nombre,
                 email: emailNorm,
                 password: await bcrypt.hash(passPlano, salt),
@@ -456,6 +467,8 @@ router.post('/crear-entrenador', verificarToken, soloAdmin, async (req, res) => 
         const entrenador = await prisma.user.create({
             data: {
                 gymId: req.gymId,
+                // Trabaja en la sede donde se lo da de alta.
+                sedeId: await sedeParaRegistrar(req),
                 nombre,
                 email: emailNorm,
                 password: await bcrypt.hash(password, salt),
@@ -535,7 +548,7 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
                 data: { ...datosEmpleado, deletedAt: null },
                 withDeleted: true
             })
-            : await prisma.user.create({ data: { gymId: req.gymId, ...datosEmpleado } });
+            : await prisma.user.create({ data: { gymId: req.gymId, sedeId: await sedeParaRegistrar(req), ...datosEmpleado } });
         await registrarAuditoria(req, 'CREAR_EMPLEADO', { recurso: 'User', recursoId: empleado.id, detalle: { cargo } });
 
         const gym = await prisma.gym.findUnique({ where: { id: req.gymId }, select: { nombre: true } });
@@ -569,9 +582,12 @@ router.post('/crear-empleado', verificarToken, soloAdmin, async (req, res) => {
 // ✅ LISTAR EMPLEADOS (SOLO ADMINS) — entrenadores y empleados del gym
 router.get('/empleados', verificarToken, requierePermiso('empleados'), async (req, res) => {
     try {
+        const porSede = await filtroSede(req);
+        if (porSede.error) return res.status(404).json({ mensaje: porSede.error });
+
         const empleados = await prisma.user.findMany({
-            where: { gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
-            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, telefono: true, identificacion: true, debeCambiarPassword: true, permisos: true, createdAt: true },
+            where: { gymId: req.gymId, role: { in: ['entrenador', 'empleado'] }, ...(porSede.where || {}) },
+            select: { id: true, nombre: true, email: true, role: true, cargo: true, fotoUrl: true, telefono: true, identificacion: true, debeCambiarPassword: true, permisos: true, createdAt: true, sedeId: true },
             orderBy: { createdAt: 'desc' }
         });
         // Se devuelven los permisos ya resueltos (guardados sobre los de
@@ -586,6 +602,10 @@ router.get('/empleados', verificarToken, requierePermiso('empleados'), async (re
 // formulario manda siempre las secciones completas, así que no hay updates
 // parciales que puedan dejar la mitad vieja y la mitad nueva.
 router.put('/empleados/:id/permisos', verificarToken, requierePermiso('empleados', 'edicion'), async (req, res) => {
+    // Cada sede se maneja aparte: desde otro local se consulta, no se toca.
+    const permiso = await puedeModificarA(req, req.params.id);
+    if (!permiso.ok) return res.status(403).json({ mensaje: permiso.motivo });
+
     try {
         const permisos = sanearPermisos(req.body?.permisos);
 
@@ -607,6 +627,10 @@ router.put('/empleados/:id/permisos', verificarToken, requierePermiso('empleados
 
 // ✅ ELIMINAR EMPLEADO (SOLO ADMINS) — borrado suave, solo entrenadores/empleados
 router.delete('/empleados/:id', verificarToken, soloAdmin, async (req, res) => {
+    // Cada sede se maneja aparte: desde otro local se consulta, no se toca.
+    const permiso = await puedeModificarA(req, req.params.id);
+    if (!permiso.ok) return res.status(403).json({ mensaje: permiso.motivo });
+
     try {
         // El filtro por rol evita que por esta ruta se borre a un socio o a otro admin.
         const filtro = { id: req.params.id, gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } };
@@ -623,6 +647,10 @@ router.delete('/empleados/:id', verificarToken, soloAdmin, async (req, res) => {
 
 // ✅ ASIGNAR ENTRENADOR A UN SOCIO (SOLO ADMINS)
 router.put('/asignar-entrenador/:socioId', verificarToken, soloAdmin, async (req, res) => {
+    // Cada sede se maneja aparte: desde otro local se consulta, no se toca.
+    const permiso = await puedeModificarA(req, req.params.socioId);
+    if (!permiso.ok) return res.status(403).json({ mensaje: permiso.motivo });
+
     try {
         const { entrenadorId } = req.body; // null para desasignar
         if (entrenadorId) {
@@ -643,6 +671,10 @@ router.put('/asignar-entrenador/:socioId', verificarToken, soloAdmin, async (req
 
 // ✅ RENOVAR MEMBRESÍA (SOLO ADMINS)
 router.put('/renovar/:id', verificarToken, requierePermiso('socios', 'edicion'), async (req, res) => {
+    // Cada sede se maneja aparte: desde otro local se consulta, no se toca.
+    const permiso = await puedeModificarA(req, req.params.id);
+    if (!permiso.ok) return res.status(403).json({ mensaje: permiso.motivo });
+
     try {
         const dias = Number.parseInt(req.body.dias, 10);
         if (!Number.isInteger(dias) || dias <= 0) {
@@ -680,6 +712,10 @@ router.put('/renovar/:id', verificarToken, requierePermiso('socios', 'edicion'),
 
 // ✅ LIMPIAR MEMBRESÍA (SOLO ADMINS)
 router.put('/limpiar-membresia/:id', verificarToken, requierePermiso('socios', 'edicion'), async (req, res) => {
+    // Cada sede se maneja aparte: desde otro local se consulta, no se toca.
+    const permiso = await puedeModificarA(req, req.params.id);
+    if (!permiso.ok) return res.status(403).json({ mensaje: permiso.motivo });
+
     try {
         const usuarioActual = await prisma.user.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
         if (!usuarioActual) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
@@ -842,6 +878,10 @@ router.post('/register', async (req, res) => {
         invId = inv.id;
 
         const gymId = inv.gymId;
+        // El socio hereda la sede de la invitación, igual que hereda el
+        // gimnasio: la puso quien lo dio de alta, y no hay forma de elegirla
+        // desde el formulario público.
+        const sedeId = inv.sedeId || null;
         const gymValido = await prisma.gym.findFirst({ where: { id: gymId, activo: true }, select: { id: true } });
         if (!gymValido) {
             await liberarInvitacion();
@@ -864,7 +904,7 @@ router.post('/register', async (req, res) => {
         // fecha y versión desde el momento en que existe la cuenta.
         const nuevoUsuario = await prisma.user.create({
             data: {
-                gymId, nombre, email: emailNorm, password: passwordHasheada, role: 'socio',
+                gymId, sedeId, nombre, email: emailNorm, password: passwordHasheada, role: 'socio',
                 terminosAceptadosEn: new Date(),
                 terminosVersion: VERSION_LEGAL
             }

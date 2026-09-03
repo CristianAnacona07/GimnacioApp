@@ -504,3 +504,15 @@
   font-size: 0.8rem;
   color: var(--txt-ambar, #b45309);
 }
+
+/* Aviso de sede sin elegir: ámbar, porque no es un error todavía — avisa de
+   algo que va a pasar si el admin registra una entrada así. */
+.recepcion__aviso-sede {
+  background: var(--aviso-sut, #fdf3d8);
+  border-left: 3px solid var(--aviso, #b7791f);
+  color: var(--aviso, #7a5a12);
+  padding: 0.7rem 0.9rem;
+  border-radius: 0 0.4rem 0.4rem 0;
+  font-size: 0.92rem;
+  margin-bottom: 1rem;
+}

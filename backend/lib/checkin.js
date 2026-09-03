@@ -15,8 +15,14 @@ function diasRestantes(fechaVencimiento) {
  * veces la misma asistencia del día. La usan tanto el check-in manual de
  * recepción como el control de acceso automático (huella), para no repetir
  * esta lógica en los dos sitios.
+ *
+ * `sedeId` es por qué puerta entró, y es el único dato que separa la recepción
+ * de un local de la del otro. Quien llama lo resuelve según su camino: el
+ * torniquete pone la sede donde está instalado, y recepción la del empleado que
+ * registra. Puede venir en null: un gimnasio de un solo local no tiene sedes, y
+ * la asistencia se guarda igual que siempre.
  */
-async function registrarIngreso({ gymId, socio, metodo, registradoPor = null }) {
+async function registrarIngreso({ gymId, socio, metodo, registradoPor = null, sedeId = null }) {
   const dias = diasRestantes(socio.fechaVencimiento);
   const estado = dias > 0 ? 'activo' : 'vencido';
 
@@ -32,7 +38,7 @@ async function registrarIngreso({ gymId, socio, metodo, registradoPor = null }) 
 
   let asistenciasMes = socio.asistenciasMes || 0;
   if (!yaHoy) {
-    await prisma.asistencia.create({ data: { gymId, usuarioId: socio.id, metodo, registradoPor } });
+    await prisma.asistencia.create({ data: { gymId, usuarioId: socio.id, metodo, registradoPor, sedeId } });
     asistenciasMes += 1;
     await prisma.user.update({ where: { id: socio.id }, data: { asistenciasMes } });
 

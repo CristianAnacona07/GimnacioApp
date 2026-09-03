@@ -1,4 +1,5 @@
-import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -6,6 +7,7 @@ import { AuthService } from '../../../services/auth';
 import { ToastService } from '../../../services/toast.service';
 import { ConfirmService } from '../../../services/confirm.service';
 import { PermisosService } from '../../../services/permisos.service';
+import { SedeService, Sede } from '../../../services/sede.service';
 
 interface Empleado {
   _id: string;
@@ -18,6 +20,8 @@ interface Empleado {
   identificacion?: string;
   /** Sigue con la contraseña temporal: todavía no entró por primera vez. */
   debeCambiarPassword?: boolean;
+  /** El local donde trabaja. Nulo en gimnasios de una sola sede. */
+  sedeId?: string | null;
   /** Ya resueltos por el servidor: lo guardado sobre lo de fábrica. */
   permisos?: Record<string, string>;
   createdAt?: string;
@@ -64,6 +68,15 @@ export class Empleados implements OnInit {
   private confirm = inject(ConfirmService);
   private cdr = inject(ChangeDetectorRef);
   private permisos = inject(PermisosService);
+  private sedeService = inject(SedeService);
+  private destroyRef = inject(DestroyRef);
+
+  sedes: Sede[] = [];
+  get hayVariasSedes(): boolean { return this.sedes.length > 1; }
+  /** Mirando otro local: se consulta, no se toca. */
+  get soloLectura(): boolean { return this.sedeService.soloLectura; }
+  get nombreSedeActiva(): string { return this.sedeService.nombreActiva; }
+
 
   readonly cargos = CARGOS;
 
@@ -156,7 +169,37 @@ export class Empleados implements OnInit {
   }
 
   ngOnInit() {
-    this.cargar();
+    // La primera carga la dispara escucharSede(), cuando ya se sabe la sede.
+    this.escucharSede();
+  }
+
+  /** Mover a alguien de local. Optimista: si falla, se revierte y se avisa. */
+  cambiarSede(e: any, sedeId: string): void {
+    const anterior = e.sedeId || null;
+    e.sedeId = sedeId || null;
+    this.sedeService.asignar(e._id, sedeId || null).subscribe({
+      next: () => this.toast.success(`${e.nombre} quedó en ${this.nombreSede(sedeId)}`),
+      error: () => {
+        e.sedeId = anterior;
+        this.toast.error('No se pudo cambiar la sede');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private nombreSede(id: string): string {
+    return this.sedes.find(s => s._id === id)?.nombre || 'sin sede';
+  }
+
+  private escucharSede(): void {
+    this.sedeService.sedes$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(s => { this.sedes = s; this.cdr.detectChanges(); });
+
+    // El personal es de un local: al cambiar de sede se recarga la lista.
+    this.sedeService.sedeActiva$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.cargar());
   }
 
   cargar() {

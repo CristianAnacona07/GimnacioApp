@@ -468,3 +468,23 @@
 
 /* Cuando la cuenta sólo puede mirar */
 .entrenador-texto { font-size: 0.78rem; font-weight: 600; color: var(--txt-3, #94a3b8); }
+
+/* Aviso de solo lectura: se está mirando un local que no es el propio. Ámbar
+   porque no es un error — es una restricción esperada. */
+.aviso-solo-lectura {
+  background: var(--aviso-sut, #fdf3d8);
+  border-left: 3px solid var(--aviso, #b7791f);
+  color: var(--aviso, #7a5a12);
+  padding: 0.7rem 0.9rem;
+  border-radius: 0 0.4rem 0.4rem 0;
+  font-size: 0.92rem;
+  margin-bottom: 1rem;
+}
+
+/* Rutina apagada cuando se mira otro local: sigue viéndose para que la fila no
+   cambie de forma, pero no lleva a ningún lado. */
+.btn-rutina:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}

@@ -984,6 +984,12 @@
             <div class="gym-info-fila"><span>Dado de alta</span><b>{{ g.createdAt | date:"dd/MM/yy" }}</b></div>
             <div class="gym-info-fila"><span>Socios activos</span><b>{{ g.sociosActivos }}</b></div>
             <div class="gym-info-fila"><span>Personal</span><b>{{ g.staffTotal }}</b></div>
+            <!-- Los locales alternos, sin contar el principal: un gimnasio de
+                 una sola sede muestra "Un solo local", que es lo normal. -->
+            <div class="gym-info-fila">
+              <span>Sedes</span>
+              <b>{{ g.sedesAlternas ? (g.sedesAlternas + ' alterna' + (g.sedesAlternas === 1 ? '' : 's')) : 'Un solo local' }}</b>
+            </div>
             <div class="gym-info-fila">
               <span>Módulos activos</span>
               <b>{{ modulosActivos(g).length ? modulosActivos(g).join(', ') : 'Ninguno' }}</b>

@@ -173,11 +173,25 @@
             <span class="fila-pendiente" title="Todavía no entró por primera vez">Sin activar</span>
           }
           <span class="fila-cargo">{{ infoCargo(e).etiqueta }}</span>
+          <!-- Con un solo local no aparece: no hay nada que elegir. Sirve
+               sobre todo al abrir el segundo, cuando todo el personal quedó
+               en la principal y hay que repartirlo. -->
+          @if (hayVariasSedes) {
+            <select class="fila-sede" [ngModel]="e.sedeId || ''"
+                    (ngModelChange)="cambiarSede(e, $event)"
+                    [disabled]="soloLectura"
+                    [attr.aria-label]="'Sede de ' + e.nombre">
+              @for (s of sedes; track s._id) {
+                <option [value]="s._id">{{ s.nombre }}</option>
+              }
+            </select>
+          }
+
           @if (puedeAdministrar) {
-            <button class="btn-permisos" (click)="abrirPermisos(e)" [title]="resumenPermisos(e)">
+            <button class="btn-permisos" [disabled]="soloLectura" (click)="abrirPermisos(e)" [title]="resumenPermisos(e)">
               🔑 <span class="btn-permisos__texto">Permisos</span>
             </button>
-            <button class="btn-borrar" (click)="eliminar(e)" title="Eliminar">🗑️</button>
+            <button class="btn-borrar" [disabled]="soloLectura" (click)="eliminar(e)" title="Eliminar">🗑️</button>
           }
         </div>
       }

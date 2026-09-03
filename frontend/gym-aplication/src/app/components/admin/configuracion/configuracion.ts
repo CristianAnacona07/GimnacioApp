@@ -4,6 +4,7 @@ import { RouterModule, Router } from '@angular/router';
 import { UserStateService } from '../../../services/user-state.service';
 import { GymService, Gym } from '../../../services/gym.service';
 import { AuthService } from '../../../services/auth';
+import { SedeService } from '../../../services/sede.service';
 
 /**
  * Índice de la configuración del gimnasio: solo enlaza a las secciones.
@@ -18,6 +19,13 @@ import { AuthService } from '../../../services/auth';
   styleUrl: './configuracion.css'
 })
 export class Configuracion implements OnInit {
+  private sedeService = inject(SedeService);
+
+  /** Fuera de la matriz la configuración se muestra, pero no se toca. */
+  get enLaMatriz(): boolean { return this.sedeService.enLaMatriz; }
+  get sedeActual(): string { return this.sedeService.nombreActiva; }
+  get nombreMatriz(): string { return this.sedeService.matriz?.nombre || 'la sede principal'; }
+
   private userState = inject(UserStateService);
   private gymService = inject(GymService);
   private authService = inject(AuthService);
@@ -32,6 +40,12 @@ export class Configuracion implements OnInit {
       nombre: 'Datos del gimnasio',
       desc: 'Nombre, logo, colores y qué módulos ve el socio',
       ruta: '/admin/configuracion/gimnasio'
+    },
+    {
+      icono: '🏬',
+      nombre: 'Sedes',
+      desc: 'Los locales del gimnasio, si tenés más de uno',
+      ruta: '/admin/configuracion/sedes'
     },
     {
       icono: '📅',

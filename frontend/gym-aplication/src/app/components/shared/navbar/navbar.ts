@@ -12,6 +12,7 @@ import { BuscadorGlobal } from '../buscador-global/buscador-global';
 import { Notificaciones } from '../notificaciones/notificaciones';
 import { NotificacionesService } from '../../../services/notificaciones.service';
 import { PermisosService } from '../../../services/permisos.service';
+import { SedeService, Sede, TODAS_LAS_SEDES } from '../../../services/sede.service';
 
 @Component({
   selector: 'app-navbar',
@@ -23,6 +24,15 @@ import { PermisosService } from '../../../services/permisos.service';
 export class Navbar implements OnInit, OnDestroy {
   role = '';
   username = '';
+
+  // --- Sedes ---
+  sedeOpen = false;
+  sedes: Sede[] = [];
+  sedeActiva = TODAS_LAS_SEDES;
+  get nombreSede(): string { return this.sedeService.nombreActiva; }
+  /** Sólo el admin cambia de sede, y sólo si el gimnasio tiene más de una. */
+  get puedeElegirSede(): boolean { return this.role === 'admin' && this.sedeService.tieneVariasSedes; }
+
   fotoUrl = 'https://ui-avatars.com/api/?name=Usuario&background=random';
 
   /**
@@ -45,8 +55,18 @@ export class Navbar implements OnInit, OnDestroy {
   private notificaciones = inject(NotificacionesService);
   private theme = inject(ThemeService);
   private permisos = inject(PermisosService);
+  private sedeService = inject(SedeService);
 
   get esOscuro(): boolean { return this.theme.modo === 'oscuro'; }
+
+  /**
+   * Cambiar de sede no reemite el token ni cierra la sesión: la sede es un
+   * filtro adentro del mismo gimnasio, no una frontera.
+   */
+  elegirSede(sedeId: string) {
+    this.sedeService.elegir(sedeId);
+    this.sedeOpen = false;
+  }
 
   alternarTema(): void {
     this.theme.alternarModo();
@@ -80,6 +100,9 @@ export class Navbar implements OnInit, OnDestroy {
     const target = event.target as HTMLElement;
     if (!target.closest('.menu-container') && !target.closest('.menu-button') && this.menuOpen) {
       this.menuOpen = false;
+    }
+    if (!target.closest('.lista-sedes') && !target.closest('.selector-sede') && this.sedeOpen) {
+      this.sedeOpen = false;
     }
   }
 
@@ -148,6 +171,17 @@ export class Navbar implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.role = this.userStateService.getRole() || 'socio';
+
+    // Las sedes se piden una vez: el selector tiene que saber cuántas hay
+    // para decidir si se muestra.
+    this.sedeService.sedes$.pipe(takeUntil(this.destroy$)).subscribe(sedes => {
+      this.sedes = sedes; this.cdr.detectChanges();
+    });
+    this.sedeService.sedeActiva$.pipe(takeUntil(this.destroy$)).subscribe(id => {
+      this.sedeActiva = id; this.cdr.detectChanges();
+    });
+    this.sedeService.cargar().pipe(takeUntil(this.destroy$)).subscribe({ error: () => {} });
+
     this.username = localStorage.getItem('nombre') || 'Usuario';
 
     // Re-renderiza cuando cambian los datos del gym (módulos, colores, logo)

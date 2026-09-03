@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin, resolverUsuarioId, filtroPropiedad, requierePermiso, tienePermiso } = require('../middleware/auth');
+const { puedeModificarA } = require('../lib/sedes');
 const { registrarAuditoria } = require('../helpers/audit');
 const { conRutina, ejerciciosParaCrear } = require('../lib/rutinaMapper');
 const { emitirAUsuario } = require('../helpers/tiempoReal');
@@ -15,6 +16,11 @@ router.post('/asignar', verificarToken, requierePermiso('rutinas', 'edicion'), a
     // El socio destino debe pertenecer al mismo gym del admin.
     const socio = await prisma.user.findFirst({ where: { id: usuarioId, gymId: req.gymId }, select: { id: true } });
     if (!socio) return res.status(404).json({ mensaje: 'Socio no encontrado en este gimnasio' });
+
+    // La rutina es del socio, y el socio es de su sede: desde otro local se
+    // puede mirar, no armarle la rutina.
+    const permiso = await puedeModificarA(req, usuarioId);
+    if (!permiso.ok) return res.status(403).json({ mensaje: permiso.motivo });
 
     const rutinaExistente = await prisma.rutina.findFirst({ where: { gymId: req.gymId, usuarioId, dia }, select: { id: true } });
     if (rutinaExistente) {
@@ -64,8 +70,11 @@ router.put('/actualizar/:id', verificarToken, requierePermiso('rutinas', 'edicio
     // No permitir reasignar la rutina a otro gym/usuario vía body (mass assignment).
     const { gymId, usuarioId, _id, id, ejercicios, ...datos } = req.body;
 
-    const actual = await prisma.rutina.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
+    const actual = await prisma.rutina.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true, usuarioId: true } });
     if (!actual) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
+
+    const permiso = await puedeModificarA(req, actual.usuarioId);
+    if (!permiso.ok) return res.status(403).json({ mensaje: permiso.motivo });
 
     const rutina = await prisma.$transaction(async (tx) => {
       if (ejercicios !== undefined) {
@@ -90,6 +99,12 @@ router.put('/actualizar/:id', verificarToken, requierePermiso('rutinas', 'edicio
 
 router.delete('/eliminar/:id', verificarToken, soloAdmin, async (req, res) => {
   try {
+    // De quién es, antes de borrarla: no se borra la rutina de otra sede.
+    const duenio = await prisma.rutina.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { usuarioId: true } });
+    if (!duenio) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
+    const permiso = await puedeModificarA(req, duenio.usuarioId);
+    if (!permiso.ok) return res.status(403).json({ mensaje: permiso.motivo });
+
     const resultado = await prisma.rutina.softDelete({ id: req.params.id, gymId: req.gymId });
     if (resultado.count === 0) return res.status(404).json({ mensaje: 'Rutina no encontrada' });
     await registrarAuditoria(req, 'ELIMINAR_RUTINA', {
