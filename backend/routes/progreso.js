@@ -59,8 +59,13 @@ router.get('/:usuarioId/:ejercicio', verificarToken, async (req, res) => {
 router.get('/:usuarioId', verificarToken, async (req, res) => {
   try {
     const usuarioId = resolverUsuarioId(req, req.params.usuarioId);
+    // Del más reciente al más viejo: la pantalla abre en el músculo que la
+    // persona entrenó última, igual que las rutinas abren en el día de hoy.
+    // El orden va ANTES del distinct para que cada nombre se quede con su
+    // registro más nuevo.
     const filas = await prisma.progreso.findMany({
       where: { gymId: req.gymId, usuarioId },
+      orderBy: { fecha: 'desc' },
       distinct: ['ejercicioNombre'],
       select: { ejercicioNombre: true }
     });

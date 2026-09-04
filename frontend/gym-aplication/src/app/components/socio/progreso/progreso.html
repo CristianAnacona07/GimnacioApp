@@ -166,15 +166,32 @@
     }
 
     @if (ejercicios.length) {
-      <div class="section-label">Elige un ejercicio</div>
+      <!-- Primero el músculo, después el ejercicio. Con muchos registros una
+           sola fila de píldoras no se podía leer, y en el celular menos. El
+           primer músculo es el entrenado más recientemente, así que la pantalla
+           abre donde la persona venía trabajando — igual que las rutinas abren
+           en el día de hoy. -->
+      <div class="section-label">Elige un músculo</div>
       <div class="ejercicios-chips">
-        @for (ej of ejercicios; track ej) {
-          <button class="chip" [class.chip-activo]="ejercicioSeleccionado === ej"
-                  (click)="seleccionarEjercicio(ej)">
-            {{ ej }}
+        @for (c of porCategoria; track c.nombre) {
+          <button class="chip chip--musculo" [class.chip-activo]="categoriaSeleccionada === c.nombre"
+                  (click)="elegirCategoria(c.nombre)">
+            {{ c.nombre }} <span class="chip__cuenta">{{ c.ejercicios.length }}</span>
           </button>
         }
       </div>
+
+      @if (ejerciciosDeLaCategoria.length) {
+        <div class="section-label">Elige un ejercicio</div>
+        <div class="ejercicios-chips">
+          @for (ej of ejerciciosDeLaCategoria; track ej) {
+            <button class="chip" [class.chip-activo]="ejercicioSeleccionado === ej"
+                    (click)="seleccionarEjercicio(ej)">
+              {{ ej }}
+            </button>
+          }
+        </div>
+      }
     }
 
     @if (ejercicioSeleccionado && historial.length) {

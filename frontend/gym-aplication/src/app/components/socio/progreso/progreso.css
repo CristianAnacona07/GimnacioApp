@@ -468,3 +468,24 @@
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* El músculo se distingue del ejercicio: es el primer nivel de la elección y
+   conviene que se lea como tal, no como una píldora más de la misma fila. */
+.chip--musculo {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.78rem;
+}
+
+.chip__cuenta {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.chip-activo .chip__cuenta { background: rgba(255, 255, 255, 0.25); }

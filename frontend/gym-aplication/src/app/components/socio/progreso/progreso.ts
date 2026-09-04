@@ -7,6 +7,7 @@ import { UserStateService } from '../../../services/user-state.service';
 import { ToastService } from '../../../services/toast.service';
 import { GymService } from '../../../services/gym.service';
 import { ConfirmService } from '../../../services/confirm.service';
+import { CATALOGO_EJERCICIOS } from '../../../../data/ejercicios-catalogo';
 
 interface Punto { _id: string; fecha: string; peso: number | null; reps: number | null; }
 interface RegistroPeso { fecha: string; pesoKg: number; _id?: string; fechaISO: string; }
@@ -24,6 +25,9 @@ export class Progreso implements OnInit {
 
   usuarioId = '';
   ejercicios: string[] = [];
+  /** El músculo elegido. Vacío hasta que llegan los registros. */
+  categoriaSeleccionada = '';
+
   ejercicioSeleccionado = '';
   historial: Punto[] = [];
   cargando = false;
@@ -92,9 +96,49 @@ export class Progreso implements OnInit {
 
   cargarEjercicios() {
     this.progresoService.getEjercicios(this.usuarioId).subscribe({
-      next: (data) => { this.ejercicios = data; this.cdr.detectChanges(); },
+      next: (data) => {
+        this.ejercicios = data || [];
+        // Igual que las rutinas abren en el día de hoy: acá se abre en el
+        // músculo que la persona entrenó última.
+        const primera = this.porCategoria[0];
+        if (primera && !this.categoriaSeleccionada) this.elegirCategoria(primera.nombre);
+        this.cdr.detectChanges();
+      },
       error: () => this.toast.error('Error al cargar los ejercicios')
     });
+  }
+
+  /**
+   * Los ejercicios registrados, agrupados por músculo. Con muchos registros
+   * una sola fila de píldoras se vuelve ilegible, sobre todo en el celular.
+   * Lo que no está en el catálogo (cargado a mano) cae en "Otros".
+   */
+  get porCategoria(): { nombre: string; ejercicios: string[] }[] {
+    const mapa = new Map<string, string[]>();
+    for (const ej of this.ejercicios) {
+      const cat = CATALOGO_EJERCICIOS.find(
+        e => e.nombre.toLowerCase() === ej.toLowerCase()
+      )?.categoria || 'Otros';
+      if (!mapa.has(cat)) mapa.set(cat, []);
+      mapa.get(cat)!.push(ej);
+    }
+    // El orden del Map es el de inserción, y `ejercicios` viene del más
+    // reciente al más viejo: el músculo entrenado último queda primero.
+    return [...mapa].map(([nombre, ejercicios]) => ({ nombre, ejercicios }));
+  }
+
+  get ejerciciosDeLaCategoria(): string[] {
+    return this.porCategoria.find(c => c.nombre === this.categoriaSeleccionada)?.ejercicios || [];
+  }
+
+  elegirCategoria(nombre: string) {
+    this.categoriaSeleccionada = nombre;
+    // Ningún ejercicio se abre solo: se muestran los del músculo y el socio
+    // elige. Y se limpia lo anterior, o quedaría en pantalla el gráfico del
+    // músculo que acaba de dejar.
+    this.ejercicioSeleccionado = '';
+    this.historial = [];
+    this.editandoId = null;
   }
 
   seleccionarEjercicio(nombre: string) {
