@@ -1,21 +1,8 @@
 @if (enRutaSocio) {
 
-<!-- ===== CONFETI (se muestra encima de todo al terminar) ===== -->
+<!-- ===== FUEGOS ARTIFICIALES (encima de todo al terminar) ===== -->
 @if (terminado) {
-  <div class="confetti-container" (click)="onClickInterno($event)">
-    @for (p of confettiPiezas; track p.id) {
-      <div
-        class="confetti-pieza"
-        [class.circulo]="p.isCircle"
-        [style.left.%]="p.left"
-        [style.background]="p.color"
-        [style.width.px]="p.size"
-        [style.height.px]="p.size"
-        [style.animation-delay.s]="p.delay"
-        [style.animation-duration.s]="p.duration">
-      </div>
-    }
-  </div>
+  <canvas class="fx-lienzo" #lienzoFx></canvas>
 }
 
 <!-- ===== ESTADO MINIMIZADO ===== -->

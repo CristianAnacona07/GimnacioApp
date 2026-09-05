@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, HostListener, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, HostListener, ChangeDetectorRef, ElementRef, NgZone, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -6,14 +6,19 @@ import { IndexedDBService } from '../../../services/indexed-db.service';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
-interface ConfettiPieza {
-  id: number;
-  left: number;
-  delay: number;
+/**
+ * Una chispa de los fuegos artificiales del final. El cohete sube hasta
+ * `destinoY` y ahí se convierte en brasas, que caen con gravedad.
+ */
+interface Chispa {
+  tipo: 'cohete' | 'brasa';
+  x: number; y: number;
+  vx: number; vy: number;
   color: string;
-  size: number;
-  duration: number;
-  isCircle: boolean;
+  radio: number;
+  vida: number;
+  maxVida: number;
+  destinoY?: number;
 }
 
 const KEY_END  = 'crono_endTime';
@@ -44,7 +49,6 @@ export class Cronometro implements OnInit, OnDestroy {
   activo = false;
   terminado = false;
   minimizado = true;
-  confettiPiezas: ConfettiPieza[] = [];
   enRutaSocio = false;
   permisoNotif: NotificationPermission = 'default';
   ultimoPresetUsado = 60; // Guardar último preset para reinicio rápido
@@ -67,13 +71,29 @@ export class Cronometro implements OnInit, OnDestroy {
   private readonly esNativo = Capacitor.isNativePlatform();
   private readonly COLORES = ['#cc0000','#22c55e','#3b82f6','#f97316','#a855f7','#eab308','#ec4899'];
 
+  // ── Fuegos artificiales del final ───────────────────────────────────────
+  // En canvas y no con divs animados: son unas doscientas chispas, y como
+  // elementos del DOM cada cuadro obligaría al navegador a recalcular la
+  // página entera.
+  private fxCtx: CanvasRenderingContext2D | null = null;
+  private fxChispas: Chispa[] = [];
+  private fxRaf = 0;
+  private fxCohetes: any[] = [];
+  private fxAnterior = 0;
+
   private onVisibilityChange = () => {
     if (document.visibilityState === 'visible') this.sincronizarDesdeStorage();
   };
 
   private indexedDB = inject(IndexedDBService);
 
-  constructor(private cdr: ChangeDetectorRef, private router: Router) {}
+  /** Llega cuando el canvas entra en pantalla, y otra vez (vacío) al salir. */
+  @ViewChild('lienzoFx') private set lienzoFx(ref: ElementRef<HTMLCanvasElement> | undefined) {
+    if (ref?.nativeElement) this.lanzarFuegos(ref.nativeElement);
+    else this.detenerFuegos();
+  }
+
+  constructor(private cdr: ChangeDetectorRef, private router: Router, private zona: NgZone) {}
 
   async ngOnInit() {
     this.enRutaSocio = this.router.url.startsWith('/socio');
@@ -131,7 +151,7 @@ export class Cronometro implements OnInit, OnDestroy {
     this.tiempoTotal = segundos;
     this.tiempoRestante = segundos;
     this.terminado = false;
-    this.confettiPiezas = [];
+    this.detenerFuegos();
     this.ultimoPresetUsado = segundos; // Guardar para reinicio rápido
     this.limpiarStorage();
   }
@@ -210,7 +230,7 @@ export class Cronometro implements OnInit, OnDestroy {
     this.detener();
     this.tiempoRestante = this.tiempoTotal;
     this.terminado = false;
-    this.confettiPiezas = [];
+    this.detenerFuegos();
   }
 
   /**
@@ -459,16 +479,132 @@ export class Cronometro implements OnInit, OnDestroy {
     new Notification(titulo, opciones);
   }
 
-  private generarConfetti() {
-    this.confettiPiezas = Array.from({ length: 50 }, (_, i) => ({
-      id: i,
-      left: 5 + Math.random() * 90,
-      delay: Math.random() * 0.8,
-      color: this.COLORES[Math.floor(Math.random() * this.COLORES.length)],
-      size: 6 + Math.random() * 10,
-      duration: 2.0 + Math.random() * 1.8,
-      isCircle: Math.random() > 0.5
-    }));
+  /**
+   * Tres cohetes escalonados que suben y estallan. Corre fuera de la zona de
+   * Angular: si no, cada cuadro dispararía la detección de cambios de toda la
+   * aplicación sesenta veces por segundo.
+   */
+  private lanzarFuegos(lienzo: HTMLCanvasElement): void {
+    this.detenerFuegos();
+
+    // Quien pidió menos movimiento se queda con el sonido y la vibración.
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const ctx = lienzo.getContext('2d');
+    if (!ctx) return;
+
+    const ancho = lienzo.clientWidth || window.innerWidth;
+    const alto = lienzo.clientHeight || window.innerHeight;
+    // Tope de 2: en un celular con densidad 3 se pintarían más del doble de
+    // píxeles sin que se note la diferencia.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    lienzo.width = Math.round(ancho * dpr);
+    lienzo.height = Math.round(alto * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.fxCtx = ctx;
+
+    const azar = (a: number, b: number) => a + Math.random() * (b - a);
+
+    [0, 380, 760].forEach(retraso => {
+      this.fxCohetes.push(setTimeout(() => {
+        const x = ancho * azar(0.22, 0.78);
+        const destinoY = alto * azar(0.16, 0.42);
+        this.fxChispas.push({
+          tipo: 'cohete', x, y: alto + 12,
+          vx: 0, vy: -(alto + 12 - destinoY) / 0.8,
+          destinoY, radio: 2.6,
+          color: this.COLORES[Math.floor(Math.random() * this.COLORES.length)],
+          vida: 0, maxVida: 1.2
+        });
+        this.fxCohetes.shift();
+      }, retraso));
+    });
+
+    this.zona.runOutsideAngular(() => {
+      this.fxAnterior = performance.now();
+      this.fxRaf = requestAnimationFrame(t => this.pintarFuegos(t, ancho, alto));
+    });
+  }
+
+  private pintarFuegos(ahora: number, ancho: number, alto: number): void {
+    const ctx = this.fxCtx;
+    if (!ctx) return;
+
+    const dt = Math.min((ahora - this.fxAnterior) / 1000, 0.05);
+    this.fxAnterior = ahora;
+    ctx.clearRect(0, 0, ancho, alto);
+
+    const nuevas: Chispa[] = [];
+    for (const c of this.fxChispas) {
+      c.vida += dt;
+      const resto = 1 - c.vida / c.maxVida;
+
+      if (c.tipo === 'cohete') {
+        c.y += c.vy * dt;
+        ctx.fillStyle = c.color;
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.radio * 3, 0, Math.PI * 2); // el resplandor
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.radio, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(c.x - 1.5, c.y, 3, 30); // la estela
+        if (c.y <= (c.destinoY ?? 0)) {
+          c.vida = c.maxVida + 1; // el cohete muere y deja las brasas
+          for (let i = 0; i < 70; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const v = 60 + Math.random() * 240;
+            nuevas.push({
+              tipo: 'brasa', x: c.x, y: c.y,
+              vx: Math.cos(ang) * v, vy: Math.sin(ang) * v,
+              color: Math.random() > 0.75 ? '#fbbf24' : c.color,
+              radio: 1.8 + Math.random() * 1.8,
+              vida: 0, maxVida: 1 + Math.random() * 0.9
+            });
+          }
+        }
+        continue;
+      }
+
+      c.vy += 260 * dt;             // gravedad
+      c.vx *= 0.985; c.vy *= 0.985; // el aire las frena
+      c.x += c.vx * dt; c.y += c.vy * dt;
+      // El parpadeo es lo que las hace leer como brasas y no como puntos.
+      const brillo = Math.max(resto, 0) * (0.6 + 0.4 * Math.sin(c.vida * 40));
+      const r = c.radio * Math.max(resto, 0.25);
+      ctx.fillStyle = c.color;
+      ctx.globalAlpha = brillo * 0.25;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, r * 3, 0, Math.PI * 2); // el resplandor alrededor
+      ctx.fill();
+      ctx.globalAlpha = brillo;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+    this.fxChispas = this.fxChispas.filter(c => c.vida < c.maxVida).concat(nuevas);
+
+    if (this.fxChispas.length || this.fxCohetes.length) {
+      this.zona.runOutsideAngular(() => {
+        this.fxRaf = requestAnimationFrame(t => this.pintarFuegos(t, ancho, alto));
+      });
+    } else {
+      this.fxRaf = 0;
+    }
+  }
+
+  private detenerFuegos(): void {
+    if (this.fxRaf) cancelAnimationFrame(this.fxRaf);
+    this.fxRaf = 0;
+    this.fxCohetes.forEach(t => clearTimeout(t));
+    this.fxCohetes = [];
+    this.fxChispas = [];
+    this.fxCtx = null;
   }
 
   private alTerminar() {
@@ -485,8 +621,8 @@ export class Cronometro implements OnInit, OnDestroy {
     this.series++;
     localStorage.setItem(KEY_SERIES, String(this.series));
 
-    // Confetti siempre (animación breve en el fondo)
-    this.generarConfetti();
+    // Los fuegos artificiales arrancan solos: el canvas aparece junto con
+    // `terminado` y su setter los lanza.
 
     // Sonido + vibración fuerte + notificación
     this.reproducirSonido();
@@ -508,7 +644,6 @@ export class Cronometro implements OnInit, OnDestroy {
           this.tiempoTotal = this.ultimoPresetUsado;
           this.tiempoRestante = this.ultimoPresetUsado;
           this.terminado = false;
-          this.confettiPiezas = [];
           this.cdr.detectChanges();
         }
       }, 5000); // 5 segundos para ver el "¡Listo!" antes de rearmarse
@@ -524,6 +659,7 @@ export class Cronometro implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.detenerFuegos();
     clearInterval(this.intervalo);
     clearTimeout(this.notifTimeout);
     this.routeSub?.unsubscribe();

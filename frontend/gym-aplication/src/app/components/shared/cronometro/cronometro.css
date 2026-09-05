@@ -16,27 +16,16 @@
   cursor: default;
 }
 
-/* ===== CONFETI ===== */
-.confetti-container {
+/* ===== FUEGOS ARTIFICIALES =====
+   Un solo canvas a pantalla completa. No recibe clics: el socio tiene que
+   poder seguir tocando el cronómetro mientras estallan. */
+.fx-lienzo {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 2000;
-  overflow: hidden;
-}
-
-.confetti-pieza {
-  position: absolute;
-  top: -20px;
-  border-radius: 2px;
-  animation: confetti-caer linear forwards;
-}
-.confetti-pieza.circulo { border-radius: 50%; }
-
-@keyframes confetti-caer {
-  0%   { transform: translateY(0) rotate(0deg);    opacity: 1; }
-  80%  { opacity: 1; }
-  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
 /* ===== TAB MINIMIZADO ===== */
