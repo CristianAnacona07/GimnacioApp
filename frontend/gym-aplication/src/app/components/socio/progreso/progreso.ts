@@ -43,7 +43,13 @@ export class Progreso implements OnInit {
   altura: number | null = null;
 
   // --- Tabs ---
-  tabActiva: 'peso' | 'ejercicios' = 'peso';
+  // Arranca sin nada abierto: se entra y se ven las dos opciones, no una ya
+  // desplegada. Volver a tocar la abierta la cierra.
+  tabActiva: 'peso' | 'ejercicios' | null = null;
+
+  alternarTab(tab: 'peso' | 'ejercicios'): void {
+    this.tabActiva = this.tabActiva === tab ? null : tab;
+  }
 
   // --- Historial de peso corporal ---
   pesosHistorial: RegistroPeso[] = [];

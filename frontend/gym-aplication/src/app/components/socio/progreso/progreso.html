@@ -22,10 +22,12 @@
 
   <!-- ===== TABS ===== -->
   <div class="tabs">
-    <button class="tab-btn" [class.tab-activo]="tabActiva === 'peso'" (click)="tabActiva = 'peso'">
+    <button class="tab-btn" [class.tab-activo]="tabActiva === 'peso'"
+            [attr.aria-expanded]="tabActiva === 'peso'" (click)="alternarTab('peso')">
       ⚖️ Peso corporal
     </button>
-    <button class="tab-btn" [class.tab-activo]="tabActiva === 'ejercicios'" (click)="tabActiva = 'ejercicios'">
+    <button class="tab-btn" [class.tab-activo]="tabActiva === 'ejercicios'"
+            [attr.aria-expanded]="tabActiva === 'ejercicios'" (click)="alternarTab('ejercicios')">
       🏋️ Ejercicios
     </button>
   </div>
