@@ -257,6 +257,10 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./components/entrenador/dashboard/dashboard').then(m => m.EntrenadorDashboard),
     children: [
+      // Noticias, planes y pagos: el menú del entrenador ya los ofrecía y sus
+      // permisos de fábrica los habilitan, pero las rutas no existían — entrar
+      // a /entrenador dejaba la pantalla en blanco porque redirige a noticias.
+      ...sharedRoutes,
       {
         path: 'socios',
         loadComponent: () => import('./components/admin/socios/socios').then(m => m.Socios)
