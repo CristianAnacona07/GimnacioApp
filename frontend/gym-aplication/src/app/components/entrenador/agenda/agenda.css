@@ -152,3 +152,201 @@
   .franja-editar { flex-wrap: wrap; }
   .input--hora { flex: 1 1 40%; }
 }
+
+/* ============================================
+   CALENDARIO DEL MES
+
+   La disponibilidad se marca día por día. La cuadrícula empieza en lunes,
+   como los calendarios de acá, no en domingo.
+   ============================================ */
+
+:host {
+  --cal-hoy: #f59e0b;
+  --cal-hoy-halo: rgba(245, 158, 11, 0.18);
+  --cal-sombra: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --cal-sombra-alta: 0 6px 14px rgba(15, 23, 42, 0.14);
+}
+
+:host-context([data-tema='oscuro']) {
+  /* En oscuro el naranja tiene que aclararse o se pierde contra el fondo. */
+  --cal-hoy: #fbbf24;
+  --cal-hoy-halo: rgba(251, 191, 36, 0.22);
+  --cal-sombra: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --cal-sombra-alta: 0 6px 16px rgba(0, 0, 0, 0.6);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.cal-flecha {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--bde);
+  background: var(--sup-2);
+  color: var(--txt-1);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+}
+.cal-flecha:hover {
+  background: var(--sup-3);
+  border-color: var(--color-navbar, #2563c9);
+  transform: scale(1.08);
+}
+.cal-flecha:active { transform: scale(0.92); }
+
+.cal-mes {
+  font-weight: 800;
+  font-size: 1.05rem;
+  min-width: 10rem;
+  text-align: center;
+  letter-spacing: -0.01em;
+  /* Sin color propio heredaba el negro del navegador y en oscuro desaparecía. */
+  color: var(--txt-1);
+}
+
+.cal-grilla {
+  display: grid;
+  /* minmax(0,…) y no `1fr` a secas: con 1fr la celda impone su ancho mínimo
+     y en un celular las siete columnas no entraban en pantalla. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+  /* En pantalla ancha el mes no se estira: un calendario gigante obliga a
+     bajar para ver la última semana. */
+  max-width: 27rem;
+  margin-inline: auto;
+}
+
+.cal-encabezado {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  /* Con --txt-3 sobre blanco daba 2.56 de contraste: no se leían. */
+  color: var(--txt-2, #475569);
+  padding-bottom: 0.35rem;
+}
+/* Los siete encabezados son los primeros hijos de la grilla, así que el sábado
+   y el domingo se pueden marcar por posición sin tocar la plantilla. */
+.cal-encabezado:nth-child(6),
+.cal-encabezado:nth-child(7) { color: var(--txt-3); }
+
+.cal-hueco { height: 2.7rem; }
+
+.cal-dia {
+  /* Alto fijo y ancho libre: así el mes entero entra de una mirada, tanto en
+     el monitor como en el celular. Con aspect-ratio la celda se estiraba. */
+  height: 2.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.65rem;
+  background: var(--sup-1);
+  box-shadow: var(--cal-sombra);
+  padding: 0.1rem;
+  /* Al cambiar de mes las celdas se rehacen y la animación vuelve a correr:
+     el mes nuevo entra en vez de aparecer de golpe. */
+  animation: cal-entra 0.28s ease backwards;
+  transition: transform 0.12s ease, box-shadow 0.15s ease,
+              border-color 0.15s ease, background 0.15s ease;
+}
+
+.cal-numero { font-size: 0.9rem; font-variant-numeric: tabular-nums; line-height: 1; }
+
+/* Sin fotograma final y con `backwards`: al terminar, la celda vuelve a sus
+   estilos normales. Con `both` la animación dejaba clavado el transform y el
+   levantar al pasar el mouse no hacía nada. */
+@keyframes cal-entra {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-dia { animation: none; transition: none; }
+  .cal-flecha { transition: none; }
+}
+
+.cal-dia--hoy {
+  /* Solo el marco, y en otro color: marca dónde estamos parados, no que el día
+     tenga horas. El halo lo despega del resto sin moverlo de lugar. */
+  border-color: var(--cal-hoy);
+  box-shadow: 0 0 0 3px var(--cal-hoy-halo);
+}
+
+.cal-dia { color: var(--txt-1); cursor: pointer; }
+.cal-dia:hover:not(:disabled) {
+  border-color: var(--color-navbar, #2563c9);
+  transform: translateY(-2px);
+  box-shadow: var(--cal-sombra-alta);
+}
+.cal-dia:active:not(:disabled) { transform: translateY(0); }
+
+/* Un día con horas cargadas se lee de un vistazo: es lo que el socio va a ver. */
+.cal-dia--abierto {
+  /* Se marca con borde y un fondo tenue del tema, no rellenando con el color
+     del gimnasio: si ese color es claro, el texto blanco encima desaparece. */
+  background: var(--sup-3);
+  border-color: var(--color-navbar, #2563c9);
+  color: var(--txt-1);
+  font-weight: 800;
+}
+
+/* La hora va en una pastilla: separa "qué día es" de "a qué hora atiende". */
+.cal-horas {
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.12rem 0.3rem;
+  border-radius: 0.35rem;
+  background: var(--sup-1);
+  border: 1px solid var(--bde);
+  color: var(--txt-2, #334155);
+}
+
+/* Los días que ya pasaron no se pueden abrir: nadie va a reservarlos. */
+.cal-dia--pasado { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+
+.dia-editor {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--bde);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dia-editor__titulo { font-weight: 800; color: var(--txt-1); }
+
+/* Volver a Empleados. No tenía estilo propio, así que heredaba negro. */
+.volver {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--txt-2, #475569);
+  text-decoration: none;
+}
+.volver:hover { color: var(--color-navbar, #2563c9); text-decoration: underline; }
+
+.dia-editor__acciones {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 480px) {
+  .cal-grilla { gap: 0.2rem; }
+  .cal-dia, .cal-hueco { height: 2.5rem; }
+  .cal-numero { font-size: 0.8rem; }
+  .cal-horas { font-size: 0.55rem; }
+}

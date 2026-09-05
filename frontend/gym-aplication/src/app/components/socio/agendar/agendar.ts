@@ -8,6 +8,9 @@ import { ToastService } from '../../../services/toast.service';
 import { ConfirmService } from '../../../services/confirm.service';
 import { TiempoRealService } from '../../../services/tiempo-real.service';
 
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
 /**
  * Agendar una sesión personalizada.
  *
@@ -95,7 +98,9 @@ export class Agendar implements OnInit {
           this.config = res.config;
           this.buscandoHoras = false;
           // Se abre el primer día con huecos para ahorrar un toque.
-          this.diaAbierto = this.dias[0]?.fecha ?? null;
+          // No se abre ningún día solo: el calendario muestra cuáles hay y
+          // el socio toca el que quiere.
+          this.diaAbierto = null;
           this.cdr.markForCheck();
         },
         error: () => {
@@ -110,6 +115,62 @@ export class Agendar implements OnInit {
   abrirDia(fecha: string): void {
     this.diaAbierto = this.diaAbierto === fecha ? null : fecha;
     this.cdr.markForCheck();
+  }
+
+
+  // ── Calendario del mes ────────────────────────────────────────────────
+  // El socio ve el mes entero y toca un día; recién ahí aparecen las horas.
+  // Antes era una lista de días, que con dos semanas ya no entraba en una
+  // pantalla de celular.
+
+  /** Mes que se está mirando, 'YYYY-MM'. Arranca en el de hoy. */
+  mes = new Date().toISOString().slice(0, 7);
+
+  private get hoyISO(): string { return new Date().toISOString().slice(0, 10); }
+
+  get etiquetaMes(): string {
+    const [a, m] = this.mes.split('-').map(Number);
+    return `${MESES[m - 1]} ${a}`;
+  }
+
+  /** Casillas vacías antes del día 1: la semana empieza en lunes. */
+  get huecosIniciales(): number[] {
+    const [a, m] = this.mes.split('-').map(Number);
+    const dow = new Date(Date.UTC(a, m - 1, 1)).getUTCDay();
+    return Array((dow + 6) % 7).fill(0);
+  }
+
+  get diasDelMes(): { fecha: string; numero: number; horas: string[]; esHoy: boolean }[] {
+    const [a, m] = this.mes.split('-').map(Number);
+    const cuantos = new Date(Date.UTC(a, m, 0)).getUTCDate();
+    // Lo que devuelve el servidor son solo los días CON horas libres; el resto
+    // del mes se dibuja igual, apagado.
+    const libres = new Map(this.dias.map(d => [d.fecha, d.horas]));
+    const salida = [];
+    for (let d = 1; d <= cuantos; d++) {
+      const fecha = `${this.mes}-${String(d).padStart(2, '0')}`;
+      salida.push({ fecha, numero: d, horas: libres.get(fecha) || [], esHoy: fecha === this.hoyISO });
+    }
+    return salida;
+  }
+
+  get horasDelDiaAbierto(): string[] {
+    return this.dias.find(d => d.fecha === this.diaAbierto)?.horas || [];
+  }
+
+  mesAnterior(): void { this.moverMes(-1); }
+  mesSiguiente(): void { this.moverMes(1); }
+
+  private moverMes(paso: number): void {
+    const [a, m] = this.mes.split('-').map(Number);
+    this.mes = new Date(Date.UTC(a, m - 1 + paso, 1)).toISOString().slice(0, 7);
+    this.diaAbierto = null;
+  }
+
+  /** Reserva la hora del día que está abierto. */
+  reservarHora(hora: string): void {
+    const dia = this.dias.find(d => d.fecha === this.diaAbierto);
+    if (dia) this.reservar(dia, hora);
   }
 
   async reservar(dia: DiaLibre, hora: string): Promise<void> {

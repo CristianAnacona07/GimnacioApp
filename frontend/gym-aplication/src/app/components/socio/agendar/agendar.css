@@ -213,3 +213,216 @@
 .vacio-icono { font-size: 2.4rem; display: block; margin-bottom: 0.6rem; }
 .vacio-titulo { font-size: 0.95rem; font-weight: 700; color: var(--txt-2, #334155); margin: 0 0 0.3rem; }
 .vacio-sub { font-size: 0.8rem; color: var(--txt-3, #94a3b8); margin: 0 auto; max-width: 300px; }
+
+/* ============================================
+   CALENDARIO DEL MES
+
+   El socio ve el mes entero, toca un día marcado y recién ahí aparecen las
+   horas. La lista de días anterior no entraba en una pantalla de celular.
+   ============================================ */
+
+:host {
+  --cal-hoy: #f59e0b;
+  --cal-hoy-halo: rgba(245, 158, 11, 0.18);
+  --cal-sombra: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --cal-sombra-alta: 0 6px 14px rgba(15, 23, 42, 0.14);
+}
+
+:host-context([data-tema='oscuro']) {
+  /* En oscuro el naranja tiene que aclararse o se pierde contra el fondo. */
+  --cal-hoy: #fbbf24;
+  --cal-hoy-halo: rgba(251, 191, 36, 0.22);
+  --cal-sombra: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --cal-sombra-alta: 0 6px 16px rgba(0, 0, 0, 0.6);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.cal-flecha {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--bde);
+  background: var(--sup-2);
+  color: var(--txt-1);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+}
+.cal-flecha:hover {
+  background: var(--sup-3);
+  border-color: var(--color-navbar, #2563c9);
+  transform: scale(1.08);
+}
+.cal-flecha:active { transform: scale(0.92); }
+
+.cal-mes {
+  font-weight: 800;
+  font-size: 1.05rem;
+  min-width: 10rem;
+  text-align: center;
+  letter-spacing: -0.01em;
+  /* Sin color propio heredaba el negro del navegador y en oscuro desaparecía. */
+  color: var(--txt-1);
+}
+
+.cal-grilla {
+  display: grid;
+  /* minmax(0,…) y no `1fr` a secas: con 1fr la celda impone su ancho mínimo
+     y en un celular las siete columnas no entraban en pantalla. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+  /* En pantalla ancha el mes no se estira: un calendario gigante obliga a
+     bajar para ver la última semana. */
+  max-width: 27rem;
+  margin-inline: auto;
+}
+
+.cal-encabezado {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  /* Con --txt-3 sobre blanco daba 2.56 de contraste: no se leían. */
+  color: var(--txt-2, #475569);
+  padding-bottom: 0.35rem;
+}
+/* Los siete encabezados son los primeros hijos de la grilla, así que el sábado
+   y el domingo se pueden marcar por posición sin tocar la plantilla. */
+.cal-encabezado:nth-child(6),
+.cal-encabezado:nth-child(7) { color: var(--txt-3); }
+
+.cal-hueco { height: 2.7rem; }
+
+.cal-dia {
+  /* Alto fijo y ancho libre: así el mes entero entra de una mirada, tanto en
+     el monitor como en el celular. Con aspect-ratio la celda se estiraba. */
+  height: 2.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.65rem;
+  background: var(--sup-1);
+  box-shadow: var(--cal-sombra);
+  padding: 0.1rem;
+  /* Al cambiar de mes las celdas se rehacen y la animación vuelve a correr:
+     el mes nuevo entra en vez de aparecer de golpe. */
+  animation: cal-entra 0.28s ease backwards;
+  transition: transform 0.12s ease, box-shadow 0.15s ease,
+              border-color 0.15s ease, background 0.15s ease;
+}
+
+.cal-numero { font-size: 0.9rem; font-variant-numeric: tabular-nums; line-height: 1; }
+
+/* Sin fotograma final y con `backwards`: al terminar, la celda vuelve a sus
+   estilos normales. Con `both` la animación dejaba clavado el transform y el
+   levantar al pasar el mouse no hacía nada. */
+@keyframes cal-entra {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-dia { animation: none; transition: none; }
+  .cal-flecha { transition: none; }
+}
+
+.cal-dia--hoy {
+  /* Solo el marco, y en otro color: marca dónde estamos parados, no que el día
+     tenga horas. El halo lo despega del resto sin moverlo de lugar. */
+  border-color: var(--cal-hoy);
+  box-shadow: 0 0 0 3px var(--cal-hoy-halo);
+}
+
+/* Un día sin horas no se puede tocar y se ve apagado: la diferencia entre
+   "hay lugar" y "no hay" tiene que leerse sin pensar. */
+.cal-dia { color: var(--cal-apagado); cursor: default; gap: 0.05rem; }
+.cal-dia:disabled { box-shadow: none; }
+
+.cal-dia--libre {
+  /* Verde suave = hay lugar. Se lee sin leer: el socio busca dónde puede ir,
+     y el color se lo dice antes que el número. */
+  background: var(--dia-libre-fondo);
+  border-color: var(--dia-libre-borde);
+  color: var(--dia-libre-texto);
+  cursor: pointer;
+  font-weight: 700;
+}
+.cal-dia--libre:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cal-sombra-alta);
+}
+.cal-dia--libre:active { transform: translateY(0); }
+
+.cal-dia--elegido {
+  /* El elegido es el mismo verde, más marcado: sigue siendo un día con lugar,
+     no otra cosa. No se rellena con el color del gimnasio — si ese color es
+     claro, el texto encima desaparece. */
+  background: var(--dia-libre-fondo);
+  border-color: var(--dia-libre-borde);
+  border-width: 2px;
+  box-shadow: 0 0 0 3px var(--dia-libre-halo);
+  color: var(--dia-libre-texto);
+  font-weight: 800;
+}
+
+/* Cuántas horas quedan, en una pastilla: es un dato aparte del número del día. */
+.cal-cuantos {
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.1rem 0.28rem;
+  border-radius: 0.35rem;
+  background: var(--dia-libre-borde);
+  color: var(--dia-libre-pastilla-texto);
+}
+
+
+.horas-dia { margin-top: 1rem; }
+.horas-dia__titulo { font-weight: 800; margin-bottom: 0.5rem; color: var(--txt-1); }
+
+.aviso-toque {
+  margin-top: 1rem;
+  color: var(--txt-3);
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .cal-grilla { gap: 0.2rem; }
+  .cal-dia, .cal-hueco { height: 2.5rem; }
+  .cal-numero { font-size: 0.8rem; }
+}
+
+/* El verde de "hay lugar", en sus dos versiones. Se declaran como variables
+   para que el modo oscuro solo cambie estos valores y no las reglas. */
+:host {
+  --dia-libre-fondo: #dcfce7;
+  --dia-libre-borde: #4ade80;
+  --dia-libre-texto: #14532d;
+  --dia-libre-halo: rgba(74, 222, 128, 0.3);
+  /* Los días sin cupo van apagados, pero legibles: --txt-3 sobre blanco daba
+     2.56 de contraste y el número no se distinguía. */
+  --cal-apagado: #64748b;
+  /* La pastilla se rellena con el borde verde, así que el número va oscuro. */
+  --dia-libre-pastilla-texto: #14532d;
+}
+
+:host-context([data-tema='oscuro']) {
+  --dia-libre-fondo: #12301f;
+  --dia-libre-borde: #2f7d54;
+  --dia-libre-texto: #a7f3c8;
+  --dia-libre-halo: rgba(47, 125, 84, 0.45);
+  --cal-apagado: #8b98ad;
+  /* En oscuro el verde del borde es apagado: encima va texto claro. */
+  --dia-libre-pastilla-texto: #eafaf1;
+}

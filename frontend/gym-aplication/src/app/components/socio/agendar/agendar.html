@@ -87,27 +87,47 @@
                placeholder="Ej: quiero trabajar espalda">
       </label>
 
-      <div class="dias">
-        @for (d of dias; track d.fecha) {
-          <div class="dia" [class.dia--abierto]="diaAbierto === d.fecha">
-            <button class="dia-cabecera" (click)="abrirDia(d.fecha)">
-              <span class="dia-nombre">
-                {{ esHoy(d.fecha) ? 'Hoy' : fechaLegible(d.fecha) }}
-              </span>
-              <span class="dia-cuantos">{{ d.horas.length }} libre{{ d.horas.length !== 1 ? 's' : '' }}</span>
-              <span class="dia-flecha">{{ diaAbierto === d.fecha ? '⌃' : '⌄' }}</span>
-            </button>
+      <!-- El mes entero: el socio ve de un vistazo qué días hay y toca uno.
+           Antes era una lista de días, que con dos semanas ya era larga. -->
+      <div class="cal-nav">
+        <button class="cal-flecha" (click)="mesAnterior()" aria-label="Mes anterior">‹</button>
+        <span class="cal-mes">{{ etiquetaMes }}</span>
+        <button class="cal-flecha" (click)="mesSiguiente()" aria-label="Mes siguiente">›</button>
+      </div>
 
-            @if (diaAbierto === d.fecha) {
-              <div class="horas">
-                @for (h of d.horas; track h) {
-                  <button class="hora" (click)="reservar(d, h)" [disabled]="reservando">{{ h }}</button>
-                }
-              </div>
+      <div class="cal-grilla">
+        @for (d of ['L','M','X','J','V','S','D']; track $index) {
+          <span class="cal-encabezado">{{ d }}</span>
+        }
+        @for (h of huecosIniciales; track $index) { <span class="cal-hueco"></span> }
+
+        @for (dia of diasDelMes; track dia.fecha) {
+          <button type="button" class="cal-dia"
+                  [class.cal-dia--libre]="dia.horas.length"
+                  [class.cal-dia--hoy]="dia.esHoy"
+                  [class.cal-dia--elegido]="diaAbierto === dia.fecha"
+                  [disabled]="!dia.horas.length"
+                  (click)="abrirDia(dia.fecha)">
+            <span class="cal-numero">{{ dia.numero }}</span>
+            @if (dia.horas.length) {
+              <span class="cal-cuantos">{{ dia.horas.length }}</span>
             }
-          </div>
+          </button>
         }
       </div>
+
+      @if (diaAbierto && horasDelDiaAbierto.length) {
+        <div class="horas-dia">
+          <p class="horas-dia__titulo">{{ fechaLegible(diaAbierto) }}</p>
+          <div class="horas">
+            @for (h of horasDelDiaAbierto; track h) {
+              <button class="hora" (click)="reservarHora(h)" [disabled]="reservando">{{ h }}</button>
+            }
+          </div>
+        </div>
+      } @else {
+        <p class="aviso-toque">Tocá un día marcado para ver sus horas.</p>
+      }
     }
   }
 

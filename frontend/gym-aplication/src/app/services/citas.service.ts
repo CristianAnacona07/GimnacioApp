@@ -78,8 +78,11 @@ export class CitasService {
     return this.http.get<Cita[]>(`${this.api}/mias`, { params: { desde } });
   }
 
-  todas(desde = CitasService.hoy()): Observable<Cita[]> {
-    return this.http.get<Cita[]>(this.api, { params: { desde } });
+  /** Las citas del gimnasio (solo admin). Con profesionalId, las de esa persona. */
+  todas(desde = CitasService.hoy(), profesionalId?: string): Observable<Cita[]> {
+    const params: Record<string, string> = { desde };
+    if (profesionalId) params['profesional'] = profesionalId;
+    return this.http.get<Cita[]>(this.api, { params });
   }
 
   cancelar(id: string): Observable<any> {
@@ -88,6 +91,24 @@ export class CitasService {
 
   marcar(id: string, estado: 'cumplida' | 'ausente'): Observable<any> {
     return this.http.patch(`${this.api}/${id}/estado`, { estado });
+  }
+
+  // ── Disponibilidad día por día (calendario del mes) ──────────────────
+
+  /** Las franjas de un mes, agrupadas por fecha: { '2026-09-15': [...] }. */
+  disponibilidadMes(mes: string, profesionalId?: string): Observable<{ mes: string; dias: Record<string, Franja[]>; profesional?: { _id: string; nombre: string } }> {
+    const url = profesionalId
+      ? `${this.api}/disponibilidad-mes/${profesionalId}`
+      : `${this.api}/disponibilidad-mes`;
+    return this.http.get<{ mes: string; dias: Record<string, Franja[]>; profesional?: { _id: string; nombre: string } }>(url, { params: { mes } });
+  }
+
+  /** Reemplaza las franjas de UN día. Lista vacía = ese día no atiende. */
+  guardarDia(fecha: string, franjas: Franja[], profesionalId?: string): Observable<any> {
+    const url = profesionalId
+      ? `${this.api}/disponibilidad-dia/${profesionalId}`
+      : `${this.api}/disponibilidad-dia`;
+    return this.http.put(url, { fecha, franjas });
   }
 
   miHorario(): Observable<{ disponibilidad: Franja[] }> {

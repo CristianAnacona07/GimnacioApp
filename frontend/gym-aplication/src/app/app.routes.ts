@@ -111,6 +111,12 @@ export const routes: Routes = [
         path: 'empleados',
         loadComponent: () => import('./components/admin/empleados/empleados').then(m => m.Empleados)
       },
+      {
+        // El admin abre la agenda de un empleado desde la lista de Empleados:
+        // reusa la pantalla del entrenador, con el id de la persona en la ruta.
+        path: 'agenda/:profesionalId',
+        loadComponent: () => import('./components/entrenador/agenda/agenda').then(m => m.AgendaProfesional)
+      },
       // La ruta vieja queda como alias por si hay enlaces guardados.
       { path: 'entrenadores', redirectTo: 'empleados', pathMatch: 'full' },
       {
@@ -172,7 +178,7 @@ export const routes: Routes = [
       {
         path: 'configuracion/sedes',
         loadComponent: () => import('./components/admin/configuracion/sedes/sedes').then(m => m.ConfiguracionSedes)
-      },
+      },
       {
         path: 'configuracion/cuenta',
         loadComponent: () => import('./components/admin/configuracion/cuenta/cuenta').then(m => m.ConfiguracionCuenta)
@@ -288,7 +294,6 @@ export const routes: Routes = [
         path: 'agenda',
         loadComponent: () => import('./components/entrenador/agenda/agenda').then(m => m.AgendaProfesional)
       },
-      ...sharedRoutes,
       { path: '', redirectTo: 'noticias', pathMatch: 'full' }
     ]
   },

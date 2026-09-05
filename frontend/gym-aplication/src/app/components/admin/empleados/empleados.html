@@ -188,6 +188,15 @@
           }
 
           @if (puedeAdministrar) {
+            <!-- Hay gente que necesita horario publicado sin cargarlo ella
+                 misma: un nutricionista, o alguien que no se maneja con la app.
+                 Desde acá el admin le arma el calendario. -->
+            @if (!soloLectura) {
+              <a class="btn-permisos" [routerLink]="['/admin/agenda', e._id]"
+                 title="Cargar los días y horas en que atiende">
+                📅 <span class="btn-permisos__texto">Agenda</span>
+              </a>
+            }
             <button class="btn-permisos" [disabled]="soloLectura" (click)="abrirPermisos(e)" [title]="resumenPermisos(e)">
               🔑 <span class="btn-permisos__texto">Permisos</span>
             </button>

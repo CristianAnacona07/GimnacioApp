@@ -139,6 +139,7 @@ model Gym {
   progresos     Progreso[]
   piramides     Piramide[]
   sedes         Sede[]
+  disponibilidadDias DisponibilidadDia[]
   rutinas       Rutina[]
   rutinaPlantillas RutinaPlantilla[]
   transacciones Transaccion[]
@@ -234,6 +235,7 @@ model User {
   medidas                  Medidas[]
   progresos                Progreso[]
   piramides                Piramide[]
+  disponibilidadDias       DisponibilidadDia[]
   sedeId                   String? @db.Char(24) @map("sede_id")
   sede                     Sede?   @relation(fields: [sedeId], references: [id], onDelete: SetNull)
   rutinas                  Rutina[]
@@ -773,4 +775,33 @@ model Sede {
   @@unique([gymId, nombre])
   @@index([gymId, activa])
   @@map("sedes")
+}
+
+// Las horas que un profesional atiende un DÍA concreto.
+//
+// Reemplaza al horario semanal de User.disponibilidad: el gimnasio arma el mes
+// en un calendario y marca día por día, en vez de un patrón que se repite para
+// siempre. Se admiten varias franjas por día (mañana y tarde), por eso el único
+// incluye `desde`.
+//
+// fecha/desde/hasta son texto por lo mismo que en Cita: el servidor vive en UTC
+// y el gimnasio no, así que un timestamp se correría de hora al leerlo.
+model DisponibilidadDia {
+  id            String @id @db.Char(24)
+  gymId         String @db.Char(24) @map("gym_id")
+  gym           Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  profesionalId String @db.Char(24) @map("profesional_id")
+  profesional   User   @relation(fields: [profesionalId], references: [id], onDelete: Cascade)
+
+  fecha String @db.VarChar(10)
+  desde String @db.VarChar(5)
+  hasta String @db.VarChar(5)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([profesionalId, fecha, desde])
+  @@index([profesionalId, fecha])
+  @@index([gymId, fecha])
+  @@map("disponibilidad_dias")
 }

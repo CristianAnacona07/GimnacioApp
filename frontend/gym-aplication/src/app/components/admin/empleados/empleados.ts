@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 import { AuthService } from '../../../services/auth';
@@ -58,7 +59,7 @@ const SECCIONES = [
 @Component({
   selector: 'app-empleados',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './empleados.html',
   styleUrl: './empleados.css',
 })

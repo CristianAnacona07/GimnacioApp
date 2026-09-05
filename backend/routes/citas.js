@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { getPrismaClient } = require('../prisma/client');
 const { verificarToken, soloAdmin, esAdmin } = require('../middleware/auth');
+const { filtroSede } = require('../lib/sedes');
 const { registrarAuditoria } = require('../helpers/audit');
 const { emitirAUsuario } = require('../helpers/tiempoReal');
 const { conCita } = require('../lib/citaMapper');
+const { ObjectId } = require('bson');
 
 const prisma = getPrismaClient();
 
@@ -35,6 +37,7 @@ function sumarDias(fecha, dias) {
 }
 
 const FORMATO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const FORMATO_ID = /^[0-9a-f]{24}$/;
 const FORMATO_HORA = /^\d{2}:\d{2}$/;
 
 /**
@@ -61,12 +64,34 @@ async function configAgenda(gymId) {
 // Quiénes tienen horario publicado. El socio elige entre estos.
 router.get('/profesionales', verificarToken, async (req, res) => {
   try {
-    const candidatos = await prisma.user.findMany({
-      where: { gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
-      select: { id: true, nombre: true, fotoUrl: true, role: true, cargo: true, disponibilidad: true }
+    // Cada profesional atiende en su propio local: el socio de Norte no puede
+    // reservar con el entrenador de Sur. Se toma la sede de quien pregunta —el
+    // socio— y no un parámetro, para que la lista no dependa del cliente.
+    const yo = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { sedeId: true }
     });
-    // Al menos una franja publicada (equivalente a Mongo 'disponibilidad.0': {$exists:true}).
-    const profesionales = candidatos.filter((p) => Array.isArray(p.disponibilidad) && p.disponibilidad.length > 0);
+
+    const candidatos = await prisma.user.findMany({
+      where: {
+        gymId: req.gymId,
+        role: { in: ['entrenador', 'empleado'] },
+        ...(yo?.sedeId ? { sedeId: yo.sedeId } : {})
+      },
+      select: { id: true, nombre: true, fotoUrl: true, role: true, cargo: true }
+    });
+
+    // "Tener horario publicado" ya no es tener un patrón semanal, sino días
+    // cargados de hoy en adelante: quien no completó su calendario no tiene
+    // nada que ofrecer y no debe aparecer en la lista.
+    const hoy = new Date().toISOString().slice(0, 10);
+    const conDias = await prisma.disponibilidadDia.findMany({
+      where: { profesionalId: { in: candidatos.map((p) => p.id) }, fecha: { gte: hoy } },
+      distinct: ['profesionalId'],
+      select: { profesionalId: true }
+    });
+    const publican = new Set(conDias.map((d) => d.profesionalId));
+    const profesionales = candidatos.filter((p) => publican.has(p.id));
     res.json(profesionales.map(({ id, ...p }) => ({ ...p, _id: id })));
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al obtener los profesionales' });
@@ -126,6 +151,108 @@ async function obtenerDisponibilidad(req, res) {
 router.get('/disponibilidad', verificarToken, obtenerDisponibilidad);
 router.get('/disponibilidad/:profesionalId', verificarToken, obtenerDisponibilidad);
 
+// ── Disponibilidad por día (calendario del mes) ─────────────────────────────
+
+const FORMATO_MES = /^\d{4}-\d{2}$/;
+
+/** Quién puede tocar la agenda de quién: cada uno la suya, el admin la de todos. */
+function destinoAgenda(req) {
+  return esAdmin(req) && req.params.profesionalId ? req.params.profesionalId : req.userId;
+}
+
+/**
+ * Las franjas publicadas de un mes ('YYYY-MM'), para pintar el calendario.
+ *
+ * Se pide el mes entero y no un rango libre porque la pantalla es un
+ * calendario: siempre muestra un mes completo.
+ */
+async function disponibilidadDelMes(req, res) {
+  try {
+    const mes = FORMATO_MES.test(req.query.mes || '') ? req.query.mes : new Date().toISOString().slice(0, 7);
+    const destino = destinoAgenda(req);
+
+    const profesional = await prisma.user.findFirst({
+      where: { id: destino, gymId: req.gymId },
+      select: { id: true, nombre: true }
+    });
+    if (!profesional) return res.status(404).json({ mensaje: 'Profesional no encontrado' });
+
+    // 'YYYY-MM-01' a 'YYYY-MM-31': como el texto ordena bien, el rango no
+    // necesita saber cuántos días tiene el mes.
+    const franjas = await prisma.disponibilidadDia.findMany({
+      where: { profesionalId: profesional.id, fecha: { gte: `${mes}-01`, lte: `${mes}-31` } },
+      orderBy: [{ fecha: 'asc' }, { desde: 'asc' }],
+      select: { fecha: true, desde: true, hasta: true }
+    });
+
+    const porFecha = {};
+    for (const f of franjas) {
+      (porFecha[f.fecha] ||= []).push({ desde: f.desde, hasta: f.hasta });
+    }
+    res.json({ mes, profesional: { _id: profesional.id, nombre: profesional.nombre }, dias: porFecha });
+  } catch (error) {
+    res.status(500).json({ mensaje: 'Error al obtener la disponibilidad' });
+  }
+}
+router.get('/disponibilidad-mes', verificarToken, disponibilidadDelMes);
+router.get('/disponibilidad-mes/:profesionalId', verificarToken, disponibilidadDelMes);
+
+/**
+ * Reemplaza las franjas de UN día. Mandar la lista vacía cierra ese día.
+ *
+ * Se reemplaza el día entero en vez de agregar o quitar franjas sueltas: el
+ * calendario edita un día a la vez y así no hay estados a medio guardar.
+ */
+async function guardarDisponibilidadDia(req, res) {
+  try {
+    const destino = destinoAgenda(req);
+    const { fecha } = req.body;
+    if (!FORMATO_FECHA.test(fecha || '')) {
+      return res.status(400).json({ mensaje: 'La fecha debe tener el formato AAAA-MM-DD' });
+    }
+
+    const franjas = Array.isArray(req.body.franjas) ? req.body.franjas : [];
+    for (const f of franjas) {
+      if (!FORMATO_HORA.test(f.desde) || !FORMATO_HORA.test(f.hasta)) {
+        return res.status(400).json({ mensaje: 'Las horas deben tener el formato HH:MM' });
+      }
+      if (aMinutos(f.desde) >= aMinutos(f.hasta)) {
+        return res.status(400).json({ mensaje: 'La hora de inicio debe ser anterior a la de fin' });
+      }
+    }
+    // Dos franjas que arrancan a la misma hora romperían el único (profesional,
+    // fecha, desde) a mitad de la transacción.
+    const inicios = new Set(franjas.map((f) => f.desde));
+    if (inicios.size !== franjas.length) {
+      return res.status(400).json({ mensaje: 'Hay dos franjas que empiezan a la misma hora' });
+    }
+
+    const profesional = await prisma.user.findFirst({
+      where: { id: destino, gymId: req.gymId, role: { in: ['entrenador', 'empleado'] } },
+      select: { id: true, gymId: true }
+    });
+    if (!profesional) return res.status(404).json({ mensaje: 'Profesional no encontrado' });
+
+    await prisma.$transaction([
+      prisma.disponibilidadDia.deleteMany({ where: { profesionalId: profesional.id, fecha } }),
+      ...franjas.map((f) => prisma.disponibilidadDia.create({
+        data: {
+          id: new ObjectId().toHexString(),
+          gymId: profesional.gymId,
+          profesionalId: profesional.id,
+          fecha, desde: f.desde, hasta: f.hasta
+        }
+      }))
+    ]);
+
+    res.json({ mensaje: franjas.length ? 'Día guardado' : 'Día cerrado', fecha, franjas });
+  } catch (error) {
+    res.status(500).json({ mensaje: 'Error al guardar el día' });
+  }
+}
+router.put('/disponibilidad-dia', verificarToken, guardarDisponibilidadDia);
+router.put('/disponibilidad-dia/:profesionalId', verificarToken, guardarDisponibilidadDia);
+
 // ── Huecos libres ───────────────────────────────────────────────────────────
 
 /**
@@ -159,11 +286,24 @@ router.get('/libres/:profesionalId', verificarToken, async (req, res) => {
     });
     const tomadas = new Set(ocupadas.map((c) => `${c.fecha} ${c.hora}`));
 
+    // Las franjas ahora se marcan día por día, no como patrón semanal: se
+    // traen las del rango y se agrupan por fecha.
+    const publicadas = await prisma.disponibilidadDia.findMany({
+      where: { profesionalId: profesional.id, fecha: { gte: hoy, lte: hasta } },
+      orderBy: [{ fecha: 'asc' }, { desde: 'asc' }],
+      select: { fecha: true, desde: true, hasta: true }
+    });
+    const porFecha = new Map();
+    for (const f of publicadas) {
+      if (!porFecha.has(f.fecha)) porFecha.set(f.fecha, []);
+      porFecha.get(f.fecha).push(f);
+    }
+
     const dias = [];
     for (let i = 0; i <= cfg.diasVisibles; i++) {
       const fecha = sumarDias(hoy, i);
       const nombreDia = diaSemana(fecha);
-      const franjas = (profesional.disponibilidad || []).filter((f) => f.dia === nombreDia);
+      const franjas = porFecha.get(fecha) || [];
       if (!franjas.length) continue;
 
       const horas = [];
@@ -211,9 +351,15 @@ router.post('/', verificarToken, async (req, res) => {
 
     // La hora pedida tiene que caer dentro de una franja suya y coincidir con
     // el comienzo de un hueco: si no, alguien podría reservar a las 20:07.
+    // Se comprueba contra las franjas de ESE día, la misma fuente que usa el
+    // cálculo de huecos. Antes miraba el horario semanal de User.disponibilidad
+    // y, tras pasar a día por día, rechazaba horas que la pantalla sí ofrecía.
     const minutos = aMinutos(hora);
-    const franja = (profesional.disponibilidad || []).find((f) =>
-      f.dia === diaSemana(fecha) &&
+    const delDia = await prisma.disponibilidadDia.findMany({
+      where: { profesionalId: profesional.id, fecha },
+      select: { desde: true, hasta: true }
+    });
+    const franja = delDia.find((f) =>
       minutos >= aMinutos(f.desde) &&
       minutos + cfg.duracionMin <= aMinutos(f.hasta) &&
       (minutos - aMinutos(f.desde)) % cfg.duracionMin === 0
@@ -278,6 +424,16 @@ router.get('/', verificarToken, soloAdmin, async (req, res) => {
   try {
     const where = { gymId: req.gymId };
     if (FORMATO_FECHA.test(req.query.desde || '')) where.fecha = { gte: req.query.desde };
+    // Con ?profesional se ve la agenda de una sola persona: es lo que mira el
+    // admin cuando entra a "Agenda de Fulano" desde Empleados.
+    if (FORMATO_ID.test(req.query.profesional || '')) where.profesionalId = req.query.profesional;
+
+    // Las citas son del local donde atiende el profesional: el admin de Norte
+    // ve la agenda de Norte. La sede no está en la cita sino en quien atiende,
+    // que es donde realmente vive el dato.
+    const porSede = await filtroSede(req);
+    if (porSede.error) return res.status(404).json({ mensaje: porSede.error });
+    if (porSede.where) where.profesional = { sedeId: porSede.where.sedeId };
     const citas = await prisma.cita.findMany({
       where,
       orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
