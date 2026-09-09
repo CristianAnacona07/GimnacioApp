@@ -158,8 +158,8 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '🏋️‍♂️', name: 'mi rutina',  route: '/socio/mi-rutina',  show: m('rutinas') },
         { icon: '📈',    name: 'mi progreso', route: '/socio/progreso',   show: m('progreso') },
         { icon: '📅',    name: 'agendar',     route: '/socio/agendar',    show: true },
-        { icon: '👤',    name: 'perfil',      route: '/socio/perfil',     show: true },
         { icon: '💎',    name: 'planes',      route: '/socio/planes',     show: m('pagos') },
+        { icon: '⚙️',    name: 'configuraciones', route: '/socio/configuracion', show: true },
         { icon: '💬',    name: 'Ayúdanos a mejorar', route: '/socio/feedback',   show: true },
         { icon: '🏃‍♂️', name: 'Cerrar Sesión',       route: 'logout', isAction: true, show: true }
       ].filter(l => l.show);

@@ -201,6 +201,11 @@ export const routes: Routes = [
     loadComponent: () => import('./components/socio/dashboardSocio/dashboardSocio').then(m => m.Dashboard),
     children: [
       ...sharedRoutes, // Rutas compartidas
+      {
+        path: 'configuracion',
+        loadComponent: () => import('./components/socio/configuracion/configuracion')
+        .then(m => m.SocioConfiguracion)
+      },
       { 
         path: 'perfil', 
         loadComponent: () => import('./components/socio/perfil/perfil')

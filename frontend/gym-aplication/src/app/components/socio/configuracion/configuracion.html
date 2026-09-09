@@ -1,0 +1,40 @@
+<div class="page">
+
+  <h2 class="page-title">⚙️ Configuraciones</h2>
+  <p class="page-sub">Tu cuenta y tus ajustes, en un solo sitio.</p>
+
+  @if (socio) {
+    <div class="card">
+      <div class="usuario">
+        @if (socio.fotoUrl) {
+          <img class="usuario__foto" [src]="socio.fotoUrl" [alt]="socio.nombre">
+        } @else {
+          <div class="usuario__inicial"
+               [style.background]="'var(--btn-degradado)'"
+               [style.color]="'var(--btn-texto)'">
+            {{ socio.nombre?.[0]?.toUpperCase() }}
+          </div>
+        }
+        <div class="usuario__info">
+          <span class="usuario__nombre">{{ socio.nombre }}</span>
+          <span class="usuario__meta">{{ socio.email }}</span>
+          <span class="usuario__meta">Socio @if (gym?.nombre) { · {{ gym.nombre }} }</span>
+        </div>
+      </div>
+    </div>
+  }
+
+  <nav class="menu">
+    @for (seccion of secciones; track seccion.ruta) {
+      <a class="menu-item" [routerLink]="seccion.ruta">
+        <span class="menu-icon">{{ seccion.icono }}</span>
+        <span class="menu-texto">
+          <span class="menu-nombre">{{ seccion.nombre }}</span>
+          <span class="menu-desc">{{ seccion.desc }}</span>
+        </span>
+        <span class="menu-arrow">→</span>
+      </a>
+    }
+  </nav>
+
+</div>

@@ -1,0 +1,20 @@
+/* Flecha para salir de Perfil.
+   Va siempre a Configuraciones, a propósito, y no por historial: la flecha de
+   Editar Perfil abre Perfil como pantalla nueva (no retrocede), así que un
+   "atrás" por historial rebotaba entre esas dos pantallas sin salir nunca. */
+.volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  /* El token cambia solo en oscuro (#1d4ed8 → #60a5fa); un azul fijo se
+     apagaría contra el fondo oscuro. */
+  color: var(--txt-azul, #1d4ed8);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-decoration: none;
+  padding: 0.25rem 0;
+}
+
+.volver:hover {
+  text-decoration: underline;
+}
