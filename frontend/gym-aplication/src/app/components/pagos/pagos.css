@@ -224,3 +224,379 @@
   .grid-pagos { grid-template-columns: 1fr; }
   .pagos-header { flex-direction: column; text-align: center; gap: 10px; }
 }
+
+/* --- BOTÓN DE PAGO ---
+   Usa el par --btn-degradado/--btn-texto, que el servicio de temas calcula
+   junto: el color del gimnasio puede ser claro, y ahí el texto blanco fijo
+   desaparecería. */
+.btn-pagar {
+  display: block;
+  margin-top: 0.85rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  transition: filter 0.18s ease, transform 0.12s ease;
+}
+.btn-pagar:hover { filter: brightness(1.08); transform: translateY(-2px); }
+.btn-pagar:active { transform: none; }
+
+/* La inicial que reemplaza al logo cuando el método no tiene imagen. */
+.card-inicial {
+  display: inline-grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: var(--sup-3, #dfe9fa);
+  color: var(--txt-1, #1e293b);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.form-ayuda {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--txt-3, #94a3b8);
+}
+
+
+/* ===== FACTURACIÓN =====
+   Mismo criterio de contraste que las pestañas de Mi Progreso: la que no está
+   elegida lleva fondo propio, y en claro va más oscura para que la elegida
+   resalte; en oscuro, al revés. */
+.tabs-pagos {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 1.25rem;
+  background: var(--tinte-azul, #dbeafe);
+  border: 1px solid var(--bde);
+  border-radius: 1rem;
+}
+
+.tab-pago {
+  flex: 1;
+  padding: 0.55rem 0.5rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.75rem;
+  background: var(--tab-fondo);
+  color: var(--txt-2, #475569);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.tab-pago:hover:not(.activo) { background: var(--tab-fondo-hover); color: var(--txt-1); }
+.tab-pago.activo {
+  border-color: transparent;
+  background: var(--sup-1, #fff);
+  color: var(--txt-1, #1e293b);
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
+}
+
+:host { --tab-fondo: rgba(30, 58, 138, 0.1); --tab-fondo-hover: rgba(30, 58, 138, 0.16); }
+:host-context([data-tema='oscuro']) { --tab-fondo: rgba(255, 255, 255, 0.08); --tab-fondo-hover: rgba(255, 255, 255, 0.13); }
+
+.mes-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.mes-flecha {
+  width: 2.1rem; height: 2.1rem;
+  border-radius: 50%;
+  border: 1px solid var(--bde);
+  background: var(--sup-2);
+  color: var(--txt-1);
+  font-size: 1.15rem; line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.mes-flecha:hover:not(:disabled) { background: var(--sup-3); transform: scale(1.08); }
+.mes-flecha:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.mes-titulo { text-align: center; }
+.mes-nombre { display: block; font-size: 1.1rem; font-weight: 800; color: var(--txt-1); }
+.mes-corte { display: block; font-size: 0.78rem; color: var(--txt-3); }
+
+.total-general {
+  display: grid;
+  /* Las dos cifras ocupan lo justo y el gráfico se queda con el resto: es el
+     que necesita ancho para que se distingan seis barras. */
+  grid-template-columns: minmax(150px, 0.8fr) minmax(130px, 0.7fr) minmax(260px, 1.5fr);
+  gap: 0.85rem;
+  margin-bottom: 1.75rem;
+}
+@media (max-width: 820px) {
+  .total-general { grid-template-columns: 1fr 1fr; }
+  .total-bloque--grafico { grid-column: 1 / -1; }
+}
+@media (max-width: 460px) {
+  .total-general { grid-template-columns: 1fr; }
+}
+
+.total-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid var(--bde);
+  background: var(--sup-1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+.total-bloque--suave { background: var(--sup-2); }
+
+.total-rotulo {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--txt-3);
+}
+.total-cifra {
+  font-size: 1.4rem; font-weight: 800; color: var(--txt-1);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.total-pie { font-size: 0.72rem; color: var(--txt-2, #475569); }
+
+.fact-subtitulo {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--txt-3);
+  margin: 0 0 0.75rem;
+}
+
+.grid-sedes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.sede-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--bde);
+  background: var(--sup-1);
+}
+/* La matriz se marca con el borde, no rellenando con el color del gimnasio:
+   si ese color es claro, el texto encima desaparece. */
+.sede-card--principal { border-color: var(--color-navbar, #2563c9); border-width: 2px; }
+
+.sede-cabeza { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.sede-nombre { font-weight: 800; color: var(--txt-1); }
+.sede-tag {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.1rem 0.35rem; border-radius: 0.35rem;
+  border: 1px solid var(--color-navbar, #2563c9); color: var(--txt-2, #475569);
+}
+.sede-cobrado {
+  font-size: 1.3rem; font-weight: 800; color: var(--txt-1);
+  font-variant-numeric: tabular-nums;
+}
+.sede-detalle { display: flex; gap: 0.35rem; font-size: 0.8rem; color: var(--txt-3); }
+/* Los planes en filas y no en tarjetas: son una lista de importes que se lee
+   de arriba abajo, no piezas que se comparan de a pares. */
+.lista-planes {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bde);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.plan-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  background: var(--sup-1);
+  border-bottom: 1px solid var(--bde);
+}
+.plan-fila:last-child { border-bottom: none; }
+
+.plan-nombre { flex: 1; font-weight: 700; color: var(--txt-1); }
+.plan-pagos { font-size: 0.8rem; color: var(--txt-3); }
+.plan-cobrado {
+  min-width: 7rem; text-align: right;
+  font-weight: 800; color: var(--txt-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.cargando-fact { text-align: center; color: var(--txt-3); padding: 2rem 0; }
+
+.fact-nota {
+  margin-top: 1.5rem;
+  padding-left: 0.85rem;
+  border-left: 3px solid var(--bde);
+  font-size: 0.82rem; line-height: 1.5;
+  color: var(--txt-3);
+}
+.fact-nota b { color: var(--txt-2, #475569); }
+
+
+/* --- HISTORIAL POR MES ---
+   Una sola serie: no lleva leyenda, el rótulo de la tarjeta ya dice qué es.
+   Solo el mes elegido muestra su cifra; el resto la da al pasar por encima,
+   para no llenar la tarjeta de números. */
+.total-bloque--grafico { gap: 0.3rem; }
+
+.barras {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;                 /* el separador entre barras es el fondo, no una línea */
+  height: 74px;
+  margin: 0.15rem 0 0.1rem;
+}
+
+.barra-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+.barra-col:focus-visible { outline: 2px solid var(--color-navbar, #2563c9); outline-offset: 2px; }
+
+.barra-valor {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+  opacity: 0;               /* se revela en el elegido y al pasar por encima */
+  transition: opacity 0.15s ease;
+}
+.barra-col:hover .barra-valor { opacity: 1; }
+
+/* La pista es el alto completo: la barra crece dentro, siempre desde abajo. */
+.barra-pista { display: flex; align-items: flex-end; width: 100%; flex: 1; }
+
+.barra {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;   /* extremo redondeado, base anclada */
+  background: var(--barra-color);
+  transition: background 0.15s ease;
+}
+.barra-col:hover .barra { background: var(--barra-color-fuerte); }
+
+.barra-letra {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--txt-3);
+  line-height: 1;
+}
+
+.barra-col--elegido .barra { background: var(--barra-color-fuerte); }
+.barra-col--elegido .barra-valor { opacity: 1; color: var(--txt-1); }
+.barra-col--elegido .barra-letra { color: var(--txt-1); }
+
+/* Dos pasos del mismo azul. Medidos contra el fondo de su tarjeta: una barra
+   es un objeto gráfico y necesita 3 de contraste para verse. El primer par que
+   probé daba 2.1 en claro — las barras normales casi no se distinguían del
+   blanco. Y el elegido se separa además con su cifra siempre visible, no solo
+   por el color. */
+:host {
+  --barra-color: #5b8bd6;         /* 3.44 sobre blanco */
+  --barra-color-fuerte: #17408f;  /* 9.69 sobre blanco, 2.82 contra la normal */
+}
+:host-context([data-tema='oscuro']) {
+  --barra-color: #4a6c9c;         /* 3.16 sobre el fondo oscuro */
+  --barra-color-fuerte: #a0c6f7;  /* 9.62 sobre el fondo, 3.04 contra la normal */
+}
+
+.barras-vacio {
+  display: flex;
+  align-items: center;
+  min-height: 74px;
+  margin: 0.15rem 0 0.1rem;
+  font-size: 0.82rem;
+  color: var(--txt-3);
+}
+
+
+/* ===== PAGOS POR CONFIRMAR =====
+   Ámbar y no rojo: no es un error, es algo que espera una decisión. */
+.por-confirmar {
+  margin-bottom: 1.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #f59e0b;
+  border-radius: 1rem;
+  background: rgba(245, 158, 11, 0.08);
+}
+.por-confirmar__titulo {
+  margin: 0 0 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #92400e;
+}
+:host-context([data-tema='oscuro']) .por-confirmar__titulo { color: #fcd34d; }
+
+.confirmar-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.7rem;
+  background: var(--sup-1);
+  border: 1px solid var(--bde);
+}
+.confirmar-datos { flex: 1; min-width: 0; }
+.confirmar-socio { margin: 0; font-weight: 700; color: var(--txt-1); }
+.confirmar-detalle { margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--txt-3); }
+
+.btn-confirmar {
+  padding: 0.45rem 0.8rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: #16a34a;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-confirmar:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-confirmar:disabled, .btn-descartar:disabled { opacity: 0.5; cursor: progress; }
+
+.btn-descartar {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.6rem;
+  background: var(--sup-1);
+  color: var(--txt-3);
+  font: inherit;
+  cursor: pointer;
+}
+.btn-descartar:hover:not(:disabled) { color: #b91c1c; border-color: #b91c1c; }
+
+.por-confirmar__pie {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--txt-2, #475569);
+}

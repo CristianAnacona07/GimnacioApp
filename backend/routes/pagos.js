@@ -12,6 +12,24 @@ function conId(m) {
   return { ...rest, _id: id };
 }
 
+/**
+ * Deja pasar solo http y https. El enlace lo escribe el gimnasio en un
+ * formulario y lo toca el socio: sin este filtro, un `javascript:...` pegado
+ * ahí correría en el navegador de cualquiera que toque la tarjeta.
+ *
+ * Cadena vacía => null, para que "borrar el enlace" funcione desde el formulario.
+ */
+function enlaceSeguro(valor) {
+  const texto = String(valor ?? '').trim();
+  if (!texto) return null;
+  try {
+    const url = new URL(texto);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? texto : null;
+  } catch {
+    return null;
+  }
+}
+
 router.get('/', verificarToken, async (req, res) => {
   try {
     const metodos = await prisma.metodoPago.findMany({ where: { gymId: req.gymId }, orderBy: { createdAt: 'desc' } });
@@ -34,6 +52,7 @@ router.get('/:id', verificarToken, async (req, res) => {
 router.post('/', verificarToken, requierePermiso('pagos', 'edicion'), async (req, res) => {
   try {
     const { gymId, _id, id, ...datos } = req.body;
+    if ('enlace' in datos) datos.enlace = enlaceSeguro(datos.enlace);
     const metodo = await prisma.metodoPago.create({ data: { ...datos, gymId: req.gymId } });
     await registrarAuditoria(req, 'CREAR_METODO_PAGO', { recurso: 'MetodoPago', recursoId: metodo.id });
     res.status(201).json(conId(metodo));
@@ -45,6 +64,7 @@ router.post('/', verificarToken, requierePermiso('pagos', 'edicion'), async (req
 router.put('/:id', verificarToken, requierePermiso('pagos', 'edicion'), async (req, res) => {
   try {
     const { gymId, _id, id, ...datos } = req.body; // no permitir mover el método de pago de gym
+    if ('enlace' in datos) datos.enlace = enlaceSeguro(datos.enlace);
     const actual = await prisma.metodoPago.findFirst({ where: { id: req.params.id, gymId: req.gymId }, select: { id: true } });
     if (!actual) return res.status(404).json({ error: 'Método de pago no encontrado' });
 
@@ -66,5 +86,7 @@ router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
+
+router.enlaceSeguro = enlaceSeguro;
 
 module.exports = router;

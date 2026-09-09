@@ -1,10 +1,24 @@
 <div class="pagos-container">
   <div class="pagos-header">
     <h1>{{ puedeEditar ? 'Gestión de Pagos' : 'Métodos de Pago' }}</h1>
-    @if (puedeEditar) {
+    @if (puedeEditar && vista === 'metodos') {
       <button (click)="abrirFormulario()" class="btn-agregar">+ Nuevo Método</button>
     }
   </div>
+
+  <!-- La facturación es del gimnasio: el socio solo ve dónde pagar. -->
+  @if (puedeEditar) {
+    <div class="tabs-pagos">
+      <button class="tab-pago" [class.activo]="vista === 'metodos'"
+              [attr.aria-expanded]="vista === 'metodos'" (click)="alternarVista('metodos')">
+        💳 Métodos de pago
+      </button>
+      <button class="tab-pago" [class.activo]="vista === 'facturacion'"
+              [attr.aria-expanded]="vista === 'facturacion'" (click)="alternarVista('facturacion')">
+        📊 Facturación
+      </button>
+    </div>
+  }
 
   @if (mostrarFormulario) {
     <div class="modal-overlay">
@@ -31,6 +45,16 @@
             <input type="text" [(ngModel)]="formulario.datosClave" name="datosClave">
           </div>
 
+          <div class="form-grupo">
+            <label>Enlace de cobro (opcional):</label>
+            <input type="url" [(ngModel)]="formulario.enlace" name="enlace"
+                   placeholder="https://..." inputmode="url">
+            <small class="form-ayuda">
+              El link de cobro de Nequi Negocios o de la pasarela. Si lo pegás, al
+              socio le aparece un botón para pagar en vez de solo el número.
+            </small>
+          </div>
+
           <div class="modal-botones">
             <button type="submit" class="btn-guardar">Guardar</button>
             <button type="button" (click)="cerrarFormulario()" class="btn-cancelar">Cancelar</button>
@@ -40,6 +64,111 @@
     </div>
   }
 
+@if (vista === 'facturacion') {
+  <section class="facturacion">
+
+    <div class="mes-nav">
+      <button class="mes-flecha" (click)="mesAnterior()" aria-label="Mes anterior">‹</button>
+      <div class="mes-titulo">
+        <span class="mes-nombre">{{ etiquetaMes }}</span>
+        <span class="mes-corte">Del {{ corte }}</span>
+      </div>
+      <button class="mes-flecha" (click)="mesSiguiente()" [disabled]="!hayMesSiguiente"
+              aria-label="Mes siguiente">›</button>
+    </div>
+
+    @if (cargandoFactura) {
+      <p class="cargando-fact">Calculando…</p>
+    } @else if (factura) {
+
+      <!-- El total de todas las sedes primero: es la pregunta que se hace
+           primero quien abre esta pantalla. -->
+      <div class="total-general">
+        <div class="total-bloque">
+          <span class="total-rotulo">Cobrado en el mes</span>
+          <span class="total-cifra">{{ factura.total.cobrado | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+          <span class="total-pie">{{ factura.total.pagos }} pago{{ factura.total.pagos === 1 ? '' : 's' }} registrado{{ factura.total.pagos === 1 ? '' : 's' }}</span>
+        </div>
+        <div class="total-bloque total-bloque--suave">
+          <span class="total-rotulo">Socios activos</span>
+          <span class="total-cifra">{{ factura.total.sociosActivos }}</span>
+          <span class="total-pie">Con la membresía al día hoy</span>
+        </div>
+
+        <!-- Seis meses de historial. Una sola serie, así que no lleva leyenda:
+             el rótulo de arriba dice qué se está mirando. Solo el mes elegido
+             muestra su cifra; los demás la dan al pasar por encima. -->
+        @if (historial.length) {
+          <div class="total-bloque total-bloque--grafico">
+            <span class="total-rotulo">Últimos meses</span>
+            @if (historialVacio) {
+              <p class="barras-vacio">Sin pagos registrados en estos meses.</p>
+            } @else {
+            <div class="barras">
+              @for (m of historial; track m.desde) {
+                <button type="button" class="barra-col"
+                        [class.barra-col--elegido]="esMesElegido(m)"
+                        (click)="irAlMes(m)"
+                        [attr.aria-label]="nombreMes(m) + ': ' + (m.cobrado | currency:'COP':'symbol-narrow':'1.0-0')"
+                        [title]="nombreMes(m) + ' · ' + (m.cobrado | currency:'COP':'symbol-narrow':'1.0-0') + ' · ' + m.pagos + ' pago' + (m.pagos === 1 ? '' : 's')">
+                  <span class="barra-valor">{{ m.cobrado / 1000 | number:'1.0-0' }}k</span>
+                  <span class="barra-pista"><span class="barra" [style.height.%]="alturaBarra(m)"></span></span>
+                  <span class="barra-letra">{{ letraMes(m) }}</span>
+                </button>
+              }
+            </div>
+            <span class="total-pie">Miles de pesos · tocá un mes para verlo</span>
+            }
+          </div>
+        }
+      </div>
+
+      @if (!factura.soloSuSede) {
+        <p class="fact-subtitulo">Por sede</p>
+      }
+
+      <div class="grid-sedes">
+        @for (s of factura.sedes; track s.nombre) {
+          <div class="sede-card" [class.sede-card--principal]="s.esPrincipal">
+            <div class="sede-cabeza">
+              <span class="sede-nombre">{{ s.nombre }}</span>
+              @if (s.esPrincipal) { <span class="sede-tag">casa matriz</span> }
+            </div>
+            <span class="sede-cobrado">{{ s.cobrado | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+            <div class="sede-detalle">
+              <span>{{ s.sociosActivos }} activo{{ s.sociosActivos === 1 ? '' : 's' }}</span>
+              <span>·</span>
+              <span>{{ s.pagos }} pago{{ s.pagos === 1 ? '' : 's' }}</span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Los mismos pagos, mirados por plan. Contesta "de dónde salió la
+           plata" sin tener que abrir el listado de transacciones. -->
+      @if (factura.planes.length) {
+        <p class="fact-subtitulo">Por plan</p>
+        <div class="lista-planes">
+          @for (p of factura.planes; track p.nombre) {
+            <div class="plan-fila">
+              <span class="plan-nombre">{{ p.nombre }}</span>
+              <span class="plan-pagos">{{ p.pagos }} pago{{ p.pagos === 1 ? '' : 's' }}</span>
+              <span class="plan-cobrado">{{ p.cobrado | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      <p class="fact-nota">
+        Solo cuenta lo registrado entre esas fechas. Todo pago sale de un plan de
+        la lista; «Otros cobros», si aparece, son cobros viejos anteriores a que
+        el plan se guardara.
+      </p>
+    }
+  </section>
+}
+
+@if (vista === 'metodos') {
 <div class="grid-pagos">
   @for (pago of listaPagos; track pago._id) {
     <div class="pago-card">
@@ -55,7 +184,13 @@
       }
 
       <div class="card-icon">
-        <img [src]="pago.imagenUrl" alt="icon">
+        @if (pago.imagenUrl) {
+          <img [src]="pago.imagenUrl" [alt]="pago.titulo">
+        } @else {
+          <!-- Sin logo se muestra la inicial. Antes se pintaba un <img> sin
+               dirección y quedaba el ícono roto del navegador. -->
+          <span class="card-inicial">{{ inicial(pago.titulo) }}</span>
+        }
       </div>
       
       <h3>{{ pago.titulo }}</h3>
@@ -67,7 +202,17 @@
           <span class="valor">{{ pago.datosClave }} 📋</span>
         </div>
       }
+
+      <!-- Solo si el gimnasio cargó un enlace de cobro. rel=noopener porque la
+           dirección la escribe el gimnasio: sin eso, la página que se abre
+           puede manipular la pestaña de la app. -->
+      @if (pago.enlace) {
+        <a class="btn-pagar" [href]="pago.enlace" target="_blank" rel="noopener noreferrer">
+          Pagar con {{ pago.titulo }} ↗
+        </a>
+      }
     </div>
   }
 </div>
+}
 </div>

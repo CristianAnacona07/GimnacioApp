@@ -360,3 +360,18 @@
   color: var(--txt-3, #94a3b8);
   font-size: 0.85rem;
 }
+
+/* El aviso de plan libre. Ámbar y no rojo: no es un error, es una decisión que
+   el admin puede tomar a propósito (un descuento, una clase suelta). */
+.hint--aviso {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.12);
+  border-left: 3px solid #f59e0b;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0 0.4rem 0.4rem 0;
+  line-height: 1.4;
+}
+:host-context([data-tema='oscuro']) .hint--aviso {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.14);
+}

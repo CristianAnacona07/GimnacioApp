@@ -92,6 +92,8 @@ export class PagoService {
     concepto?: string;
     dias?: number;
     reemplazar?: boolean;
+    /** El plan elegido, cuando el cobro sale de uno. */
+    planId?: string;
   }): Observable<ResultadoPago> {
     return this.http.post<ResultadoPago>(`${this.url}/api/transacciones/registrar`, datos);
   }

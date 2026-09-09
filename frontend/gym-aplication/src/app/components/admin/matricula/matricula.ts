@@ -105,7 +105,6 @@ export class Matricula implements OnInit {
   metodosPago: MetodoPago[] = [];
   planId = '';
   /** Lo que se ve/escribe en el campo; si coincide con un plan real, se autocompleta monto/días/concepto. */
-  planTexto = '';
 
   /** Entrenador que se le asigna al cobrar. Vacío = no se le toca. */
   entrenadorId = '';
@@ -305,16 +304,12 @@ export class Matricula implements OnInit {
     this.cdr.markForCheck();
   }
 
-  // ---- Plan: campo de texto con sugerencias (datalist), no un select cerrado ----
-  onPlanTextoChange(valor: string): void {
-    this.planTexto = valor;
-    // Si lo tecleado coincide con un plan real (elegido de la lista o escrito
-    // igual a mano), se autocompleta; si no, queda como texto libre y no toca
-    // lo que el admin ya haya puesto en monto/días/concepto.
-    const plan = this.planes.find((p) => p.nombre.trim().toLowerCase() === valor.trim().toLowerCase());
-    this.planId = plan ? plan._id : '';
-    if (plan) this.onPlanChange();
-  }
+  // ---- Plan: la lista que armó el administrador, y nada más ----
+  //
+  // Antes era un campo de texto con sugerencias: se podía escribir cualquier
+  // cosa y el cobro quedaba sin plan, así que la facturación no lo podía
+  // clasificar. El monto sigue siendo editable, de modo que un descuento se
+  // cobra distinto pero se sigue contando dentro de su plan.
 
   // ---- Plan → autocompleta monto, concepto y días ----
   onPlanChange(): void {
@@ -357,8 +352,8 @@ export class Matricula implements OnInit {
       return;
     }
 
-    if (!this.planTexto.trim()) {
-      this.toast.error('El plan es obligatorio');
+    if (!this.planId) {
+      this.toast.error('Elegí un plan de la lista');
       return;
     }
 
@@ -478,7 +473,10 @@ export class Matricula implements OnInit {
       concepto?: string;
       dias?: number;
       reemplazar?: boolean;
+      planId?: string;
     } = { usuarioId, monto, dias };
+
+    body.planId = this.planId;
 
     // Solo se manda cuando toca, para no cambiar el cuerpo del resto de pagos.
     if (reemplazar) body.reemplazar = true;
@@ -534,7 +532,6 @@ export class Matricula implements OnInit {
     this.resultados = [];
     this.socioSeleccionado = null;
     this.planId = '';
-    this.planTexto = '';
     this.metodoId = '';
     this.metodoTexto = '';
     this.concepto = '';

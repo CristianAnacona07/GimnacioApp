@@ -137,6 +137,15 @@ model Gym {
   metodosPago   MetodoPago[]
   planes        Plan[]
   progresos     Progreso[]
+  solicitudes   SolicitudPago[]
+
+  /// Cobro en línea con Wompi. Cada gimnasio pone su propia cuenta: el dinero
+  /// cae en la suya y la plataforma nunca es intermediaria de pagos.
+  /// Las dos claves secretas nunca salen en una respuesta de la API — se
+  /// esconden con `omit` en prisma/client.js, igual que la contraseña.
+  wompiPublicKey       String? @map("wompi_public_key")
+  wompiIntegritySecret String? @map("wompi_integrity_secret")
+  wompiEventsSecret    String? @map("wompi_events_secret")
   piramides     Piramide[]
   sedes         Sede[]
   disponibilidadDias DisponibilidadDia[]
@@ -236,6 +245,13 @@ model User {
   progresos                Progreso[]
   piramides                Piramide[]
   disponibilidadDias       DisponibilidadDia[]
+  /// El plan en el que está el socio. Lo escribe el registro de pago: antes no
+  /// se guardaba en ningún lado y "cuánto paga cada socio" había que deducirlo
+  /// del último monto cobrado.
+  solicitudes              SolicitudPago[] @relation("SolicitudSocio")
+  solicitudesResueltas     SolicitudPago[] @relation("SolicitudResolvedor")
+  planId                   String? @db.Char(24) @map("plan_id")
+  plan                     Plan?   @relation(fields: [planId], references: [id], onDelete: SetNull)
   sedeId                   String? @db.Char(24) @map("sede_id")
   sede                     Sede?   @relation(fields: [sedeId], references: [id], onDelete: SetNull)
   rutinas                  Rutina[]
@@ -439,6 +455,9 @@ model MetodoPago {
   imagenUrl   String?        @map("imagen_url")
   descripcion String?
   datosClave  String?        @map("datos_clave")
+  /// Enlace de cobro: el link de Nequi Negocios o de la pasarela. Si está, la
+  /// tarjeta del socio deja de ser solo un número para copiar y se puede tocar.
+  enlace      String?
   activo      Boolean        @default(true)
 
   createdAt DateTime  @default(now()) @map("created_at")
@@ -446,6 +465,7 @@ model MetodoPago {
   deletedAt DateTime? @map("deleted_at")
 
   transacciones Transaccion[]
+  solicitudes   SolicitudPago[]
 
   @@index([gymId, createdAt(sort: Desc)])
   @@index([deletedAt])
@@ -461,6 +481,10 @@ model Plan {
   dias            Int       @default(30)
   descripcion     String
   caracteristicas String[]
+
+  socios        User[]
+  transacciones Transaccion[]
+  solicitudes   SolicitudPago[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -633,6 +657,10 @@ model Transaccion {
   monto         Decimal     @db.Decimal(10, 2)
   metodoId      String?     @db.Char(24) @map("metodo_id")
   metodo        MetodoPago? @relation(fields: [metodoId], references: [id], onDelete: SetNull)
+  /// Qué plan se cobró. Nulo en los pagos sueltos que el admin escribe a mano
+  /// y en todo lo registrado antes de que esto existiera.
+  planId        String?     @db.Char(24) @map("plan_id")
+  plan          Plan?       @relation(fields: [planId], references: [id], onDelete: SetNull)
   concepto      String      @default("Membresía")
   diasAgregados Int         @default(0) @map("dias_agregados")
   fecha         DateTime    @default(now())
@@ -804,4 +832,57 @@ model DisponibilidadDia {
   @@index([profesionalId, fecha])
   @@index([gymId, fecha])
   @@map("disponibilidad_dias")
+}
+
+enum EstadoSolicitud {
+  pendiente
+  aprobada
+  rechazada
+}
+
+/// Un socio avisando que pagó un plan, a la espera de que el gimnasio lo
+/// confirme.
+///
+/// Existe porque el botón "Adquirir" no puede extender la membresía por su
+/// cuenta: sin una pasarela que confirme el pago, cualquiera se regalaría meses
+/// tocando un botón. Con esto el socio deja el aviso y el gimnasio lo aprueba
+/// de un toque, sin escribir monto ni días.
+///
+/// El monto y los días se copian del plan al crear la solicitud, no se leen al
+/// aprobarla: si el gimnasio sube el precio entre medio, se le cobra al socio
+/// lo que vio cuando decidió pagar.
+model SolicitudPago {
+  id      String @id @db.Char(24)
+  gymId   String @db.Char(24) @map("gym_id")
+  gym     Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  socioId String @db.Char(24) @map("socio_id")
+  socio   User   @relation("SolicitudSocio", fields: [socioId], references: [id], onDelete: Cascade)
+  planId  String @db.Char(24) @map("plan_id")
+  plan    Plan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  monto Decimal @db.Decimal(10, 2)
+  dias  Int
+
+  /// La referencia que viaja a la pasarela y vuelve en el evento. Es el hilo
+  /// que une "el socio tocó pagar" con "Wompi dice que el pago entró".
+  referencia String @unique @db.VarChar(64)
+
+  /// Con qué dijo que iba a pagar. Solo informativo, para que en recepción
+  /// sepan dónde buscar el comprobante.
+  metodoId String?     @db.Char(24) @map("metodo_id")
+  metodo   MetodoPago? @relation(fields: [metodoId], references: [id], onDelete: SetNull)
+
+  estado EstadoSolicitud @default(pendiente)
+
+  resueltaPor  String?   @db.Char(24) @map("resuelta_por")
+  resolvedor   User?     @relation("SolicitudResolvedor", fields: [resueltaPor], references: [id], onDelete: SetNull)
+  resueltaEn   DateTime? @map("resuelta_en")
+  transaccionId String?  @db.Char(24) @map("transaccion_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([gymId, estado])
+  @@index([socioId, estado])
+  @@map("solicitudes_pago")
 }

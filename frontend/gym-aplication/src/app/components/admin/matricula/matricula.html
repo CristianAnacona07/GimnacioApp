@@ -187,20 +187,18 @@
     <div class="campos">
       <label class="campo">
         <span class="campo__label">Plan <span class="req">*</span></span>
-        <input
-          class="input"
-          type="text"
-          list="planes-datalist"
-          [ngModel]="planTexto"
-          (ngModelChange)="onPlanTextoChange($event)"
-          placeholder="Elegí uno o escribí un plan libre"
-          autocomplete="off"
-        />
-        <datalist id="planes-datalist">
-          <option *ngFor="let p of planes" [value]="p.nombre">
-            {{ p.precio != null ? (p.precio | number: '1.0-2') : '' }}
+        <!-- Los planes que creó el administrador, y nada más: el cobro sale de
+             uno de ellos siempre, así la facturación lo puede clasificar. -->
+        <select class="input" [(ngModel)]="planId" (ngModelChange)="onPlanChange()" name="plan">
+          <option value="" disabled>Elegí un plan</option>
+          <option *ngFor="let p of planes" [value]="p._id">
+            {{ p.nombre }}{{ p.precio != null ? ' · ' + (p.precio | currency: 'COP':'symbol-narrow':'1.0-0') : '' }}
           </option>
-        </datalist>
+        </select>
+        <small class="hint hint--aviso" *ngIf="!planes.length">
+          Todavía no hay planes creados. Creá uno en Planes para poder registrar
+          un pago.
+        </small>
       </label>
 
       <label class="campo">

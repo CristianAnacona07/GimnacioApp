@@ -125,7 +125,7 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '💳', name: 'Matrícula / Pago', route: '/admin/matricula', show: true },
         { icon: '👥', name: 'socios',        route: '/admin/socios',        show: true },
         { icon: '💳', name: 'planes',        route: '/admin/planes',        show: m('pagos') },
-        { icon: '💰', name: 'pagos',         route: '/admin/pagos',         show: m('pagos') },
+        { icon: '💰', name: 'pagos / facturación', route: '/admin/pagos',   show: m('pagos') },
         { icon: '🧑‍💼', name: 'empleados',   route: '/admin/empleados',     show: true },
         { icon: '📋', name: 'rutinas',       route: '/admin/rutinas',       show: m('rutinas') },
         { icon: '⚙️', name: 'Configuración', route: '/admin/configuracion', show: true },
@@ -161,7 +161,6 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '📅',    name: 'agendar',     route: '/socio/agendar',    show: true },
         { icon: '👤',    name: 'perfil',      route: '/socio/perfil',     show: true },
         { icon: '💎',    name: 'planes',      route: '/socio/planes',     show: m('pagos') },
-        { icon: '💰',    name: 'pagos',              route: '/socio/pagos',      show: m('pagos') },
         { icon: '💬',    name: 'Ayúdanos a mejorar', route: '/socio/feedback',   show: true },
         { icon: '🏃‍♂️', name: 'Cerrar Sesión',       route: 'logout', isAction: true, show: true }
       ].filter(l => l.show);
