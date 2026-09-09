@@ -125,7 +125,7 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '💳', name: 'Matrícula / Pago', route: '/admin/matricula', show: true },
         { icon: '👥', name: 'socios',        route: '/admin/socios',        show: true },
         { icon: '💳', name: 'planes',        route: '/admin/planes',        show: m('pagos') },
-        { icon: '💰', name: 'pagos / facturación', route: '/admin/pagos',   show: m('pagos') },
+        { icon: '📊', name: 'facturación',   route: '/admin/pagos',         show: m('pagos') },
         { icon: '🧑‍💼', name: 'empleados',   route: '/admin/empleados',     show: true },
         { icon: '📋', name: 'rutinas',       route: '/admin/rutinas',       show: m('rutinas') },
         { icon: '⚙️', name: 'Configuración', route: '/admin/configuracion', show: true },
@@ -140,7 +140,6 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '📋', name: 'rutinas',       route: '/entrenador/rutinas',    show: p.puede('rutinas') && m('rutinas') },
         { icon: '🎫', name: 'Recepción',     route: '/entrenador/recepcion',  show: p.puede('recepcion') },
         { icon: '💳', name: 'planes',        route: '/entrenador/planes',     show: p.puede('planes') && m('pagos') },
-        { icon: '💰', name: 'pagos',         route: '/entrenador/pagos',      show: p.puede('pagos') && m('pagos') },
         { icon: '🧑‍💼', name: 'empleados',   route: '/entrenador/empleados',  show: p.puede('empleados') },
         { icon: '📅', name: 'mi agenda',     route: '/entrenador/agenda',     show: true },
         { icon: '🚪', name: 'Cerrar Sesión', route: 'logout', isAction: true, show: true }

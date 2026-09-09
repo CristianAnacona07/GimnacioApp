@@ -1,70 +1,8 @@
 <div class="pagos-container">
   <div class="pagos-header">
-    <h1>{{ puedeEditar ? 'Gestión de Pagos' : 'Métodos de Pago' }}</h1>
-    @if (puedeEditar && vista === 'metodos') {
-      <button (click)="abrirFormulario()" class="btn-agregar">+ Nuevo Método</button>
-    }
+    <h1>📊 Facturación</h1>
   </div>
 
-  <!-- La facturación es del gimnasio: el socio solo ve dónde pagar. -->
-  @if (puedeEditar) {
-    <div class="tabs-pagos">
-      <button class="tab-pago" [class.activo]="vista === 'metodos'"
-              [attr.aria-expanded]="vista === 'metodos'" (click)="alternarVista('metodos')">
-        💳 Métodos de pago
-      </button>
-      <button class="tab-pago" [class.activo]="vista === 'facturacion'"
-              [attr.aria-expanded]="vista === 'facturacion'" (click)="alternarVista('facturacion')">
-        📊 Facturación
-      </button>
-    </div>
-  }
-
-  @if (mostrarFormulario) {
-    <div class="modal-overlay">
-      <div class="modal-contenido">
-        <h2>Configurar Método de Pago</h2>
-        <form (ngSubmit)="guardarPago()">
-          <div class="form-grupo">
-            <label>Título (Ej: Nequi o Efectivo):</label>
-            <input type="text" [(ngModel)]="formulario.titulo" name="titulo" required>
-          </div>
-          
-          <div class="form-grupo">
-            <label>URL de Imagen/Logo:</label>
-            <input type="text" [(ngModel)]="formulario.imagenUrl" name="imagenUrl" placeholder="https://...">
-          </div>
-
-          <div class="form-grupo">
-            <label>Descripción:</label>
-            <textarea [(ngModel)]="formulario.descripcion" name="descripcion"></textarea>
-          </div>
-
-          <div class="form-grupo">
-            <label>Dato Clave (Celular o Ubicación):</label>
-            <input type="text" [(ngModel)]="formulario.datosClave" name="datosClave">
-          </div>
-
-          <div class="form-grupo">
-            <label>Enlace de cobro (opcional):</label>
-            <input type="url" [(ngModel)]="formulario.enlace" name="enlace"
-                   placeholder="https://..." inputmode="url">
-            <small class="form-ayuda">
-              El link de cobro de Nequi Negocios o de la pasarela. Si lo pegás, al
-              socio le aparece un botón para pagar en vez de solo el número.
-            </small>
-          </div>
-
-          <div class="modal-botones">
-            <button type="submit" class="btn-guardar">Guardar</button>
-            <button type="button" (click)="cerrarFormulario()" class="btn-cancelar">Cancelar</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  }
-
-@if (vista === 'facturacion') {
   <section class="facturacion">
 
     <div class="mes-nav">
@@ -166,53 +104,4 @@
       </p>
     }
   </section>
-}
-
-@if (vista === 'metodos') {
-<div class="grid-pagos">
-  @for (pago of listaPagos; track pago._id) {
-    <div class="pago-card">
-      @if (puedeEditar || puedeBorrar) {
-        <div class="acciones-admin">
-          @if (puedeEditar) {
-            <button (click)="prepararEdicion(pago)" class="btn-mini-edit" title="Editar">✏️</button>
-          }
-          @if (puedeBorrar) {
-            <button (click)="eliminarMetodo(pago._id)" class="btn-mini-delete" title="Eliminar">🗑️</button>
-          }
-        </div>
-      }
-
-      <div class="card-icon">
-        @if (pago.imagenUrl) {
-          <img [src]="pago.imagenUrl" [alt]="pago.titulo">
-        } @else {
-          <!-- Sin logo se muestra la inicial. Antes se pintaba un <img> sin
-               dirección y quedaba el ícono roto del navegador. -->
-          <span class="card-inicial">{{ inicial(pago.titulo) }}</span>
-        }
-      </div>
-      
-      <h3>{{ pago.titulo }}</h3>
-      <p class="descripcion">{{ pago.descripcion }}</p>
-
-      @if (pago.datosClave && pago.datosClave.trim() !== '') {
-        <div class="info-pago" (click)="copiarAlPortapapeles(pago.datosClave)" title="Click para copiar">
-          <span class="label-copy">Toca para copiar:</span>
-          <span class="valor">{{ pago.datosClave }} 📋</span>
-        </div>
-      }
-
-      <!-- Solo si el gimnasio cargó un enlace de cobro. rel=noopener porque la
-           dirección la escribe el gimnasio: sin eso, la página que se abre
-           puede manipular la pestaña de la app. -->
-      @if (pago.enlace) {
-        <a class="btn-pagar" [href]="pago.enlace" target="_blank" rel="noopener noreferrer">
-          Pagar con {{ pago.titulo }} ↗
-        </a>
-      }
-    </div>
-  }
-</div>
-}
 </div>

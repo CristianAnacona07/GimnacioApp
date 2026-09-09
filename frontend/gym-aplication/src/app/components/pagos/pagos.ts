@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 
 import { PagosService, Facturacion, MesFacturado } from './../../services/pagos.service';
 import { ToastService } from '../../services/toast.service';
-import { ConfirmService } from '../../services/confirm.service';
 import { UserStateService } from '../../services/user-state.service';
 import { PermisosService } from '../../services/permisos.service';
 
@@ -17,20 +16,11 @@ import { PermisosService } from '../../services/permisos.service';
 })
 export class Pagos implements OnInit {
   role = '';
-  listaPagos: any[] = [];
 
   // ── Facturación ─────────────────────────────────────────────────────────
   // Solo la ve el admin: es la plata del gimnasio, no del socio.
   readonly MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
                     'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  /**
-   * Arranca sin nada abierto, igual que Mi Progreso: se entra y se ven las dos
-   * opciones. Volver a tocar la abierta la cierra.
-   *
-   * El socio no tiene pestañas — para él la vista se fija en ngOnInit, o se
-   * quedaría mirando una pantalla vacía sin nada que tocar.
-   */
-  vista: 'metodos' | 'facturacion' | null = null;
   anio = new Date().getFullYear();
   mes = new Date().getMonth();
   factura: Facturacion | null = null;
@@ -92,11 +82,6 @@ export class Pagos implements OnInit {
     return this.anio < hoy.getFullYear() || (this.anio === hoy.getFullYear() && this.mes < hoy.getMonth());
   }
 
-  alternarVista(cual: 'metodos' | 'facturacion'): void {
-    this.vista = this.vista === cual ? null : cual;
-    if (this.vista === 'facturacion' && !this.factura) this.cargarFacturacion();
-  }
-
   mesAnterior(): void {
     if (this.mes === 0) { this.mes = 11; this.anio--; } else { this.mes--; }
     this.cargarFacturacion();
@@ -129,21 +114,11 @@ export class Pagos implements OnInit {
       }
     });
   }
-  mostrarFormulario = false;
-  esEdicion = false;
-  idEdicion = '';
 
-  /** Primera letra del título, para la tarjeta sin logo. */
-  inicial(titulo: string): string {
-    return (titulo || '?').trim().charAt(0).toUpperCase();
-  }
-
-  formulario = { titulo: '', descripcion: '', imagenUrl: '', datosClave: '', enlace: '', tipo: 'digital' };
 
   constructor(
     private pagosService: PagosService,
     private toast: ToastService,
-    private confirm: ConfirmService,
     private userStateService: UserStateService,
     private permisos: PermisosService,
     private cdr: ChangeDetectorRef
@@ -153,82 +128,9 @@ export class Pagos implements OnInit {
     return this.permisos.puede('pagos', 'edicion');
   }
 
-  get puedeBorrar(): boolean {
-    return this.permisos.puedeBorrar;
-  }
-
   ngOnInit() {
     this.role = this.userStateService.getRole() || '';
-    // Sin pestañas que tocar, la única vista posible ya viene abierta.
-    if (!this.puedeEditar) this.vista = 'metodos';
-    this.cargarMetodos();
+    this.cargarFacturacion();
   }
 
-  cargarMetodos() {
-    this.pagosService.obtenerMetodos().subscribe({
-      next: (data) => {
-        this.listaPagos = data;
-        this.cdr.detectChanges();
-      },
-      error: () => this.toast.error('Error al cargar métodos de pago')
-    });
-  }
-
-  abrirFormulario() {
-    this.mostrarFormulario = true;
-  }
-
-  cerrarFormulario() {
-    this.mostrarFormulario = false;
-    this.esEdicion = false;
-    this.idEdicion = '';
-    this.formulario = { titulo: '', descripcion: '', imagenUrl: '', datosClave: '', enlace: '', tipo: 'digital' };
-  }
-
-  prepararEdicion(pago: any) {
-    this.esEdicion = true;
-    this.idEdicion = pago._id;
-    this.formulario = { ...pago };
-    this.abrirFormulario();
-  }
-
-  guardarPago() {
-    if (!this.formulario.titulo || !this.formulario.descripcion) {
-      this.toast.error('Por favor completa los campos obligatorios');
-      return;
-    }
-
-    const peticion = this.esEdicion
-      ? this.pagosService.actualizarMetodo(this.idEdicion, this.formulario)
-      : this.pagosService.crearMetodo(this.formulario);
-
-    peticion.subscribe({
-      next: () => {
-        this.toast.success(this.esEdicion ? 'Método actualizado' : 'Método de pago creado');
-        this.cargarMetodos();
-        this.cerrarFormulario();
-        this.cdr.detectChanges();
-      },
-      error: (err) => this.toast.error('Error al guardar: ' + (err.error?.error || err.message))
-    });
-  }
-
-  async eliminarMetodo(id: string) {
-    const ok = await this.confirm.confirm('¿Estás seguro de que deseas eliminar este método de pago?');
-    if (!ok) return;
-
-    this.pagosService.eliminarMetodo(id).subscribe({
-      next: () => {
-        this.toast.success('Método de pago eliminado');
-        this.cargarMetodos();
-      },
-      error: () => this.toast.error('Error al eliminar')
-    });
-  }
-
-  copiarAlPortapapeles(texto: string) {
-    navigator.clipboard.writeText(texto).then(() => {
-      this.toast.info('Copiado al portapapeles: ' + texto);
-    });
-  }
 }
