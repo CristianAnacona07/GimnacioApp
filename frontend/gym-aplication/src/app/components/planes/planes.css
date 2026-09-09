@@ -285,3 +285,257 @@
   .grid-planes { grid-template-columns: 1fr; }
   .planes-header { flex-direction: column; gap: 15px; text-align: center; }
 }
+
+/* ===== ADQUIRIR UN PLAN ===== */
+.btn-adquirir {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-radius: 0.75rem;
+  /* El par --btn-degradado/--btn-texto lo calcula junto el servicio de temas:
+     el color del gimnasio puede ser claro y ahí un blanco fijo desaparece. */
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.18s ease, transform 0.12s ease;
+}
+.btn-adquirir:hover { filter: brightness(1.08); transform: translateY(-2px); }
+.btn-adquirir:active { transform: none; }
+
+.modal-pago {
+  max-width: 26rem;
+  /* Con muchos medios de pago la lista crece; que ruede por dentro y no se
+     salga de la pantalla. */
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.pago-monto {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+.pago-monto__cifra { font-size: 1.7rem; font-weight: 800; color: var(--txt-1); }
+.pago-monto__dias { font-size: 0.85rem; color: var(--txt-3); }
+
+.pago-comollamar {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--txt-3);
+  margin: 0 0 0.6rem;
+}
+
+.metodo-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.85rem;
+  margin-bottom: 0.6rem;
+  background: var(--sup-1);
+}
+
+.metodo-icono {
+  display: inline-grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  background: var(--sup-3, #dfe9fa);
+  color: var(--txt-1);
+  font-weight: 800;
+}
+.metodo-icono img { max-width: 30px; max-height: 30px; object-fit: contain; }
+
+.metodo-datos { flex: 1; min-width: 0; }
+.metodo-titulo { margin: 0; font-weight: 700; color: var(--txt-1); }
+.metodo-desc { margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--txt-3); }
+
+.metodo-dato {
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px dashed var(--color-navbar, #2563c9);
+  border-radius: 0.4rem;
+  background: none;
+  color: var(--txt-2, #475569);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.metodo-dato:hover { background: var(--sup-2); }
+
+.metodo-pagar {
+  flex: 0 0 auto;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.6rem;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.metodo-pagar:hover { filter: brightness(1.08); }
+
+.pago-aviso {
+  margin: 0.9rem 0 0;
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--color-navbar, #2563c9);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--txt-2, #475569);
+}
+
+.pago-vacio { color: var(--txt-3); font-size: 0.9rem; }
+
+/* El camino en línea va destacado sobre los manuales: es el único que no
+   necesita que alguien confirme nada. */
+.btn-en-linea {
+  display: block;
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.85rem;
+  background: var(--btn-degradado);
+  color: var(--btn-texto);
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter 0.18s ease;
+}
+.btn-en-linea small { display: block; margin-top: 0.15rem; font-size: 0.72rem; font-weight: 600; opacity: 0.85; }
+.btn-en-linea:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-en-linea:disabled { opacity: 0.6; cursor: progress; }
+
+.aviso-pendiente {
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+:host-context([data-tema='oscuro']) .aviso-pendiente { color: #fcd34d; }
+
+/* El desplegable de medios manuales. */
+.desplegable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.75rem;
+  background: var(--sup-2);
+  color: var(--txt-2, #475569);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.desplegable:hover { background: var(--sup-3); color: var(--txt-1); }
+.desplegable__flecha { transition: transform 0.18s ease; }
+.desplegable__flecha.abierta { transform: rotate(180deg); }
+
+/* Avisar que ya se pagó por transferencia. Va discreto: el camino bueno es el
+   de arriba, este es el que necesita que alguien confirme. */
+.btn-ya-pague {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--color-navbar, #2563c9);
+  border-radius: 0.75rem;
+  background: none;
+  color: var(--txt-1);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-ya-pague:hover:not(:disabled) { background: var(--sup-2); }
+.btn-ya-pague:disabled { opacity: 0.6; cursor: progress; }
+
+/* ===== VUELTA DEL PAGO Y ESTADO DE LA MEMBRESÍA ===== */
+.membresia-ok {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding: 1.1rem;
+  border: 1px solid var(--ok-borde);
+  border-radius: 0.9rem;
+  background: var(--ok-fondo);
+  color: var(--ok-texto);
+}
+.membresia-ok__icono { width: 26px; height: 26px; flex-shrink: 0; }
+.membresia-ok__titulo { margin: 0; font-size: 0.95rem; font-weight: 800; }
+.membresia-ok__texto { margin: 0.3rem 0 0; font-size: 0.85rem; line-height: 1.5; }
+
+.membresia {
+  margin-bottom: 1.25rem;
+  padding: 1.1rem;
+  border: 1px solid var(--bde);
+  border-radius: 0.9rem;
+  background: var(--sup-1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.membresia__rotulo {
+  margin: 0 0 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-3);
+}
+.membresia__dias { display: flex; align-items: baseline; gap: 0.5rem; margin: 0; }
+.membresia__numero {
+  font-size: 2.1rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--txt-1);
+  font-variant-numeric: tabular-nums;
+}
+.membresia__unidad { font-size: 0.88rem; color: var(--txt-2, #475569); }
+
+/* La barra usa el degradado de la marca del gimnasio, que ya viene con su
+   color de letra calculado — acá solo se rellena, no lleva texto encima. */
+.membresia__barra {
+  height: 8px;
+  margin: 0.85rem 0 0.6rem;
+  border-radius: 4px;
+  background: var(--sup-3);
+  overflow: hidden;
+}
+.membresia__barra span { display: block; height: 100%; background: var(--btn-degradado); }
+
+.membresia__pie {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--txt-2, #475569);
+}
+
+:host {
+  --ok-fondo: #dcfce7;
+  --ok-borde: #4ade80;
+  --ok-texto: #14532d;
+}
+:host-context([data-tema='oscuro']) {
+  /* En oscuro el verde claro deslumbra: baja el fondo y sube la letra. */
+  --ok-fondo: #12301f;
+  --ok-borde: #2f7d54;
+  --ok-texto: #a7f3c8;
+}

@@ -18,6 +18,12 @@ const OMIT_SENSIBLES = {
   dispositivo: {
     apiKeyHash: true,
   },
+  gym: {
+    // Los secretos de Wompi. La clave pública sí sale: el navegador la necesita
+    // para abrir el checkout, y es pública por diseño.
+    wompiIntegritySecret: true,
+    wompiEventsSecret: true,
+  },
 };
 
 let client = null;

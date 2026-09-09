@@ -583,6 +583,35 @@ router.delete('/:id', verificarToken, soloSuperAdmin, async (req, res) => {
 // ── ADMIN DEL GYM ────────────────────────────────────────────────
 
 // Actualizar configuración del gym (admin o superadmin)
+/**
+ * Si el gimnasio tiene el cobro en línea listo. No devuelve los secretos: solo
+ * dice cuáles están puestos, que es lo que el formulario necesita para
+ * mostrarse "conectado" sin revelar nada.
+ */
+router.get('/:id/wompi', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    if (req.userRole !== 'superadmin' && String(req.gymId) !== String(req.params.id)) {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    const gym = await prisma.gym.findUnique({
+      where: { id: req.params.id },
+      select: { wompiPublicKey: true, wompiIntegritySecret: true, wompiEventsSecret: true }
+    });
+    if (!gym) return res.status(404).json({ error: 'Gimnasio no encontrado' });
+
+    res.json({
+      publicKey: gym.wompiPublicKey || '',
+      tieneIntegridad: !!gym.wompiIntegritySecret,
+      tieneEventos: !!gym.wompiEventsSecret,
+      // Lo que hay que pegar en el panel de Wompi para que avise de los pagos.
+      urlEventos: `${process.env.API_URL || ''}/api/wompi/eventos`,
+      conectado: !!(gym.wompiPublicKey && gym.wompiIntegritySecret && gym.wompiEventsSecret)
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al consultar la configuración de cobro' });
+  }
+});
+
 router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => {
   try {
     // El admin sólo puede configurar SU propio gym; el superadmin, cualquiera.
@@ -596,6 +625,23 @@ router.put('/:id/configuracion', verificarToken, soloAdmin, async (req, res) => 
     // así que el cliente puede mandar lo que quiera en ese subárbol (a
     // diferencia de colores/modulos/agenda, que son columnas propias).
     if (landing && typeof landing === 'object') cambios.landing = landing;
+
+    // Las llaves de Wompi del gimnasio. Cada uno cobra a su propia cuenta, así
+    // que viven acá y no en el .env de la plataforma.
+    //
+    // Cadena vacía => null, para poder desconectar el cobro en línea. Los dos
+    // secretos no vuelven nunca en la respuesta (los esconde el `omit` global),
+    // así que el formulario los muestra en blanco y solo se reemplazan si el
+    // admin escribe algo: mandar vacío en un campo que no tocó no puede borrar
+    // lo que ya estaba.
+    for (const campo of ['wompiPublicKey', 'wompiIntegritySecret', 'wompiEventsSecret']) {
+      if (typeof req.body[campo] === 'string') {
+        const valor = req.body[campo].trim();
+        if (valor) cambios[campo] = valor;
+      } else if (req.body[campo] === null) {
+        cambios[campo] = null;
+      }
+    }
 
     // El subdominio (slug) solo lo puede cambiar el superadmin: afecta el enrutamiento
     // multi-tenant (<slug>.dominio) y es único entre gimnasios.

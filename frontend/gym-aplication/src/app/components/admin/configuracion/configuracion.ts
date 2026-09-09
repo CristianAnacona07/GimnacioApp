@@ -54,6 +54,12 @@ export class Configuracion implements OnInit {
       ruta: '/admin/configuracion/agenda'
     },
     {
+      icono: '💳',
+      nombre: 'Cobro en línea',
+      desc: 'Conectá Wompi y que los socios paguen desde la app',
+      ruta: '/admin/configuracion/cobro'
+    },
+    {
       icono: '🌐',
       nombre: 'Página web',
       desc: 'La página pública que ve quien todavía no es socio',

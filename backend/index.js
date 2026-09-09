@@ -141,6 +141,10 @@ app.use('/api/sedes', require('./routes/sedes'));
 app.use('/api/gym', require('./routes/gym'));
 app.use('/api/feedback', require('./routes/feedback'));
 app.use('/api/transacciones', require('./routes/transacciones'));
+app.use('/api/solicitudes', require('./routes/solicitudes'));
+// Sin token: la llama Wompi, no un usuario. Lo que la protege es la firma del
+// evento, verificada con el secreto de ese gimnasio.
+app.use('/api/wompi', require('./routes/wompi'));
 app.use('/api/entrenador', require('./routes/entrenador'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/2fa', require('./routes/twofa'));

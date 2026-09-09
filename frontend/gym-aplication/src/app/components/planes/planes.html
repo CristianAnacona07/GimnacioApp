@@ -4,6 +4,50 @@
       ←
   </button>
 
+  <!-- Al volver de la pasarela. Verde: es un estado bueno y cerrado, no un
+       aviso que pida hacer algo. Se va solo a la media hora. -->
+  @if (membresia?.recienPagado) {
+    <div class="membresia-ok">
+      <svg class="membresia-ok__icono" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      <div>
+        <p class="membresia-ok__titulo">Membresía activada</p>
+        <p class="membresia-ok__texto">
+          Se sumaron <b>{{ membresia?.recienPagado?.dias }} días</b> del plan
+          {{ membresia?.recienPagado?.plan }}. Ya podés entrar al gimnasio.
+        </p>
+      </div>
+    </div>
+  }
+
+  <!-- Cuánto le queda. Es lo primero que mira un socio al entrar acá. -->
+  @if (esSocio && membresia && membresia.diasRestantes > 0) {
+    <div class="membresia">
+      <p class="membresia__rotulo">Tu membresía</p>
+      <p class="membresia__dias">
+        <span class="membresia__numero">{{ membresia?.diasRestantes }}</span>
+        <span class="membresia__unidad">días disponibles</span>
+      </p>
+      @if (avanceMembresia) {
+        <div class="membresia__barra"><span [style.width.%]="avanceMembresia"></span></div>
+      }
+      <p class="membresia__pie">
+        <span>{{ membresia?.plan ? 'Plan ' + membresia?.plan : 'Sin plan asignado' }}</span>
+        @if (venceLegible) { <span>Vence el {{ venceLegible }}</span> }
+      </p>
+    </div>
+  }
+
+  @if (miSolicitud) {
+    <div class="aviso-pendiente">
+      Ya avisaste que pagás <b>{{ miSolicitud.plan?.nombre }}</b>. Apenas el
+      gimnasio confirme el pago se te activan los {{ miSolicitud.dias }} días.
+    </div>
+  }
+
   <div class="planes-header">
     <h1>⚡ Planes Disponibles</h1>
     @if (puedeEditar) {
@@ -12,6 +56,42 @@
       </button>
     }
   </div>
+
+  <!-- Cómo pagar el plan elegido. Los medios son los que cargó el gimnasio en
+       Pagos; si alguno tiene enlace de cobro, se abre directo. -->
+  @if (planElegido) {
+    <div class="modal-overlay" (click)="cerrarPago()">
+      <div class="modal-contenido modal-pago" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Pagar {{ planElegido.nombre }}</h2>
+          <button type="button" (click)="cerrarPago()" class="btn-cerrar">✕</button>
+        </div>
+
+        <p class="pago-monto">
+          <span class="pago-monto__cifra">${{ planElegido.precio | number }}</span>
+          <span class="pago-monto__dias">{{ planElegido.dias ?? 30 }} días</span>
+        </p>
+
+        @if (cobroEnLinea) {
+          <button type="button" class="btn-en-linea" (click)="pagarEnLinea()" [disabled]="pagando">
+            {{ pagando ? 'Abriendo el pago…' : '💳 Pagar en línea' }}
+            <small>Tarjeta, PSE o Nequi</small>
+          </button>
+          <p class="pago-aviso">
+            Apenas entre el pago se te activan los {{ planElegido.dias ?? 30 }}
+            días. No hace falta avisarle a nadie.
+          </p>
+        } @else {
+          <!-- Sin pasarela conectada no hay nada que ofrecer acá: prometer un
+               pago que no se puede cobrar es peor que decirlo. -->
+          <p class="pago-vacio">
+            El gimnasio todavía no tiene habilitado el pago en línea. Consultá
+            en recepción cómo renovar.
+          </p>
+        }
+      </div>
+    </div>
+  }
 
   @if (mostrarFormulario) {
     <div class="modal-overlay">
@@ -79,6 +159,11 @@
 
           <p class="descripcion">{{ plan.descripcion }}</p>
 
+          @if (esSocio) {
+            <button type="button" class="btn-adquirir" (click)="abrirPago(plan)">
+              Adquirir este plan
+            </button>
+          }
         </div>
       }
     }

@@ -1,0 +1,97 @@
+<div class="page">
+
+  <a class="volver" routerLink="/admin/configuracion">← Configuración</a>
+  <h2 class="page-title">💳 Cobro en línea</h2>
+  <p class="page-sub">
+    Conectá la cuenta de Wompi del gimnasio y los socios pagan desde la app.
+    La plata cae en tu cuenta, no en la nuestra.
+  </p>
+
+  @if (cargando) {
+    <p class="vacio">Cargando…</p>
+  } @else if (!gym) {
+    <p class="vacio">No hay ningún gimnasio seleccionado.</p>
+  } @else {
+
+    <div class="card estado" [class.estado--listo]="estado?.conectado">
+      <span class="estado__punto"></span>
+      <div>
+        <strong>{{ estado?.conectado ? 'Cobro en línea activo' : 'Sin conectar' }}</strong>
+        <small>
+          @if (estado?.conectado) {
+            Los socios ven el botón «Pagar en línea» en cada plan, y la membresía
+            se activa sola cuando el pago entra.
+          } @else {
+            Mientras no esté conectado, los socios solo ven los medios de pago
+            manuales y alguien tiene que confirmar cada pago.
+          }
+        </small>
+      </div>
+    </div>
+
+    <!-- Los tres pasos, en el orden en que hay que hacerlos. -->
+    <div class="card">
+      <p class="card__titulo">Qué hay que hacer, una sola vez</p>
+      <ol class="pasos">
+        <li>Creá tu cuenta de comercio en <b>wompi.co</b> y validá el NIT del gimnasio.</li>
+        <li>En el panel de Wompi entrá a <b>«Secretos para integración técnica»</b> y copiá las tres llaves acá abajo.</li>
+        <li>En ese mismo panel, pegá esta dirección en <b>«URL de eventos»</b>: es por donde Wompi nos avisa que un pago entró.</li>
+      </ol>
+
+      <div class="url-eventos">
+        <code>{{ urlEventos }}</code>
+        <button type="button" class="btn btn--ghost" (click)="copiar(urlEventos)">Copiar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card__titulo">Las llaves</p>
+
+      <label class="campo">
+        <span class="campo__label">Llave pública</span>
+        <input class="input" type="text" [(ngModel)]="form.wompiPublicKey" name="publicKey"
+               placeholder="pub_prod_..." autocomplete="off" spellcheck="false">
+        <small class="campo__ayuda">Es la única que no es secreta: viaja al navegador del socio.</small>
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">
+          Secreto de integridad
+          @if (estado?.tieneIntegridad) { <span class="guardado">guardado</span> }
+        </span>
+        <input class="input" type="password" [(ngModel)]="form.wompiIntegritySecret" name="integridad"
+               [placeholder]="estado?.tieneIntegridad ? 'Dejalo vacío para no cambiarlo' : 'prod_integrity_...'"
+               autocomplete="new-password" spellcheck="false">
+        <small class="campo__ayuda">Firma el monto para que nadie pueda pagar menos de lo que cuesta el plan.</small>
+      </label>
+
+      <label class="campo">
+        <span class="campo__label">
+          Secreto de eventos
+          @if (estado?.tieneEventos) { <span class="guardado">guardado</span> }
+        </span>
+        <input class="input" type="password" [(ngModel)]="form.wompiEventsSecret" name="eventos"
+               [placeholder]="estado?.tieneEventos ? 'Dejalo vacío para no cambiarlo' : 'prod_events_...'"
+               autocomplete="new-password" spellcheck="false">
+        <small class="campo__ayuda">Con este comprobamos que el aviso de pago vino de Wompi y no de un impostor.</small>
+      </label>
+
+      <p class="nota-secretos">
+        Los dos secretos no se muestran nunca, ni siquiera acá: se guardan y no
+        vuelven a salir. Si perdés uno, generá otro en el panel de Wompi.
+      </p>
+
+      <div class="acciones">
+        @if (estado?.conectado) {
+          <button type="button" class="btn btn--ghost" (click)="desconectar()" [disabled]="guardando">
+            Desconectar
+          </button>
+        }
+        <button type="button" class="btn btn--primario" (click)="guardar()" [disabled]="guardando">
+          {{ guardando ? 'Guardando…' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+
+  }
+</div>

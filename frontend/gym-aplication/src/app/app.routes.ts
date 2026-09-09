@@ -152,6 +152,10 @@ export const routes: Routes = [
         loadComponent: () => import('./components/admin/configuracion/gimnasio/gimnasio').then(m => m.ConfiguracionGimnasio)
       },
       {
+        path: 'configuracion/cobro',
+        loadComponent: () => import('./components/admin/configuracion/cobro/cobro').then(m => m.ConfiguracionCobro)
+      },
+      {
         path: 'configuracion/agenda',
         loadComponent: () => import('./components/admin/configuracion/agenda/agenda').then(m => m.ConfiguracionAgenda)
       },

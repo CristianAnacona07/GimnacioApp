@@ -101,6 +101,10 @@ services:
       SMTP_PORT: ${SMTP_PORT:-1025}
       EMAIL_FROM: ${EMAIL_FROM:-no-reply@kodiak.local}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8090}
+      # La dirección por la que el mundo ve esta API. La usa la pantalla de
+      # cobro en línea para decirte qué pegar en el panel de la pasarela. En
+      # local no hay ninguna, salvo que levantes un túnel para probar.
+      API_URL: ${API_URL:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID:-}
       GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-}

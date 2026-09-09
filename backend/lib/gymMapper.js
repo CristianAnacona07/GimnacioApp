@@ -31,9 +31,12 @@ function toApiGym(g) {
     id, colorPrimario, colorSecundario, colorFondo, colorNavbar, colorMenu, colorDias,
     moduloRutinas, moduloProgreso, moduloMedidas, moduloPagos, moduloNoticias, moduloCronometro,
     agendaActiva, agendaDuracionMin, agendaPrecio, agendaHorasMinimasReserva, agendaHorasMinimasCancelacion, agendaDiasVisibles,
+    // Las llaves de Wompi no salen nunca por acá, ni la pública: lo único que
+    // el cliente necesita saber es si se puede pagar en línea o no.
+    wompiPublicKey, wompiIntegritySecret, wompiEventsSecret,
     ...rest
   } = g;
-  return { ...rest, _id: id, colores, modulos, agenda };
+  return { ...rest, _id: id, colores, modulos, agenda, cobroEnLinea: !!wompiPublicKey };
 }
 
 function capitaliza(s) {
