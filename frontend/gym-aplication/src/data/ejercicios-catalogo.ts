@@ -1,5 +1,6 @@
 // src/app/data/ejercicios-catalogo.ts
 
+import { Capacitor } from '@capacitor/core';
 import { environment } from '../environments/environment';
 
 // Definimos cómo se ve un ejercicio base
@@ -746,14 +747,24 @@ export const CATALOGO_EJERCICIOS: EjercicioBase[] = [
 /**
  * La dirección de una imagen del catálogo.
  *
- * En el navegador salen del mismo sitio, así que la ruta relativa alcanza. En
- * la app instalada no: la web va empaquetada y esos 76 MB de GIF se quedaron
- * afuera a propósito, así que hay que ir a buscarlos al servidor.
+ * El sitio se sirve a sí mismo las imágenes, así que la ruta relativa acierta
+ * siempre — en local, en producción y en el subdominio de cada gimnasio. La app
+ * instalada es el caso distinto: su web va empaquetada y esos 76 MB de GIF se
+ * quedaron afuera a propósito, así que tiene que ir a buscarlos al servidor.
+ *
+ * La decisión se toma acá, al pedir la imagen, y no al compilar. Antes el
+ * Dockerfile vaciaba mediaUrl para la web, y alcanzaba mientras la app tuviera
+ * su propia compilación. Dejó de alcanzar el día que la app empezó a
+ * actualizarse por aire: lo que baja es el paquete de la web, con mediaUrl
+ * vacío, así que la app quedaba buscando los GIF dentro de sí misma y las
+ * rutinas salían con las imágenes rotas. Una sola compilación sirve para los
+ * tres destinos si el que decide es el que muestra.
  */
 export function medioEjercicio(ruta: string | undefined): string {
   if (!ruta) return '';
   // Una dirección completa (un logo cargado por el gimnasio) se respeta.
   if (/^https?:\/\//i.test(ruta) || ruta.startsWith('data:')) return ruta;
+  if (!Capacitor.isNativePlatform()) return ruta;
   const base = environment.mediaUrl || '';
   if (!base) return ruta;
   return base + '/' + ruta.replace(/^\//, '');

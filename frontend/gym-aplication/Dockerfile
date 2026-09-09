@@ -26,13 +26,6 @@ RUN if [ -n "$TENANT_ROOT_DOMAIN" ]; then \
       echo "tenantRootDomain fijado a $TENANT_ROOT_DOMAIN" && grep tenantRootDomain src/environments/environment.prod.ts; \
     fi
 
-# La web se sirve a sí misma las imágenes: van en la misma máquina que la
-# página, así que la ruta relativa siempre acierta — en local, en producción o
-# en el subdominio de cualquier gimnasio. La dirección absoluta de
-# environment.prod.ts es solo para el APK, que compila aparte y necesita saber
-# a qué servidor ir a buscarlas.
-RUN sed -i "s|mediaUrl: *'[^']*'|mediaUrl: ''|" src/environments/environment.prod.ts &&     grep mediaUrl src/environments/environment.prod.ts
-
 # Salida en dist/frontend/browser. `npm run build` es hoy `ng build` a secas,
 # igual que lo que corre Vercel, asi que lo que se ve en :8090 es lo mismo que
 # se vera en produccion — que es justamente para lo que sirve este contenedor.
