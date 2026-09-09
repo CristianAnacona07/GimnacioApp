@@ -23,6 +23,9 @@ import { AsistenciaService } from '../../../services/asistencia.service';
 export class Perfil implements OnInit, OnDestroy {
   perfil: any = null;
   diasRestantes = 0;
+  /** Los días solo se muestran cuando llegaron de verdad: un 0 provisional
+   *  se lee como "se me venció la membresía", que es peor que no mostrar nada. */
+  sabeLosDias = false;
 
   // Mi acceso: código y QR
   codigoAcceso = '';
@@ -43,6 +46,20 @@ export class Perfil implements OnInit, OnDestroy {
 
   ngOnInit() {
     const usuario = this.userStateService.getCurrentUser();
+
+    // La navbar ya pidió este mismo perfil al arrancar la app y lo dejó en
+    // UserStateService. Pintar con eso hace que el carnet aparezca de una,
+    // en vez de dejar la pantalla en el cargando hasta que conteste el
+    // servidor — que en el celular, con mala señal, son varios segundos de
+    // pantalla vacía. Igual se vuelve a pedir abajo: los días restantes se
+    // calculan al leer y tienen que estar al día.
+    if (usuario) {
+      this.perfil = usuario;
+      if (typeof usuario.cards?.vencimiento === 'number') {
+        this.diasRestantes = usuario.cards.vencimiento;
+        this.sabeLosDias = true;
+      }
+    }
     if (usuario?._id) this.cargarPerfil(usuario._id);
     this.cargarMiCodigo();
   }
@@ -87,6 +104,7 @@ export class Perfil implements OnInit, OnDestroy {
         next: (data: any) => {
           this.perfil = data;
           this.diasRestantes = data.cards?.vencimiento || 0;
+          this.sabeLosDias = true;
           this.cdr.markForCheck();
         },
         error: () => this.toast.error('Error al cargar el perfil')

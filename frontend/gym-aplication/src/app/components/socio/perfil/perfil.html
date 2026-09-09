@@ -31,7 +31,11 @@
       </span>
       <span class="text-1xl sm:text-xl">⏳</span>
       <span class="text-2xl font-black text-[#8b0000] mt-1">
-        {{ diasRestantes }} {{ diasRestantes === 1 ? 'día' : 'días' }}
+        @if (sabeLosDias) {
+          {{ diasRestantes }} {{ diasRestantes === 1 ? 'día' : 'días' }}
+        } @else {
+          <span class="text-slate-300">···</span>
+        }
       </span>
     </div>
   </div>
