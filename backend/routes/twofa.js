@@ -124,7 +124,7 @@ router.post('/setup', verificarToken, async (req, res) => {
 
         const email = usuario.email || '';
         const otpauth =
-            'otpauth://totp/KodiakGym:' + email + '?secret=' + secret + '&issuer=KodiakGym';
+            'otpauth://totp/SnakeGym:' + email + '?secret=' + secret + '&issuer=SnakeGym';
 
         res.json({ secret, otpauth });
     } catch (err) {

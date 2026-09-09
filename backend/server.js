@@ -25,5 +25,5 @@ tiempoReal.iniciar(servidor);
 iniciarBarridoVigencia(getPrismaClient());
 
 servidor.listen(PORT, () => {
-  console.log(`🚀 API Kodiak escuchando en el puerto ${PORT}`);
+  console.log(`🚀 API Snake Gym escuchando en el puerto ${PORT}`);
 });

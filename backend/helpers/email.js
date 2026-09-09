@@ -76,7 +76,7 @@ const MARCA_LEMA = process.env.MARCA_LEMA || 'CONSTRUYE TU MEJOR VERSIÓN';
 
 // Remitente único para todos los correos. Con Mailpit no hay cuenta de Gmail,
 // así que se usa una dirección de relleno: el buzón local acepta cualquiera.
-const remitente = () => `"${MARCA}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@kodiak.local'}>`;
+const remitente = () => `"${MARCA}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@snakegym.local'}>`;
 
 const urlFrontend = () => process.env.FRONTEND_URL || 'https://gimnacio-app.vercel.app';
 

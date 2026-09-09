@@ -45,7 +45,7 @@ app.use(cors({
     if (isLocalhost || isApp || isTenant || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('CORS bloqueado por seguridad Kodiak'));
+      callback(new Error('CORS bloqueado por seguridad Snake Gym'));
     }
   },
   credentials: true,
@@ -167,7 +167,7 @@ app.use((req, res) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('❌ Error no controlado:', err.message);
-  if (err && err.message === 'CORS bloqueado por seguridad Kodiak') {
+  if (err && err.message === 'CORS bloqueado por seguridad Snake Gym') {
     return res.status(403).json({ error: 'Origen no permitido' });
   }
   res.status(err.status || 500).json({ error: 'Error interno del servidor' });
