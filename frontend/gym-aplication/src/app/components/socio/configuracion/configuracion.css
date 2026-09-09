@@ -140,3 +140,73 @@
   .menu-item { transition: none; }
   .menu-item:hover, .menu-item:focus-visible { transform: none; }
 }
+
+/* ── Un ajuste dentro de la lista ────────────────────────────────────────
+   Se ve igual que las secciones de al lado, pero no lleva a ningún lado:
+   por eso no reacciona al pasar por encima ni levanta el borde. */
+.menu-item--ajuste {
+  cursor: default;
+}
+
+.menu-item--ajuste:hover {
+  border-color: var(--bde, #e2e8f0);
+  transform: none;
+}
+
+/* Sin lector de huella: la fila queda apagada pero se sigue leyendo — el
+   texto explica qué falta, así que tiene que verse. */
+.menu-item--apagado .menu-icon {
+  opacity: 0.4;
+}
+
+/* ── Interruptor ─────────────────────────────────────────────────────────
+   Hecho a mano y no con un checkbox pintado: son dos estados y basta con
+   que el color y la posición los distingan. Lleva aria-pressed en la
+   plantilla para que un lector de pantalla también los distinga. */
+.interruptor {
+  flex-shrink: 0;
+  width: 3rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: var(--bde, #cbd5e1);
+  transition: background 0.18s;
+  position: relative;
+}
+
+.interruptor--si {
+  background: var(--txt-verde, #15803d);
+}
+
+.interruptor:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.interruptor__bolita {
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  transition: transform 0.18s;
+}
+
+.interruptor--si .interruptor__bolita {
+  transform: translateX(1.3rem);
+}
+
+.interruptor:focus-visible {
+  outline: 2px solid var(--txt-azul, #4f46e5);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interruptor,
+  .interruptor__bolita { transition: none; }
+}

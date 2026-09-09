@@ -110,6 +110,9 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth/reset-password', authLimiter);
 app.use('/api/auth/google', authLimiter);
+// Entrar con la huella del celular: es una puerta de entrada más, así que
+// aguanta el mismo límite por IP que las otras.
+app.use('/api/auth/login-celular', authLimiter);
 app.use('/api/2fa/verify', authLimiter);
 // Sin JWT: el equipo se autentica con serie+clave en cada llamada, así que
 // es superficie de fuerza bruta igual que un login.

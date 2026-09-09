@@ -11,6 +11,7 @@ import { ThemeService } from '../../../services/theme.service';
 import { StorageService } from '../../../services/storage.service';
 import { UserStateService } from '../../../services/user-state.service';
 import { Capacitor } from '@capacitor/core';
+import { HuellaService } from '../../../services/huella.service';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 import { GenericOAuth2 } from '@capacitor-community/generic-oauth2';
 
@@ -42,6 +43,9 @@ export class Login implements OnInit, AfterViewInit {
   /** Token de Google a la espera de que el usuario elija gimnasio. */
   private googlePendiente: { tipo: 'credential' | 'access_token'; valor: string } | null = null;
   readonly esNativo = Capacitor.isNativePlatform();
+  /** Este aparato ya quedó vinculado: se le puede ofrecer entrar con huella. */
+  huellaDisponible = false;
+  entrandoConHuella = false;
   // Los documentos legales NO se piden en este formulario. Se aceptan en
   // /cambiar-password-inicial, por donde pasan obligatoriamente todas las
   // cuentas nuevas: tanto las que llegan por el enlace del correo como las
@@ -58,6 +62,7 @@ export class Login implements OnInit, AfterViewInit {
     private gymService: GymService,
     private themeService: ThemeService,
     private tenant: TenantService,
+    private huellaService: HuellaService,
     private ngZone: NgZone,
     private storageService: StorageService,
     private userStateService: UserStateService
@@ -71,6 +76,11 @@ export class Login implements OnInit, AfterViewInit {
     // pública) se muestra su logo, pero no hace falta ninguno para entrar.
     this.gym = this.gymService.getGym();
     this.gymFijado = this.tenant.esSubdominio;
+
+    // El botón de huella solo aparece si este aparato ya está vinculado.
+    // Mostrarlo siempre sería prometer algo que no funciona: sin llave
+    // guardada no hay nada que la huella pueda abrir.
+    this.revisarHuella();
 
     // Correo temporal por primer ingreso (enviarPasswordTemporal en el
     // backend): precarga el campo para que solo falte pegar la contraseña.
@@ -304,6 +314,40 @@ export class Login implements OnInit, AfterViewInit {
         }
       }
     });
+  }
+
+  private async revisarHuella(): Promise<void> {
+    if (!this.huellaService.hayAlgunaVinculada()) return;
+    const { puede } = await this.huellaService.disponible();
+    this.huellaDisponible = puede;
+  }
+
+  /**
+   * Entrar con la huella. La respuesta es la misma que la de un login
+   * normal, así que sigue por el camino de siempre — nada de tratar esto
+   * como una entrada aparte con sus propias reglas.
+   */
+  async entrarConHuella(): Promise<void> {
+    if (this.entrandoConHuella) return;
+    this.entrandoConHuella = true;
+    try {
+      const res = await this.huellaService.entrar();
+      this.ngZone.run(() => this.guardarSesion(res));
+    } catch (e: any) {
+      if (e?.status === 401) {
+        // El servidor ya no reconoce este celular: el servicio limpió la
+        // marca, así que el botón desaparece y queda la contraseña.
+        this.huellaDisponible = false;
+        this.toast.error('Este celular ya no está vinculado. Entrá con tu contraseña.');
+      } else {
+        // Cancelar la huella es lo más común y no es un error: quien la
+        // cancela ya está mirando el formulario de siempre.
+        const cancelado = /cancel|user_cancel|13|10/i.test(String(e?.message || e?.code || ''));
+        if (!cancelado) this.toast.error('No se pudo entrar con la huella. Usá tu contraseña.');
+      }
+    } finally {
+      this.entrandoConHuella = false;
+    }
   }
 
   private guardarSesion(res: any) {

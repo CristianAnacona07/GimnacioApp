@@ -17,6 +17,23 @@ const { emitirAGym, emitirAUsuario } = require('../helpers/tiempoReal');
 
 const prisma = getPrismaClient();
 
+/**
+ * Al cambiar la contraseña se caen todos los celulares vinculados.
+ *
+ * Quien cambia la contraseña muchas veces lo hace porque cree que alguien más
+ * entró. Si los celulares vinculados sobrevivieran, el que se metió seguiría
+ * entrando con la huella de SU teléfono y el cambio no habría servido de nada.
+ *
+ * Nunca tumba la operación: la contraseña ya se cambió y eso es lo importante.
+ */
+async function revocarCelulares(usuarioId) {
+    try {
+        await prisma.celularVinculado.deleteMany({ where: { usuarioId } });
+    } catch (e) {
+        console.error('No se pudieron revocar los celulares vinculados:', e.message);
+    }
+}
+
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOKEN_EXPIRY = '8h';
 // Tokens de enlace y transporter viven en helpers/ para que gym.js (invitación
@@ -164,6 +181,7 @@ router.post('/reset-password', async (req, res) => {
             // verificación del correo (es el único paso que da un admin invitado).
             data: { password, resetToken: null, resetTokenExpiry: null, emailVerified: true, debeCambiarPassword: false }
         });
+        await revocarCelulares(usuario.id);
 
         res.json({ mensaje: 'Contraseña actualizada correctamente' });
     } catch (error) {
@@ -759,6 +777,7 @@ router.put('/cambiar-password', verificarToken, async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const nuevoHash = await bcrypt.hash(nueva, salt);
         await prisma.user.update({ where: { id: usuario.id }, data: { password: nuevoHash, debeCambiarPassword: false } });
+        await revocarCelulares(usuario.id);
 
         await registrarAuditoria(req, 'CAMBIAR_PASSWORD', { recurso: 'User', recursoId: usuario.id });
 
@@ -797,6 +816,7 @@ router.put('/cambiar-password-inicial', verificarToken, async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const nuevoHash = await bcrypt.hash(nueva, salt);
         await prisma.user.update({ where: { id: usuario.id }, data: { password: nuevoHash, debeCambiarPassword: false } });
+        await revocarCelulares(usuario.id);
 
         await registrarAuditoria(req, 'CAMBIAR_PASSWORD_INICIAL', { recurso: 'User', recursoId: usuario.id });
 
@@ -1044,6 +1064,125 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// ─── Entrar con la huella del celular ──────────────────────────────────────
+//
+// El servidor NO ve ninguna huella. El teléfono la valida por su cuenta y, si
+// da bien, abre su almacén cifrado y saca de ahí una llave que este servidor
+// emitió antes. Esa llave es todo lo que viaja. O sea: acá esto no es
+// biometría, es "este celular ya demostró ser suyo".
+//
+// De la llave solo se guarda su hash. Quien se lleve la base no puede entrar
+// como nadie, igual que con las contraseñas.
+
+const LARGO_LLAVE = 32;          // 32 bytes = 64 caracteres hex
+const MAX_CELULARES = 5;         // suficiente para cualquiera; evita que crezca sin fin
+
+/** Forma exacta de una llave nuestra: 32 bytes en hexadecimal. */
+const FORMATO_LLAVE = /^[0-9a-f]{64}$/;
+
+const hashLlave = (llave) => crypto.createHash('sha256').update(llave).digest('hex');
+
+/** Los celulares que YO vinculé. Nunca devuelve la llave: ya no existe en claro. */
+router.get('/celulares', verificarToken, async (req, res) => {
+    try {
+        const celulares = await prisma.celularVinculado.findMany({
+            where: { usuarioId: req.userId },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, nombre: true, createdAt: true, ultimoUsoEn: true }
+        });
+        res.json(celulares.map(({ id, ...c }) => ({ ...c, _id: id })));
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al leer tus celulares' });
+    }
+});
+
+/**
+ * Vincular ESTE celular. Solo lo puede pedir alguien que ya entró con su
+ * contraseña, que es lo que convierte a la huella en un atajo y no en una
+ * forma nueva de entrar sin saber nada.
+ *
+ * La llave se devuelve una única vez, acá. Después solo queda su hash.
+ */
+router.post('/celulares', verificarToken, async (req, res) => {
+    try {
+        const nombre = String(req.body?.nombre || '').trim().slice(0, 120) || 'Mi celular';
+
+        const cuantos = await prisma.celularVinculado.count({ where: { usuarioId: req.userId } });
+        if (cuantos >= MAX_CELULARES) {
+            return res.status(409).json({ mensaje: `Ya tenés ${MAX_CELULARES} celulares vinculados. Desvinculá uno para agregar otro.` });
+        }
+
+        const llave = crypto.randomBytes(LARGO_LLAVE).toString('hex');
+        const celular = await prisma.celularVinculado.create({
+            data: { usuarioId: req.userId, llaveHash: hashLlave(llave), nombre },
+            select: { id: true, nombre: true, createdAt: true }
+        });
+
+        await registrarAuditoria(req, 'VINCULAR_CELULAR', { recurso: 'CelularVinculado', recursoId: celular.id, detalle: nombre });
+
+        const { id, ...resto } = celular;
+        res.status(201).json({ llave, celular: { ...resto, _id: id } });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'No se pudo vincular el celular' });
+    }
+});
+
+/** Desvincular. `deleteMany` con el usuario en el where: nadie borra el de otro. */
+router.delete('/celulares/:id', verificarToken, async (req, res) => {
+    try {
+        const { count } = await prisma.celularVinculado.deleteMany({
+            where: { id: req.params.id, usuarioId: req.userId }
+        });
+        if (!count) return res.status(404).json({ mensaje: 'Ese celular no está vinculado a tu cuenta' });
+
+        await registrarAuditoria(req, 'DESVINCULAR_CELULAR', { recurso: 'CelularVinculado', recursoId: req.params.id });
+        res.json({ mensaje: 'Celular desvinculado' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'No se pudo desvincular el celular' });
+    }
+});
+
+/**
+ * Entrar con la llave del celular.
+ *
+ * Pasa por `responderLogin`, el mismo de siempre, y eso es a propósito: así la
+ * membresía vencida y el gimnasio desactivado siguen bloqueando igual. Una
+ * puerta de entrada nueva que se saltara esos controles sería un agujero.
+ */
+router.post('/login-celular', async (req, res) => {
+    try {
+        const llave = req.body?.llave;
+        // Se exige la forma exacta antes de tocar la base: una llave con otro
+        // largo no puede ser nuestra, y así no se gasta una consulta por cada
+        // intento de alguien probando a ver qué pasa.
+        if (typeof llave !== 'string' || !FORMATO_LLAVE.test(llave)) {
+            return res.status(401).json({ mensaje: 'Este celular ya no está vinculado' });
+        }
+
+        const celular = await prisma.celularVinculado.findUnique({
+            where: { llaveHash: hashLlave(llave) },
+            select: { id: true, usuarioId: true }
+        });
+        // Mismo mensaje para "no existe" y "no coincide": no hay nada que
+        // aprender probando llaves.
+        if (!celular) return res.status(401).json({ mensaje: 'Este celular ya no está vinculado' });
+
+        const usuario = await prisma.user.findUnique({ where: { id: celular.usuarioId } });
+        if (!usuario) return res.status(401).json({ mensaje: 'Este celular ya no está vinculado' });
+
+        // Fecha del último uso: para que el socio reconozca cuál es cuál en la
+        // lista, y para que un uso raro se note. No frena el ingreso si falla.
+        prisma.celularVinculado
+            .update({ where: { id: celular.id }, data: { ultimoUsoEn: new Date() } })
+            .catch(() => {});
+
+        return responderLogin(res, usuario);
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al entrar' });
+    }
+});
+
+
 // ✅ PERFIL DEL SOCIO
 router.get('/perfil/:id', verificarToken, async (req, res) => {
     try {
@@ -1275,5 +1414,9 @@ router.delete('/superadmins/:id', verificarToken, soloSuperAdmin, async (req, re
         res.status(500).json({ mensaje: 'Error al eliminar superadmin' });
     }
 });
+
+// Se exponen para poder probarlos sin base de datos, igual que el resto.
+router.hashLlave = hashLlave;
+router.FORMATO_LLAVE = FORMATO_LLAVE;
 
 module.exports = router;

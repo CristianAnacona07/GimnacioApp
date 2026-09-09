@@ -96,6 +96,25 @@
           }
         </button>
 
+        <!-- Entrar con huella. Solo aparece en el celular donde el socio ya
+             lo activó: sin llave guardada no hay nada que abrir, y un botón
+             que no puede funcionar es peor que ninguno. -->
+        @if (huellaDisponible) {
+          <button type="button" class="btn-huella" [disabled]="entrandoConHuella"
+                  (click)="entrarConHuella()">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                 stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 3a7 7 0 0 0-7 7v3"/>
+              <path d="M19 10a7 7 0 0 0-3.5-6.06"/>
+              <path d="M12 7a3 3 0 0 0-3 3v4a5 5 0 0 0 .6 2.4"/>
+              <path d="M15 10v4a8 8 0 0 0 .8 3.5"/>
+              <path d="M12 11v3a11 11 0 0 0 1.2 5"/>
+              <path d="M5.5 17.5A9 9 0 0 1 5 15"/>
+            </svg>
+            {{ entrandoConHuella ? 'Esperando tu huella…' : 'Entrar con huella' }}
+          </button>
+        }
+
         <div class="divider"><span>o continúa con</span></div>
 
         <!-- Botones sociales personalizados -->

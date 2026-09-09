@@ -26,9 +26,10 @@ describe('Configuracion', () => {
   });
 
   it('lista todas las secciones de configuración', () => {
-    // Seis: "Mi perfil" ya no está en la lista, se entra por el botón de la
-    // tarjeta con el nombre y el correo, arriba de todo.
-    expect(component.secciones.length).toBe(7);
+    // La cuenta del propio admin no está en la lista: se entra por el botón
+    // de la tarjeta con el nombre y el correo, arriba de todo. El número sale
+    // de contar `secciones` — si agregás una sección, actualizalo acá también.
+    expect(component.secciones.length).toBe(9);
     expect(component.secciones.every(s => s.ruta.startsWith('/admin/configuracion/'))).toBe(true);
   });
 });

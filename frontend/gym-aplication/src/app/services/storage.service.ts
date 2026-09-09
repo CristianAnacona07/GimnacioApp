@@ -14,6 +14,8 @@ export class StorageService {
     'crono_paused',
     'crono_series',        // Series contadas del ejercicio en curso
     'theme',               // Tema dark/light
+    'celularVinculado',    // Marca de que este aparato entra con huella (no es la llave:
+                           //  la llave vive en el almacén cifrado del teléfono)
     'ultimoResetRutina',   // Control de reset diario
     'progreso_formIdx',    // Formulario de progreso abierto
     'progreso_formData',   // Datos del formulario de progreso

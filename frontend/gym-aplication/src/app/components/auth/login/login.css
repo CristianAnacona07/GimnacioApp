@@ -552,3 +552,38 @@
   white-space: pre-line;
   border-top: 1px solid var(--bde, #c8dcff);
 }
+
+/* Entrar con huella.
+   Se parece al botón de Google —es la otra forma de entrar sin escribir— pero
+   no lleva marca ajena, así que va con el color del gimnasio. */
+.btn-huella {
+  width: 100%;
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.75rem;
+  border: 1.5px solid var(--txt-azul, #1d4ed8);
+  background: transparent;
+  color: var(--txt-azul, #1d4ed8);
+  font-weight: 700;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn-huella:hover:not(:disabled) {
+  background: var(--tinte-azul, #dbeafe);
+}
+
+.btn-huella:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-huella { transition: none; }
+}

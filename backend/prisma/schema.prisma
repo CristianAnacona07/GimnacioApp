@@ -264,6 +264,7 @@ model User {
   invitacionesCreadas    Invitacion[] @relation("InvitacionCreadaPor")
   invitacionesUsadas     Invitacion[] @relation("InvitacionUsadaPor")
   huellas                Huella[]
+  celularesVinculados    CelularVinculado[]
 
   @@unique([email, gymId])
   @@index([gymId])
@@ -361,6 +362,34 @@ model Huella {
   @@unique([dispositivoId, huellaId])
   @@index([usuarioId])
   @@map("huellas")
+}
+
+/// Un celular al que el socio le dio permiso de entrar con su huella.
+///
+/// OJO, no confundir con `Huella`: aquella es un dedo registrado en un lector
+/// físico de la puerta del gimnasio. Esto es otra cosa — la llave que deja
+/// abrir la APP sin escribir la contraseña, y la huella acá la valida el
+/// propio teléfono; el servidor nunca ve ningún dedo.
+///
+/// Se borra de verdad al desvincular (nada de borrado suave): una llave
+/// revocada tiene que dejar de existir, no quedar escondida en una columna.
+model CelularVinculado {
+  id        String @id @db.Char(24)
+  usuarioId String @db.Char(24) @map("usuario_id")
+  usuario   User   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 de la llave, nunca la llave. Quien se lleve la base no puede
+  /// entrar como nadie: del hash no se vuelve a la llave.
+  llaveHash String @unique @db.Char(64) @map("llave_hash")
+
+  /// Para que el socio distinga cuál es cuál si vincula más de uno.
+  nombre String @db.VarChar(120)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  ultimoUsoEn DateTime? @map("ultimo_uso_en")
+
+  @@index([usuarioId])
+  @@map("celulares_vinculados")
 }
 
 model Feedback {

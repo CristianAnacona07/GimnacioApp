@@ -35,6 +35,38 @@
         <span class="menu-arrow">→</span>
       </a>
     }
+
+    <!-- Ingreso con huella: es un ajuste, no un sitio a donde ir, así que
+         lleva interruptor en vez de flecha. -->
+    <div class="menu-item menu-item--ajuste" [class.menu-item--apagado]="!huellaPuede">
+      <span class="menu-icon">🔒</span>
+      <span class="menu-texto">
+        <span class="menu-nombre">Entrar con huella</span>
+        @if (huellaPuede) {
+          <span class="menu-desc">
+            @if (huellaActiva) {
+              Activado en este celular. Tu huella la revisa el teléfono; nosotros nunca la vemos.
+            } @else {
+              Entrá sin escribir la contraseña. La huella la revisa tu teléfono, no sale de ahí.
+            }
+          </span>
+        } @else {
+          <span class="menu-desc">{{ huellaExplicacion }}</span>
+        }
+      </span>
+
+      @if (huellaPuede) {
+        <button type="button"
+                class="interruptor"
+                [class.interruptor--si]="huellaActiva"
+                [disabled]="huellaOcupada"
+                [attr.aria-pressed]="huellaActiva"
+                [attr.aria-label]="huellaActiva ? 'Desactivar ingreso con huella' : 'Activar ingreso con huella'"
+                (click)="alternarHuella()">
+          <span class="interruptor__bolita"></span>
+        </button>
+      }
+    </div>
   </nav>
 
 </div>

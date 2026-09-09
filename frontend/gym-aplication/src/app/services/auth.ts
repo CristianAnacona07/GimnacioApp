@@ -124,6 +124,31 @@ export class AuthService {
     return this.http.delete(`${this.apiUrl}/empleados/${id}`);
   }
 
+  // --- ENTRAR CON LA HUELLA DEL CELULAR ---
+  //
+  // Acá no viaja ninguna huella: el teléfono la valida solo y, si da bien,
+  // suelta una llave que el servidor emitió antes. Lo biométrico pasa entero
+  // dentro del aparato; esto es solo el papeleo alrededor.
+
+  /** Vincula ESTE celular. La llave vuelve una sola vez, acá. */
+  vincularCelular(nombre: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/celulares`, { nombre });
+  }
+
+  /** Los celulares vinculados a mi cuenta. Nunca trae la llave. */
+  celularesVinculados(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/celulares`);
+  }
+
+  desvincularCelular(id: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/celulares/${id}`);
+  }
+
+  /** Cambia la llave del celular por una sesión, igual que un login normal. */
+  loginConCelular(llave: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/login-celular`, { llave });
+  }
+
   // --- PERFIL ---
 
   getPerfilSocio(id: string): Observable<any> {
