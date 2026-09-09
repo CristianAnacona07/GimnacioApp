@@ -1,6 +1,6 @@
 // src/app/data/ejercicios-catalogo.ts
 
-import { D } from "@angular/cdk/keycodes";
+import { environment } from '../environments/environment';
 
 // Definimos cómo se ve un ejercicio base
 export interface EjercicioBase {
@@ -743,4 +743,26 @@ export const CATALOGO_EJERCICIOS: EjercicioBase[] = [
 
 // Extraemos la lista de categorías únicas para las pestañas (Tabs)
 // Esto genera automáticamente: ['Pecho', 'Espalda', 'Pierna', 'Brazos']
+/**
+ * La dirección de una imagen del catálogo.
+ *
+ * En el navegador salen del mismo sitio, así que la ruta relativa alcanza. En
+ * la app instalada no: la web va empaquetada y esos 76 MB de GIF se quedaron
+ * afuera a propósito, así que hay que ir a buscarlos al servidor.
+ */
+export function medioEjercicio(ruta: string | undefined): string {
+  if (!ruta) return '';
+  // Una dirección completa (un logo cargado por el gimnasio) se respeta.
+  if (/^https?:\/\//i.test(ruta) || ruta.startsWith('data:')) return ruta;
+  const base = environment.mediaUrl || '';
+  if (!base) return ruta;
+  return base + '/' + ruta.replace(/^\//, '');
+}
+
+// Las rutas del catálogo se resuelven una sola vez, al cargar el módulo: así
+// ningún componente tiene que acordarse de hacerlo.
+for (const e of CATALOGO_EJERCICIOS) {
+  e.imagenUrl = medioEjercicio(e.imagenUrl);
+  if (e.gifUrl) e.gifUrl = medioEjercicio(e.gifUrl);
+}
 export const CATEGORIAS_UNICAS = [...new Set(CATALOGO_EJERCICIOS.map(e => e.categoria))];

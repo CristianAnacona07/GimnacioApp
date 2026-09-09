@@ -4,18 +4,31 @@ const config: CapacitorConfig = {
   appId: 'com.kodiak.gym',
   appName: 'Snake Gym',
   webDir: 'dist/frontend/browser',
-  // El APK no lleva la web empaquetada adentro: carga la app en vivo desde
-  // producción, igual que el navegador. Así cualquier cambio que se suba a
-  // snakegym.cloud lo ve el socio la próxima vez que abra la app, sin tener
-  // que instalar un APK nuevo — antes cada cambio de UI quedaba "congelado"
-  // en la versión que tenía instalada hasta que alguien se lo reinstalara a
-  // mano. webDir sigue haciendo falta para que `cap sync` copie los assets
-  // nativos (ícono, splash), aunque su index.html ya no se use en runtime.
-  server: {
-    url: 'https://snakegym.cloud',
-    androidScheme: 'https'
-  },
+  // La web va empaquetada dentro del APK.
+  //
+  // Antes se cargaba en vivo desde snakegym.cloud (`server.url`), lo que hacía
+  // que cualquier cambio de interfaz llegara sin instalar nada. El costo era
+  // invisible hasta que hizo falta algo nativo: con `server.url` remoto el
+  // puente de Capacitor no se inyecta bien — la plataforma se reporta como
+  // "web" y los plugins fallan — y encima el service worker de la PWA lo
+  // rompe por su cuenta. Sin puente no hay huella, ni lector nativo, ni nada
+  // que hable con Android.
+  //
+  // Lo que se perdía se recupera con `CapacitorUpdater`: la app busca al
+  // arrancar si hay una versión nueva de la web y la baja sola. O sea, se
+  // sigue actualizando sin APK; solo un plugin nativo nuevo obliga a sacar uno.
   plugins: {
+    CapacitorUpdater: {
+      // El propio servidor del gimnasio publica el paquete en cada despliegue.
+      // Nada de servicios de terceros: la app ya vive en este dominio.
+      updateUrl: 'https://snakegym.cloud/app/updates.json',
+      // Se aplica al volver a abrir la app, no en medio de una sesión: nadie
+      // quiere que la pantalla se recargue mientras está registrando un pago.
+      directUpdate: false,
+      // Si la versión nueva no logra arrancar, vuelve sola a la anterior.
+      autoUpdate: true,
+      resetWhenUpdate: true
+    },
     SplashScreen: {
       launchShowDuration: 2000,
       backgroundColor: '#191c22',

@@ -8,8 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "e2e": "playwright test",
-    "android:sync": "ng build && npx cap sync android",
-    "android:open": "ng build && npx cap sync android && npx cap open android"
+    "android:sync": "ng build && node scripts/aligerar-para-apk.mjs && npx cap sync android",
+    "android:open": "ng build && node scripts/aligerar-para-apk.mjs && npx cap sync android && npx cap open android"
   },
   "prettier": {
     "printWidth": 100,
@@ -42,7 +42,9 @@
     "@capacitor/ios": "^8.4.1",
     "@capacitor/local-notifications": "^8.2.0",
     "@capacitor/splash-screen": "^8.0.2",
+    "@capgo/capacitor-native-biometric": "^8.6.7",
     "@capgo/capacitor-social-login": "^8.3.30",
+    "@capgo/capacitor-updater": "^8.51.15",
     "chart.js": "^4.5.1",
     "html5-qrcode": "^2.3.8",
     "ng2-charts": "^10.0.0",

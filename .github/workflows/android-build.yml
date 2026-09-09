@@ -44,6 +44,12 @@ jobs:
       - name: Build web (Angular)
         run: npm run build
 
+      # Saca del APK las imágenes de ejercicios: 76 MB que la app baja del
+      # servidor. Sin este paso el APK pesa 80 MB y cada actualización por aire
+      # también. No toca public/: el sitio los sigue sirviendo.
+      - name: Aligerar para el APK
+        run: node scripts/aligerar-para-apk.mjs
+
       - name: Sincronizar Capacitor Android
         run: npx cap sync android
 
