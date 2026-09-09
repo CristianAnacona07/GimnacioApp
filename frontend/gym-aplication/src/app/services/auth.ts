@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { finalize, shareReplay, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { UserStateService } from './user-state.service';
 import { StorageService } from './storage.service';
@@ -11,6 +11,20 @@ import { SedeService } from './sede.service';
 export class AuthService {
   private apiUrl = `${environment.apiUrl}/api/auth`;
   private rutinasUrl = `${environment.apiUrl}/api/rutinas`;
+
+  /**
+   * Peticiones de perfil que todavía no contestaron, por usuario.
+   *
+   * Al abrir la app, la barra de arriba y la pantalla de Perfil piden el mismo
+   * perfil casi al mismo tiempo: eran dos viajes al servidor para traer lo
+   * mismo. Mientras una está en vuelo, la segunda se cuelga de esa; cuando
+   * termina, sale del mapa y la próxima vuelve a preguntar de verdad.
+   *
+   * O sea: se juntan las simultáneas, NO se cachea. Entrar a Perfil más tarde
+   * sigue pidiendo datos frescos, que es lo que hace falta — los días
+   * restantes se calculan al leer y envejecen solos.
+   */
+  private perfilEnVuelo = new Map<string, Observable<any>>();
 
   constructor(
     private http: HttpClient,
@@ -113,11 +127,24 @@ export class AuthService {
   // --- PERFIL ---
 
   getPerfilSocio(id: string): Observable<any> {
-    return this.http.get(`${this.apiUrl}/perfil/${id}`).pipe(
+    const enVuelo = this.perfilEnVuelo.get(id);
+    if (enVuelo) return enVuelo;
+
+    const pedido = this.http.get(`${this.apiUrl}/perfil/${id}`).pipe(
       tap((perfil: any) => {
         this.userStateService.updateUser(perfil);
-      })
+      }),
+      // Sale del mapa apenas contesta (o falla), así la siguiente pregunta
+      // de nuevo en vez de quedarse con una respuesta vieja para siempre.
+      finalize(() => this.perfilEnVuelo.delete(id)),
+      // refCount en false: que el primero se desuscriba —una pantalla que se
+      // cierra a mitad de camino— no debe cancelar el pedido que los otros
+      // están esperando.
+      shareReplay({ bufferSize: 1, refCount: false })
     );
+
+    this.perfilEnVuelo.set(id, pedido);
+    return pedido;
   }
 
   obtenerPerfil(userId: string): Observable<any> {
