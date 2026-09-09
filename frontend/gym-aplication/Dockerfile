@@ -58,7 +58,9 @@ RUN apk add --no-cache zip && \
     CHECKSUM=$(sha256sum ota/bundle.zip | cut -d' ' -f1) && \
     printf '{\n  "version": "%s",\n  "url": "https://snakegym.cloud/app/bundle.zip",\n  "checksum": "%s"\n}\n' \
       "$VERSION" "$CHECKSUM" > ota/updates.json && \
-    echo "paquete listo: version $VERSION" && cat ota/updates.json
+    printf 'location = /app/updates.json {\n    default_type application/json;\n    add_header Cache-Control "no-cache" always;\n    return 200 \x27%s\x27;\n}\n' \
+      "$(tr -d '\n' < ota/updates.json)" > ota-updates.conf && \
+    echo "paquete listo: version $VERSION" && cat ota/updates.json && cat ota-updates.conf
 
 # ---- Etapa 2: servir estáticos con Nginx ----
 FROM nginx:alpine
@@ -67,5 +69,9 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 # El paquete de actualización, servido en /app/ del mismo dominio.
 COPY --from=build /app/ota /usr/share/nginx/html/app
+# Y el bloque que contesta ese manifiesto por POST, que es como lo pide el APK:
+# nginx devuelve 405 a un POST sobre un archivo estático, así que la respuesta
+# se arma acá con "return", que sirve para cualquier método.
+COPY --from=build /app/ota-updates.conf /etc/nginx/ota-updates.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
