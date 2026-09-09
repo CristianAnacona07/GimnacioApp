@@ -319,7 +319,11 @@ export class Login implements OnInit, AfterViewInit {
   private async revisarHuella(): Promise<void> {
     if (!this.huellaService.hayAlgunaVinculada()) return;
     const { puede } = await this.huellaService.disponible();
-    this.huellaDisponible = puede;
+    // El puente nativo de Capacitor contesta FUERA de la zona de Angular —
+    // lo mismo que ya pasaba con el login de Google más arriba. Sin
+    // `ngZone.run` el valor cambia pero la pantalla no se vuelve a dibujar,
+    // y el botón no aparece nunca aunque la huella esté activada.
+    this.ngZone.run(() => { this.huellaDisponible = puede; });
   }
 
   /**
@@ -334,19 +338,26 @@ export class Login implements OnInit, AfterViewInit {
       const res = await this.huellaService.entrar();
       this.ngZone.run(() => this.guardarSesion(res));
     } catch (e: any) {
-      if (e?.status === 401) {
-        // El servidor ya no reconoce este celular: el servicio limpió la
-        // marca, así que el botón desaparece y queda la contraseña.
-        this.huellaDisponible = false;
-        this.toast.error('Este celular ya no está vinculado. Entrá con tu contraseña.');
-      } else {
-        // Cancelar la huella es lo más común y no es un error: quien la
-        // cancela ya está mirando el formulario de siempre.
-        const cancelado = /cancel|user_cancel|13|10/i.test(String(e?.message || e?.code || ''));
-        if (!cancelado) this.toast.error('No se pudo entrar con la huella. Usá tu contraseña.');
-      }
+      // Todo lo que se toque después de un await nativo va dentro de la zona,
+      // por lo mismo de arriba: si no, el aviso no se muestra y el botón se
+      // queda como si nada hubiera pasado.
+      this.ngZone.run(() => {
+        if (e?.status === 401) {
+          // El servidor ya no reconoce este celular: el servicio limpió la
+          // marca, así que el botón desaparece y queda la contraseña.
+          this.huellaDisponible = false;
+          this.toast.error('Este celular ya no está vinculado. Entrá con tu contraseña.');
+        } else {
+          // Cancelar la huella es lo más común y no es un error: quien la
+          // cancela ya está mirando el formulario de siempre.
+          const cancelado = /cancel|user_cancel|13|10/i.test(String(e?.message || e?.code || ''));
+          if (!cancelado) this.toast.error('No se pudo entrar con la huella. Usá tu contraseña.');
+        }
+      });
     } finally {
-      this.entrandoConHuella = false;
+      // También dentro de la zona: de esto depende que el botón vuelva de
+      // "Esperando tu huella…" a su texto normal.
+      this.ngZone.run(() => { this.entrandoConHuella = false; });
     }
   }
 

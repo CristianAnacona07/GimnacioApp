@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -33,6 +33,7 @@ export class SocioConfiguracion implements OnInit, OnDestroy {
   private huellaService = inject(HuellaService);
   private toast = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
 
   private destroy$ = new Subject<void>();
 
@@ -73,10 +74,16 @@ export class SocioConfiguracion implements OnInit, OnDestroy {
 
   private async revisarHuella(): Promise<void> {
     const { puede, motivo } = await this.huellaService.disponible();
-    this.huellaPuede = puede;
-    this.huellaMotivo = motivo ?? null;
-    this.huellaActiva = this.huellaService.activada(this.userState.getUserId());
-    this.cdr.markForCheck();
+    // El puente nativo de Capacitor contesta FUERA de la zona de Angular, y
+    // sin zona no se agenda ningún ciclo de detección: `markForCheck` marca
+    // el camino como sucio pero nadie viene a mirarlo. Que esto se dibujara
+    // igual era suerte — dependía de que otro evento disparara el ciclo.
+    this.ngZone.run(() => {
+      this.huellaPuede = puede;
+      this.huellaMotivo = motivo ?? null;
+      this.huellaActiva = this.huellaService.activada(this.userState.getUserId());
+      this.cdr.markForCheck();
+    });
   }
 
   /** Lo que se le explica al socio cuando su teléfono no puede. */
@@ -121,8 +128,12 @@ export class SocioConfiguracion implements OnInit, OnDestroy {
       // El estado real manda: si algo quedó a medias, que se vea como está.
       this.huellaActiva = this.huellaService.activada(this.userState.getUserId());
     } finally {
-      this.huellaOcupada = false;
-      this.cdr.markForCheck();
+      // Por lo mismo de arriba: el interruptor tiene que volver de su estado
+      // "ocupado" aunque la respuesta haya llegado fuera de la zona.
+      this.ngZone.run(() => {
+        this.huellaOcupada = false;
+        this.cdr.markForCheck();
+      });
     }
   }
 
