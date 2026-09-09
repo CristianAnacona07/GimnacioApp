@@ -17,7 +17,7 @@
       <div class="detalle-cuerpo">
         <div class="detalle-media flex justify-center items-center bg-gray-100 rounded-xl p-4 border-2 border-dashed border-gray-300">
           @if (ejercicio.gifUrl) {
-            <img [src]="ejercicio.gifUrl" [alt]="ejercicio.nombre"
+            <img [src]="ejercicio.gifUrl | medio" [alt]="ejercicio.nombre"
                  (error)="$any($event.target).style.display='none'"
                  class="max-w-full h-auto rounded-lg shadow-md">
           } @else {

@@ -55,7 +55,7 @@
         @for (ej of ejerciciosVisibles; track ej.nombre) {
           <div class="group bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-300 hover:shadow-md transition-all">
             <div class="h-28 sm:h-36 flex items-center justify-center bg-white relative">
-              <img [src]="ej.imagenUrl" [alt]="ej.nombre"
+              <img [src]="ej.imagenUrl | medio" [alt]="ej.nombre"
                    (error)="$any($event.target).style.display='none'"
                    class="max-w-full max-h-full w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 p-1">
             </div>
@@ -173,7 +173,7 @@
               @for (item of ejerciciosDiaActivo; track $index) {
                 <div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
                   <div class="relative w-14 h-14 shrink-0">
-                    <img [src]="item.imagenUrl" class="w-full h-full rounded-xl object-cover border border-slate-600">
+                    <img [src]="item.imagenUrl | medio" class="w-full h-full rounded-xl object-cover border border-slate-600">
                   </div>
                   <div class="grow min-w-0">
                     <p class="text-sm font-bold text-slate-100 truncate uppercase">{{ item.nombre }}</p>
@@ -242,7 +242,7 @@
                    [class.border-orange-500]="reemplazandoIndice === $index"
                    [class.bg-orange-500/10]="reemplazandoIndice === $index">
                 <div class="relative w-14 h-14 shrink-0">
-                  <img [src]="item.imagenUrl" class="w-full h-full rounded-xl object-cover border border-slate-600">
+                  <img [src]="item.imagenUrl | medio" class="w-full h-full rounded-xl object-cover border border-slate-600">
                 </div>
                 
                 <div class="grow min-w-0">

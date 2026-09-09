@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
+import { MedioPipe } from '../../../pipes/medio.pipe';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -25,7 +26,7 @@ const INTERVALO_RECARGA_MS = 30 * 1000;
 @Component({
   selector: 'app-mi-rutina',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, MedioPipe],
   templateUrl: './mi-rutina.html',
   styleUrl: './mi-rutina.css',
 })

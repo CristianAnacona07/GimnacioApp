@@ -35,7 +35,7 @@
                [class.border-slate-300]="formularioIdx !== $index">
 
             <div class="card-img-wrapper w-full aspect-square mb-2 overflow-hidden rounded-[2.5rem] bg-slate-50">
-              <img [src]="ejer.imagenUrl || 'https://via.placeholder.com/300x200?text=Sin+Imagen'" alt="ejercicio"
+              <img [src]="(ejer.imagenUrl | medio) || 'https://via.placeholder.com/300x200?text=Sin+Imagen'" alt="ejercicio"
                 class="ejer-img w-full h-full object-contain">
             </div>
 

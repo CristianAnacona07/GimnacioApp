@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { MedioPipe } from '../../pipes/medio.pipe';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -14,7 +15,7 @@ const MAX_SERIES = 12;
 @Component({
   selector: 'app-ejercicio-detalle',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, MedioPipe],
   templateUrl: './ejercicio-detalle.html',
   styleUrl: './ejercicio-detalle.css',
 })

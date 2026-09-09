@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
+import { MedioPipe } from '../../../pipes/medio.pipe';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
@@ -16,7 +17,7 @@ import { CATALOGO_EJERCICIOS, CATEGORIAS_UNICAS } from '../../../../data/ejercic
 @Component({
   selector: 'app-rutinas',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, RouterModule],
+  imports: [CommonModule, FormsModule, DragDropModule, RouterModule, MedioPipe],
   templateUrl: './rutinas.html',
   styleUrls: ['./rutinas.css']
 })
