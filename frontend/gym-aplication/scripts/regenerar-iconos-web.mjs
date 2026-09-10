@@ -109,6 +109,23 @@ for (const lado of TAMANOS) {
   console.log(`  manifest → icon-${lado}.webp`);
 }
 
+// iOS. Es el que usa Safari al "Añadir a inicio", y lo busca ANTES que el
+// manifest — además de que no se lleva bien con webp. Va cuadrado y con el
+// negro relleno, no en círculo: iOS le aplica su propia máscara redondeada,
+// así que un círculo nuestro adentro del suyo deja un anillo raro.
+{
+  const LADO_IOS = 180;
+  const dentro = await sharp(logo)
+    .resize({ height: Math.round(LADO_IOS * PROPORCION), fit: 'inside', background: transparente })
+    .toBuffer();
+  const m = await sharp(dentro).metadata();
+  await sharp({ create: { width: LADO_IOS, height: LADO_IOS, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } } })
+    .composite([{ input: dentro, top: Math.round((LADO_IOS - m.height) / 2 + LADO_IOS * CORRIMIENTO), left: Math.round((LADO_IOS - m.width) / 2) }])
+    .png()
+    .toFile(join(RAIZ, 'public/icons/apple-touch-icon.png'));
+  console.log('  iOS      → icons/apple-touch-icon.png');
+}
+
 // El de la pestaña del navegador. Mismo tamaño que el que había.
 await (await icono(256)).png().toFile(join(RAIZ, 'public/icons/favicon.png'));
 console.log('  pestaña  → icons/favicon.png');
