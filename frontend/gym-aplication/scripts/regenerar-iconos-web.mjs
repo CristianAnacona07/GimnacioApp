@@ -7,12 +7,16 @@
 //
 // Acá el logo se prepara distinto que para el celular, por dos motivos:
 //
-//   1. Se le quita el fondo negro. El diálogo de "Instalar aplicación" y la
-//      barra de pestañas tienen fondo propio —blanco o oscuro según el
-//      navegador y el tema—, así que un cuadro negro se ve como un parche.
-//   2. Se recorta el aire sobrante para que el dibujo llene el cuadro. El
+//   1. El cuadro negro pasa a ser un CÍRCULO negro. Se probó dejarlo sin
+//      fondo, y sobre el blanco del diálogo de instalar el dorado quedaba
+//      demasiado tenue: son trazos finos sin nada detrás. El círculo le
+//      devuelve el contraste sin el parche cuadrado que se veía pegado
+//      encima del diálogo.
+//   2. Se recorta el aire sobrante para que el dibujo llene el círculo. El
 //      original es 1024x1024 con márgenes; recortado son 730x860 de dibujo
-//      puro, y a 48 px eso es la diferencia entre verlo y adivinarlo.
+//      puro, y a 48 px eso es la diferencia entre verlo y adivinarlo. El 84%
+//      del diámetro no es a ojo: es el tamaño más grande con el que NO se
+//      sale ni un píxel del círculo (al 88% ya se salen 36).
 //
 // El de Android NO lleva este tratamiento a propósito: un PNG con
 // transparencia hace que @capacitor/assets lo trate como "logo suelto" y
@@ -42,6 +46,10 @@ const TAMANOS = [48, 72, 96, 128, 192, 256, 512];
 // bordes suaves en vez de dentados.
 const BAJO = 70, ALTO = 130;
 
+// Qué parte del diámetro ocupa el dibujo. Medido, no a ojo: es el máximo con
+// el que no se sale ni un píxel del círculo.
+const PROPORCION = 0.84;
+
 const { data, info } = await sharp(ORIGEN).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 const px = Buffer.from(data);
 for (let i = 0; i < px.length; i += 4) {
@@ -60,21 +68,25 @@ console.log(`origen ${info.width}x${info.height} → dibujo puro ${m.width}x${m.
 
 const transparente = { r: 0, g: 0, b: 0, alpha: 0 };
 
+/** Un círculo negro con el logo centrado adentro, del tamaño pedido. */
+async function icono(lado) {
+  const radio = lado / 2;
+  const circulo = Buffer.from(
+    `<svg width="${lado}" height="${lado}"><circle cx="${radio}" cy="${radio}" r="${radio}" fill="#000000"/></svg>`
+  );
+  const dentro = await sharp(logo)
+    .resize({ height: Math.round(lado * PROPORCION), fit: 'inside', background: transparente })
+    .toBuffer();
+  return sharp({ create: { width: lado, height: lado, channels: 4, background: transparente } })
+    .composite([{ input: circulo }, { input: dentro, gravity: 'center' }]);
+}
+
 for (const lado of TAMANOS) {
-  // Un margen mínimo para que no toque el borde; el resto es dibujo.
-  const dentro = Math.round(lado * 0.96);
   const salida = join(RAIZ, `public/assets/icons/icon-${lado}.webp`);
-  await sharp({ create: { width: lado, height: lado, channels: 4, background: transparente } })
-    .composite([{ input: await sharp(logo).resize(dentro, dentro, { fit: 'inside', background: transparente }).toBuffer(), gravity: 'center' }])
-    .webp({ quality: 92, alphaQuality: 100 })
-    .toFile(salida);
+  await (await icono(lado)).webp({ quality: 92, alphaQuality: 100 }).toFile(salida);
   console.log(`  manifest → icon-${lado}.webp`);
 }
 
 // El de la pestaña del navegador. Mismo tamaño que el que había.
-const LADO = 256;
-await sharp({ create: { width: LADO, height: LADO, channels: 4, background: transparente } })
-  .composite([{ input: await sharp(logo).resize(Math.round(LADO * 0.96), Math.round(LADO * 0.96), { fit: 'inside', background: transparente }).toBuffer(), gravity: 'center' }])
-  .png()
-  .toFile(join(RAIZ, 'public/icons/favicon.png'));
+await (await icono(256)).png().toFile(join(RAIZ, 'public/icons/favicon.png'));
 console.log('  pestaña  → icons/favicon.png');
