@@ -46,7 +46,7 @@ export function textoPrivacidad(gymNombre: string): string {
 ${gym} es responsable del tratamiento de tus datos personales como socio. La aplicación actúa como herramienta tecnológica que ${gym} usa para gestionar esta información.
 
 2. Qué datos recolectamos
-Datos de identificación y contacto (nombre, correo, teléfono, identificación, fecha de nacimiento, sexo); datos físicos (peso, altura, medidas, fotos de progreso si las cargas); datos de membresía y pagos (plan, vigencia, historial de transacciones); datos de uso (asistencia, rutinas asignadas, citas, racha de asistencias); y datos biométricos (huella dactilar), únicamente si ${gym} tiene habilitado el control de acceso por huella.
+Datos de identificación y contacto (nombre, correo, teléfono, identificación, fecha de nacimiento, género); datos físicos (peso, altura, medidas, fotos de progreso si las cargas); datos de membresía y pagos (plan, vigencia, historial de transacciones); datos de uso (asistencia, rutinas asignadas, citas, racha de asistencias); y datos biométricos (huella dactilar), únicamente si ${gym} tiene habilitado el control de acceso por huella.
 
 3. Para qué usamos tus datos
 Gestionar tu membresía y el acceso al gimnasio, asignarte rutinas y mostrarte tu progreso, agendar sesiones, enviarte notificaciones de vencimiento y avisos del gimnasio, y mantener la seguridad de la aplicación. No usamos tus datos con fines publicitarios ni los vendemos a terceros.
