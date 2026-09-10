@@ -46,9 +46,23 @@ const TAMANOS = [48, 72, 96, 128, 192, 256, 512];
 // bordes suaves en vez de dentados.
 const BAJO = 70, ALTO = 130;
 
-// Qué parte del diámetro ocupa el dibujo. Medido, no a ojo: es el máximo con
-// el que no se sale ni un píxel del círculo.
-const PROPORCION = 0.84;
+// Qué parte del diámetro ocupa el dibujo, y cuánto se lo baja respecto del
+// centro geométrico. Los dos números están medidos, no elegidos a ojo:
+//
+// - El dibujo se veía ALTO dentro del círculo aunque su caja estuviera
+//   centrada. El motivo es que la cola es larga y fina: ocupa caja y casi no
+//   pinta. El centro de masa de la tinta cae un 20% más arriba que el centro
+//   de la caja, y el ojo mira la tinta.
+// - Bajarlo, además, deja agrandarlo: la parte ancha (la cabeza) se acerca a
+//   donde el círculo también es más ancho. Sin bajar, el máximo que entra
+//   entero es 87%; bajando un 4%, entra al 91%.
+//
+// No se toca el brillo del dorado: se midió y el texto "SNAKE GYM" tiene
+// prácticamente el mismo brillo que la cabeza (183 contra 187). Se notaba
+// poco por tamaño, no por color — y subir el brillo habría hecho más visible
+// la marca de agua del logo.
+const PROPORCION = 0.91;
+const CORRIMIENTO = 0.04;
 
 const { data, info } = await sharp(ORIGEN).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 const px = Buffer.from(data);
@@ -77,8 +91,16 @@ async function icono(lado) {
   const dentro = await sharp(logo)
     .resize({ height: Math.round(lado * PROPORCION), fit: 'inside', background: transparente })
     .toBuffer();
+  const m = await sharp(dentro).metadata();
   return sharp({ create: { width: lado, height: lado, channels: 4, background: transparente } })
-    .composite([{ input: circulo }, { input: dentro, gravity: 'center' }]);
+    .composite([
+      { input: circulo },
+      {
+        input: dentro,
+        top: Math.round((lado - m.height) / 2 + lado * CORRIMIENTO),
+        left: Math.round((lado - m.width) / 2)
+      }
+    ]);
 }
 
 for (const lado of TAMANOS) {
