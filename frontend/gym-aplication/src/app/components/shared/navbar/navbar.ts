@@ -125,9 +125,9 @@ export class Navbar implements OnInit, OnDestroy {
         { icon: '💳', name: 'Matrícula / Pago', route: '/admin/matricula', show: true },
         { icon: '👥', name: 'socios',        route: '/admin/socios',        show: true },
         { icon: '💳', name: 'planes',        route: '/admin/planes',        show: m('pagos') },
-        { icon: '📊', name: 'facturación',   route: '/admin/pagos',         show: m('pagos') },
-        { icon: '🧑‍💼', name: 'empleados',   route: '/admin/empleados',     show: true },
         { icon: '📋', name: 'rutinas',       route: '/admin/rutinas',       show: m('rutinas') },
+        { icon: '🧑‍💼', name: 'empleados',   route: '/admin/empleados',     show: true },
+        { icon: '📊', name: 'facturación',   route: '/admin/pagos',         show: m('pagos') },
         { icon: '⚙️', name: 'Configuración', route: '/admin/configuracion', show: true },
         { icon: '🚪', name: 'Cerrar Sesión', route: 'logout', isAction: true, show: true }
       ].filter(l => l.show);
