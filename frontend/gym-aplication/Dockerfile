@@ -55,6 +55,23 @@ RUN apk add --no-cache zip && \
       "$(tr -d '\n' < ota/updates.json)" > ota-updates.conf && \
     echo "paquete listo: version $VERSION" && cat ota/updates.json && cat ota-updates.conf
 
+# El APK, servido desde nuestro propio dominio.
+#
+# Lo compila GitHub Actions y vive en un release del repositorio, pero esa
+# dirección lleva el nombre de la cuenta y del repositorio a la vista de
+# cualquiera que escanee el QR del volante. Se copia acá para que el socio solo
+# vea snakegym.cloud.
+#
+# Se baja en cada compilación, así que sale solo al día sin que nadie tenga que
+# acordarse de copiarlo. Y NO tumba el despliegue si falla: un problema de red
+# con GitHub no puede dejar al gimnasio sin aplicación web — se avisa por
+# consola y la descarga se queda con la del despliegue anterior.
+ARG APK_URL=https://github.com/CristianAnacona07/GimnacioApp/releases/download/app/snake-gym.apk
+RUN apk add --no-cache curl && \
+    (curl -fsSL --retry 3 --max-time 300 -o /app/ota/snake-gym.apk "$APK_URL" && \
+      echo "APK bajado: $(stat -c%s /app/ota/snake-gym.apk) bytes") || \
+    echo "AVISO: no se pudo bajar el APK; /descargar se queda con el anterior"
+
 # ---- Etapa 2: servir estáticos con Nginx ----
 FROM nginx:alpine
 # Config de SPA (rewrite a index.html, cache, COOP para login de Google)
